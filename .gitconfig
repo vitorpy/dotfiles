@@ -1,0 +1,13 @@
+[user]
+	email = 12871+vitorpy@users.noreply.github.com
+	name = Vitor Py Braga
+[commit]
+	gpgsign = false
+[alias]
+	logs = log --show-signature
+[includeIf "gitdir:~/tito/"]
+    	path = ~/.gitconfig-tito
+[init]
+	defaultBranch = main
+[core]
+	excludesFile = ~/.gitignore

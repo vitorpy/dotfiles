@@ -1,8 +1,9 @@
 [user]
 	email = 12871+vitorpy@users.noreply.github.com
 	name = Vitor Py Braga
+	signingKey = 04983CBC2428686A
 [commit]
-	gpgsign = false
+	gpgsign = true
 [alias]
 	logs = log --show-signature
 [includeIf "gitdir:~/tito/"]
@@ -11,3 +12,7 @@
 	defaultBranch = main
 [core]
 	excludesFile = ~/.gitignore
+[push]
+	autoSetupRemote = true
+[diff "lockb"]
+	textconv = bun

@@ -19,8 +19,3 @@ set PATH $PATH /home/vitorpy/.local/bin
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
-
-set ANTHROPIC_API_KEY "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"
-
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/vitorpy/google-cloud-sdk/path.fish.inc' ]; . '/home/vitorpy/google-cloud-sdk/path.fish.inc'; end

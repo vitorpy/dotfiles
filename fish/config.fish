@@ -1,26 +1,50 @@
 /home/linuxbrew/.linuxbrew/bin/brew shellenv | source
 
-fish_add_path /home/vpb/.local/bin
+fish_add_path /home/vitorpy/.local/bin
+
+set NODE_OPTIONS --max-old-space-size=8192
+
+# Created by `pipx` on 2024-04-12 12:49:16
+set PATH $PATH /home/vitorpy/.local/bin
+set OMAKUB_PATH /home/vitorpy/.local/share/omakub
+
+# bun
+set BUN_INSTALL "$HOME/.bun"
+set PATH $BUN_INSTALL/bin $PATH
+
+# Android SDK
+set PATH $PATH /home/vitorpy/Android/Sdk/platform-tools
+
+set ANTHROPIC_API_KEY "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"
 
 if status is-interactive
     set fish_greeting
     set EDITOR nvim
+    set GTK_THEME "Yaru:dark"
+    set HOMEBREW_NO_ENV_HINTS
+    set QT_QPA_PLATFORMTHEME gnome
+    set QT_STYLE_OVERRIDE Adwaita-Dark
+
 
     # Commands to run in interactive sessions can go here
     starship init fish | source
     direnv hook fish | source
-    nvm use latest
 end
 
+export NARGO_HOME="/home/vitorpy/.nargo"
 
-# Created by `pipx` on 2024-04-12 12:49:16
-set PATH $PATH /home/vitorpy/.local/bin
+# NVM Setup
+set -x NVM_DIR ~/.nvm
 
-# bun
-set --export BUN_INSTALL "$HOME/.bun"
-set --export PATH $BUN_INSTALL/bin $PATH
+# Load nvm automatically if it exists
+if test -e ~/.nvm/nvm.sh
+    load_nvm
+end
 
-set ANTHROPIC_API_KEY "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"
+# pnpm
+set -gx PNPM_HOME "/home/vitorpy/.local/share/pnpm"
+if not string match -q -- $PNPM_HOME $PATH
+  set -gx PATH "$PNPM_HOME" $PATH
+end
+# pnpm end
 
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/vitorpy/google-cloud-sdk/path.fish.inc' ]; . '/home/vitorpy/google-cloud-sdk/path.fish.inc'; end

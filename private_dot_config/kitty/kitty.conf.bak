@@ -1,0 +1,11 @@
+font_family		FiraCodeNF-Light
+font_size		11.0
+enable_audio_bell	no
+
+include theme.conf
+
+
+# BEGIN_KITTY_THEME
+# Omakub
+include current-theme.conf
+# END_KITTY_THEME

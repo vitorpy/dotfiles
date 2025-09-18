@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(killall:*)",
+      "Bash(makoctl:*)",
+      "Read(//home/vitorpy/.config/mako/**)",
+      "Bash(/home/vitorpy/.config/waybar/scripts/dnd-toggle.sh:*)",
+      "Bash(notify-send:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

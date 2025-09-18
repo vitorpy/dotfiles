@@ -1,0 +1,113 @@
+{
+  "layer": "top",
+  "spacing": 0,
+  "modules-left": [
+    "battery#charging",
+    "custom/dnf-updates"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "pulseaudio",
+    "pulseaudio#mic",
+    "custom/brightness",
+    "power-profiles-daemon",
+    "battery",
+    "cpu",
+    "temperature",
+    "custom/kblayout",
+    "tray",
+    "custom/mako-dnd",
+    "custom/mako-clear",
+    "custom/power"
+  ],
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": " off",
+    "format-icons": { "default": ["", ""] },
+    "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+    "on-click-right": "~/.config/waybar/scripts/audio-output-select.sh",
+    "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
+    "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%",
+    "scroll-step": 5
+  },
+  "pulseaudio#mic": {
+    "format": "{format_source}",
+    "format-source": " {volume}%",
+    "format-source-muted": " off",
+    "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
+    "on-click-right": "~/.config/waybar/scripts/audio-input-select.sh",
+    "on-scroll-up": "pactl set-source-volume @DEFAULT_SOURCE@ +5%",
+    "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%",
+    "scroll-step": 5
+  },
+  "custom/brightness": {
+    "exec": "~/.config/waybar/scripts/brightness.sh",
+    "interval": 2,
+    "on-scroll-up": "brightnessctl set +5%",
+    "on-scroll-down": "brightnessctl set 5%-",
+    "scroll-step": 5,
+    "on-click": "brightnessctl set 100%",
+    "format": "{}"
+  },
+  "power-profiles-daemon": { "format": "{profile}" },
+  "battery": { 
+    "format": "{capacity}% {icon}", 
+    "format-icons": ["","","","",""],
+    "states": {
+      "warning": 5
+    }
+  },
+  "battery#charging": {
+    "format-charging": "",
+    "format": "",
+    "tooltip": false,
+    "interval": 5
+  },
+  "cpu": { "format": "{usage}%"},
+  "temperature": { "format": "{temperatureC}°C" },
+  "custom/weather": { "exec": "~/.config/waybar/scripts/weather.sh", "interval": 600 },
+  "clock": {
+    "interval": 30,
+    "format": "{:%A, %d.%m %H:%M}",
+    "locale": "en_US",
+    "max-length": 30,
+    "align": 0.5,
+    "on-click": "gnome-calendar"
+  },
+  "custom/kblayout": {
+    "exec": "~/.config/waybar/scripts/kblayout.sh",
+    "interval": 1,
+    "on-click": "/home/vitorpy/.config/waybar/scripts/kbtoggle.sh"
+  },
+  "custom/power": {
+    "format": "⏻",
+    "tooltip": false,
+    "menu": "on-click",
+    "menu-file": "~/.config/waybar/power_menu.xml",
+    "menu-actions": {
+      "shutdown": "systemctl poweroff",
+      "reboot": "systemctl reboot",
+      "logout": "hyprctl dispatch exit"
+    }
+  },
+  "custom/mako-dnd": {
+    "exec": "/home/vitorpy/.config/waybar/scripts/dnd-status.sh",
+    "on-click": "/home/vitorpy/.config/waybar/scripts/dnd-toggle.sh",
+    "interval": 2,
+    "return-type": "json"
+  },
+  "custom/dnf-updates": {
+    "exec": "~/.config/waybar/scripts/dnf-updates.sh",
+    "interval": 300,
+    "return-type": "json"
+  },
+  "custom/mako-clear": {
+    "format": "",
+    "tooltip": "Dismiss all notifications",
+    "on-click": "/usr/bin/makoctl dismiss -a",
+    "on-click-right": "/usr/bin/makoctl reload",
+    "signal": 0
+  }
+}

@@ -1,0 +1,25 @@
+# ~/.config/hyprcorners.toml
+
+# Polling frequency (ms)
+timeout = 50
+sticky_timeout = 0  # no repeated triggering by default
+
+# Screen dimensions from monitors:
+# For eDP-1: 2256x1504 at 2560x0 (positioned right of DP-3)
+# For DP-3: 2560x1440 at 0x0 (leftmost)
+screen_width = 4816        # 2560 + 2256
+screen_height = 1504       # height of tallest monitor
+
+# Top-left corner of DP-3
+[top_left]
+radius = 15
+dispatcher = "hyprexpo:expo"
+arg = ""
+
+# Top-left corner of eDP-1 — put it at X=2560 offset
+[top_left_eDP]
+radius = 15
+x_offset = 2560
+dispatcher = "hyprexpo:expo"
+arg = ""
+

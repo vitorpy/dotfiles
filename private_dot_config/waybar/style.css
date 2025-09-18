@@ -1,0 +1,155 @@
+/* Global look + font */
+* { font-family: "NotoSans Nerd Font", sans-serif; }
+window#waybar {
+  background: transparent;
+  border: none;
+  font-size: 16px;                  /* bump if you want 13–14px */
+}
+
+/* add outer padding so edge widgets (e.g., power) have room for popups */
+.modules-left  { padding-left: 10px;  margin: 0; }
+#battery.charging { 
+  background: #1f1f1f;
+  color: #dcdccc;
+  border: 1px solid #3f3f3f;
+  border-radius: 14px;
+  margin: 4px 8px;
+  padding: 0 10px;
+}
+
+#custom-dnf-updates.updates-available {
+  background: #1f1f1f;
+  color: #dcdccc;
+  border: 1px solid #3f3f3f;
+  border-radius: 14px;
+  margin: 4px 8px;
+  padding: 0 10px;
+}
+.modules-right {
+  background: #1f1f1f;
+  color: #dcdccc;
+  border: 1px solid #3f3f3f;      /* unified stroke (replaces border-bottom) */
+  border-radius: 14px;
+  margin: 4px 8px;                 /* space around the whole right group */
+  padding: 0 8px;                  /* space between pill edge and first/last item */
+}
+.modules-center { 
+  border-radius: 14px;
+  background: #1f1f1f;
+  color: #dcdccc;
+  border-bottom: 1px solid #3f3f3f;
+  margin-top: 8px;
+}
+
+/* uniform internal spacing for every module */
+.modules-left  > *,
+.modules-center> *,
+.modules-right > * {
+  padding: 0 12px;                   /* more space than before */
+  margin: 0;
+}
+
+/* separators (kept subtle) */
+.modules-left  > * + *,
+.modules-center> * + * {
+  border-left: 1px solid #3f3f3f;
+  padding-left: 8px;
+}
+/* internal item spacing stays uniform + tight separators from before */
+.modules-right > * {
+  padding: 0 10px;
+  margin: 0;
+}
+.modules-right > * + * {
+  box-shadow: inset 1px 0 0 #3f3f3f;   /* separator line without extra gap */
+}
+
+/* center clock – more room, no separator */
+#clock { padding: 0 14px; border: none; }
+
+/* hover accent */
+button:hover { background: #f0dfaf; color: #1f1f1f; }
+
+/* workspaces (optional) */
+#workspaces button { color: #9ece9e; background: #1f1f1f; }
+#workspaces button.active { background: #8faf9f; color: #1f1f1f; }
+
+/* tray spacing */
+#tray { padding: 0 6px; }
+#tray > * { margin-right: 10px; }
+
+/* keyboard layout */
+#custom-kblayout { min-width: 32px; }
+
+/* power widget (custom/power usually maps to #custom-power) */
+#custom-power { padding: 0 14px; }
+
+/* popup menu (Waybar's GTK menu) */
+menu {
+  background: #1f1f1f;
+  color: #dcdccc;
+  border: 1px solid #3f3f3f;
+  margin-top: 6px;                   /* drop it away from bar so it’s not clipped */
+  min-width: 180px;                  /* avoid super-narrow menus */
+}
+menu > menuitem { padding: 6px 12px; }
+menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
+
+#custom-mako-dnd {
+  padding: 0 10px;
+  border-left: 1px solid #3f3f3f;
+}
+#custom-mako-dnd:hover {
+  background: #f0dfaf;
+  color: #1f1f1f;
+}
+
+#custom-mako-clear {
+  padding: 0 10px;
+  border-left: 1px solid #3f3f3f;
+}
+#custom-mako-clear:hover {
+  background: #f0dfaf;
+  color: #1f1f1f;
+}
+
+/* per-module minimum widths (tune to taste) */
+#pulseaudio        { min-width: 70px; }   /* speaker */
+#pulseaudio.mic    { min-width: 70px; }   /* mic instance (pulseaudio#mic) */
+#custom-brightness { min-width: 70px; }   /* brightness control */
+#network           { min-width: 160px; }
+#power-profiles-daemon { min-width: 100px; }
+#battery           { min-width: 70px; }
+#battery.warning   { color: #ff0000; }
+#cpu               { min-width: 48px; }
+#temperature       { min-width: 56px; }
+#custom-kblayout   { min-width: 34px; }
+#tray              { min-width: 36px; }   /* leaves room when few icons */
+#custom-mako-dnd   { min-width: 34px; }
+#custom-mako-clear { min-width: 34px; }
+#custom-power      { min-width: 34px; }
+
+/* (optional) keep clock tight but stable */
+#clock             { min-width: 190px; }
+
+.modules-center {
+  background: #1f1f1f;
+  color: #dcdccc;
+  border: 1px solid #3f3f3f;   /* was border-bottom only */
+  border-radius: 14px;
+  margin: 4px 8px;             /* was margin-top: 8px */
+  padding: 0 8px;
+}
+
+/* center group item spacing to match right group */
+.modules-center > * {
+  padding: 0 10px;
+  margin: 0;
+}
+
+/* kill old separator rule for center, then use inset line */
+.modules-center > * + * {
+  border-left: none;           /* override previous rule */
+  padding-left: 0;             /* override previous rule */
+  box-shadow: inset 1px 0 0 #3f3f3f;
+}

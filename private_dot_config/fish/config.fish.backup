@@ -1,0 +1,21 @@
+/home/linuxbrew/.linuxbrew/bin/brew shellenv | source
+
+fish_add_path /home/vpb/.local/bin
+
+if status is-interactive
+    set fish_greeting
+    set EDITOR nvim
+
+    # Commands to run in interactive sessions can go here
+    starship init fish | source
+    direnv hook fish | source
+    nvm use latest
+end
+
+
+# Created by `pipx` on 2024-04-12 12:49:16
+set PATH $PATH /home/vitorpy/.local/bin
+
+# bun
+set --export BUN_INSTALL "$HOME/.bun"
+set --export PATH $BUN_INSTALL/bin $PATH

@@ -49,3 +49,6 @@ if not string match -q -- $PNPM_HOME $PATH
 end
 # pnpm end
 
+
+# opencode
+fish_add_path /home/vitorpy/.opencode/bin

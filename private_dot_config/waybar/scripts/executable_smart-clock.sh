@@ -8,7 +8,7 @@ WARSAW_TZ="Europe/Warsaw"
 current_tz=$(timedatectl show --property=Timezone --value)
 
 # Get local time
-local_time=$(date '+%A, %d.%m %H:%M')
+local_time=$(date '+%a, %d.%m %H:%M')
 
 # Check if we're in Warsaw timezone
 if [ "$current_tz" = "$WARSAW_TZ" ]; then

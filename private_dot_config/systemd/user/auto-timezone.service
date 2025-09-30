@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatic Timezone Detection and Update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/systemd/user/scripts/update-timezone.sh
+
+[Install]
+WantedBy=default.target

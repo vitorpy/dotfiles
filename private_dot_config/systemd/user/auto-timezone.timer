@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatic Timezone Detection Timer
+Requires=auto-timezone.service
+
+[Timer]
+# Check every hour
+OnBootSec=1min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

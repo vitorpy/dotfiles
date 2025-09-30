@@ -1,0 +1,10 @@
+[Unit]
+Description=Homebrew generated unit for spotifyd
+
+[Install]
+WantedBy=default.target
+
+[Service]
+Type=simple
+ExecStart="/home/linuxbrew/.linuxbrew/opt/spotifyd/bin/spotifyd" "--no-daemon" "--backend" "portaudio"
+Restart=always

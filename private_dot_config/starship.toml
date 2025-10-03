@@ -1,0 +1,42 @@
+# Starship configuration
+"$schema" = "https://starship.rs/config-schema.json"
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_status\
+$custom\
+$fill\
+$cmd_duration\
+$line_break\
+$character"""
+
+[custom.jj]
+command = "starship-jj"
+when = 'jj root'
+shell = ["sh"]
+
+[fill]
+symbol = " "
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "bold cyan"
+
+[git_branch]
+symbol = " "
+style = "bold purple"
+
+[git_status]
+style = "bold red"
+
+[cmd_duration]
+min_time = 500
+format = "took [$duration](bold yellow)"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"

@@ -6,8 +6,6 @@
 	gpgsign = true
 [alias]
 	logs = log --show-signature
-[includeIf "gitdir:~/tito/"]
-    	path = ~/.gitconfig-tito
 [init]
 	defaultBranch = main
 [core]

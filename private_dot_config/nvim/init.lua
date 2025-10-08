@@ -30,3 +30,6 @@ vim.opt.termguicolors = true
 
 -- Load plugins
 require("lazy").setup("plugins")
+
+-- Load IDE layout command
+require("ide-layout")

@@ -1,0 +1,25 @@
+# Arch Linux Package List
+# Format: package-name | source (pacman/aur/flatpak)
+
+# Core system
+firefox | pacman
+fish | pacman
+starship | pacman
+neovim | pacman
+git | pacman
+chezmoi | pacman
+hyprland | pacman
+bitwarden-cli | aur
+
+# Development
+vscodium-bin | aur
+claude-code | aur
+codex-cli | aur
+
+# Communication & Productivity
+slack-desktop | aur
+tutanota-desktop | flatpak
+
+# Utilities
+imagemagick | pacman
+wl-clipboard | pacman

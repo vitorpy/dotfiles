@@ -1,8 +1,0 @@
-[user]
-    name = Jay Tito
-    email = 83843890+cybertito@users.noreply.github.com
-    signingkey = F41AFBF8FD65B217
-[core]
-    sshCommand = ssh -i ~/.ssh/tito-id_ed25519 -F /dev/null -o 'IdentitiesOnly yes' 
-[commit]
-	gpgsign = true

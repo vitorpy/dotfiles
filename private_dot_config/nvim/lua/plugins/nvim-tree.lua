@@ -1,0 +1,24 @@
+return {
+  "nvim-tree/nvim-tree.lua",
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+  },
+  config = function()
+    require("nvim-tree").setup({
+      sort_by = "case_sensitive",
+      view = {
+        width = 30,
+      },
+      renderer = {
+        group_empty = true,
+      },
+      filters = {
+        dotfiles = false,
+      },
+    })
+
+    -- Keybindings
+    vim.keymap.set("n", "<leader>e", ":NvimTreeToggle<CR>", { desc = "Toggle file tree" })
+    vim.keymap.set("n", "<leader>f", ":NvimTreeFindFile<CR>", { desc = "Find current file in tree" })
+  end,
+}

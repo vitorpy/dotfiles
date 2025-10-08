@@ -37,8 +37,11 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Load plugins
-require("lazy").setup("plugins")
+-- Only load plugins if not in VS Code
+if not vim.g.vscode then
+  -- Load plugins
+  require("lazy").setup("plugins")
 
--- Load IDE layout command
-require("ide-layout")
+  -- Load IDE layout command
+  require("ide-layout")
+end

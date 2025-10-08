@@ -5,8 +5,11 @@
 local M = {}
 
 function M.setup_ide_layout()
-  -- Close all windows except current
-  vim.cmd("only")
+  -- Close all windows except current (ignore errors from floating windows)
+  pcall(function() vim.cmd("only") end)
+
+  -- Close nvim-tree if open
+  pcall(function() vim.cmd("NvimTreeClose") end)
 
   -- Open nvim-tree on the left
   vim.cmd("NvimTreeOpen")
@@ -25,7 +28,6 @@ function M.setup_ide_layout()
 
   -- Open terminal in bottom split
   vim.cmd("terminal")
-  vim.cmd("startinsert")
 
   -- Move back to top split (editor)
   vim.cmd("wincmd k")

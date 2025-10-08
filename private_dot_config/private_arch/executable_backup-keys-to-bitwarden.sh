@@ -7,6 +7,12 @@ if [ -z "$BW_SESSION" ]; then
     exit 1
 fi
 
+# Check for jq
+if ! command -v jq &> /dev/null; then
+    echo "ERROR: jq is required but not installed"
+    exit 1
+fi
+
 echo "==> Backing up SSH and GPG keys to Bitwarden..."
 
 # Backup SSH keys
@@ -19,16 +25,23 @@ if [ -f "$HOME/.ssh/github" ]; then
 
     bw get item "SSH Key - github" --session "$BW_SESSION" &>/dev/null && \
         echo "  - SSH Key 'github' already exists in Bitwarden, skipping" || \
-        (echo "{
-  \"organizationId\": null,
-  \"folderId\": null,
-  \"type\": 2,
-  \"name\": \"SSH Key - github\",
-  \"notes\": \"Private Key:\n$GITHUB_KEY\n\nPublic Key:\n$GITHUB_PUB\",
-  \"secureNote\": {
-    \"type\": 0
-  }
-}" | bw encode | bw create item --session "$BW_SESSION" && echo "  ✓ Backed up SSH key: github")
+        (jq -n \
+          --arg name "SSH Key - github" \
+          --arg notes "Private Key:
+$GITHUB_KEY
+
+Public Key:
+$GITHUB_PUB" \
+          '{
+            organizationId: null,
+            folderId: null,
+            type: 2,
+            name: $name,
+            notes: $notes,
+            secureNote: {
+              type: 0
+            }
+          }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up SSH key: github")
 fi
 
 # SSH key: id_ed25519
@@ -38,16 +51,23 @@ if [ -f "$HOME/.ssh/id_ed25519" ]; then
 
     bw get item "SSH Key - id_ed25519" --session "$BW_SESSION" &>/dev/null && \
         echo "  - SSH Key 'id_ed25519' already exists in Bitwarden, skipping" || \
-        (echo "{
-  \"organizationId\": null,
-  \"folderId\": null,
-  \"type\": 2,
-  \"name\": \"SSH Key - id_ed25519\",
-  \"notes\": \"Private Key:\n$ID_KEY\n\nPublic Key:\n$ID_PUB\",
-  \"secureNote\": {
-    \"type\": 0
-  }
-}" | bw encode | bw create item --session "$BW_SESSION" && echo "  ✓ Backed up SSH key: id_ed25519")
+        (jq -n \
+          --arg name "SSH Key - id_ed25519" \
+          --arg notes "Private Key:
+$ID_KEY
+
+Public Key:
+$ID_PUB" \
+          '{
+            organizationId: null,
+            folderId: null,
+            type: 2,
+            name: $name,
+            notes: $notes,
+            secureNote: {
+              type: 0
+            }
+          }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up SSH key: id_ed25519")
 fi
 
 # Backup GPG keys
@@ -61,16 +81,28 @@ GPG1_PUBLIC=$(gpg --export --armor "$GPG1_KEY_ID")
 
 bw get item "$GPG1_NAME" --session "$BW_SESSION" &>/dev/null && \
     echo "  - GPG Key '$GPG1_NAME' already exists in Bitwarden, skipping" || \
-    (echo "{
-  \"organizationId\": null,
-  \"folderId\": null,
-  \"type\": 2,
-  \"name\": \"$GPG1_NAME\",
-  \"notes\": \"Key ID: $GPG1_KEY_ID\n\nPrivate Key:\n$GPG1_PRIVATE\n\nPublic Key:\n$GPG1_PUBLIC\",
-  \"secureNote\": {
-    \"type\": 0
-  }
-}" | bw encode | bw create item --session "$BW_SESSION" && echo "  ✓ Backed up GPG key: $GPG1_NAME")
+    (jq -n \
+      --arg name "$GPG1_NAME" \
+      --arg keyid "$GPG1_KEY_ID" \
+      --arg private "$GPG1_PRIVATE" \
+      --arg public "$GPG1_PUBLIC" \
+      --arg notes "Key ID: \($keyid)
+
+Private Key:
+\($private)
+
+Public Key:
+\($public)" \
+      '{
+        organizationId: null,
+        folderId: null,
+        type: 2,
+        name: $name,
+        notes: $notes,
+        secureNote: {
+          type: 0
+        }
+      }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up GPG key: $GPG1_NAME")
 
 # GPG key: vitor@darklakelabs.com (C32867843FDB3933)
 GPG2_KEY_ID="C32867843FDB3933"
@@ -80,16 +112,28 @@ GPG2_PUBLIC=$(gpg --export --armor "$GPG2_KEY_ID")
 
 bw get item "$GPG2_NAME" --session "$BW_SESSION" &>/dev/null && \
     echo "  - GPG Key '$GPG2_NAME' already exists in Bitwarden, skipping" || \
-    (echo "{
-  \"organizationId\": null,
-  \"folderId\": null,
-  \"type\": 2,
-  \"name\": \"$GPG2_NAME\",
-  \"notes\": \"Key ID: $GPG2_KEY_ID\n\nPrivate Key:\n$GPG2_PRIVATE\n\nPublic Key:\n$GPG2_PUBLIC\",
-  \"secureNote\": {
-    \"type\": 0
-  }
-}" | bw encode | bw create item --session "$BW_SESSION" && echo "  ✓ Backed up GPG key: $GPG2_NAME")
+    (jq -n \
+      --arg name "$GPG2_NAME" \
+      --arg keyid "$GPG2_KEY_ID" \
+      --arg private "$GPG2_PRIVATE" \
+      --arg public "$GPG2_PUBLIC" \
+      --arg notes "Key ID: \($keyid)
+
+Private Key:
+\($private)
+
+Public Key:
+\($public)" \
+      '{
+        organizationId: null,
+        folderId: null,
+        type: 2,
+        name: $name,
+        notes: $notes,
+        secureNote: {
+          type: 0
+        }
+      }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up GPG key: $GPG2_NAME")
 
 echo ""
 echo "==> Backup complete! Your keys are now stored in Bitwarden."

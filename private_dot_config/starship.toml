@@ -13,11 +13,6 @@ $cmd_duration\
 $line_break\
 $character"""
 
-[custom.jj]
-command = "starship-jj"
-when = 'jj root'
-shell = ["sh"]
-
 [fill]
 symbol = " "
 

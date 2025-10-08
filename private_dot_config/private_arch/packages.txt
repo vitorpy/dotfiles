@@ -11,6 +11,20 @@ chezmoi | pacman
 hyprland | pacman
 bitwarden-cli | aur
 
+# Hyprland ecosystem
+waybar | pacman
+hyprpaper | pacman
+hypridle | pacman
+hyprlock | pacman
+wofi | pacman
+grim | pacman
+slurp | pacman
+brightnessctl | pacman
+playerctl | pacman
+network-manager-applet | pacman
+ghostty | aur
+nautilus | pacman
+
 # Development
 vscodium-bin | aur
 claude-code | aur

@@ -16,6 +16,7 @@ waybar | pacman
 hyprpaper | pacman
 hypridle | pacman
 hyprlock | pacman
+hyprland-plugins | aur
 wofi | pacman
 grim | pacman
 slurp | pacman
@@ -24,6 +25,9 @@ playerctl | pacman
 network-manager-applet | pacman
 ghostty | aur
 nautilus | pacman
+
+# Note: hyprcorners needs to be installed via cargo:
+# cargo install hyprcorners
 
 # Development
 vscodium-bin | aur

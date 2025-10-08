@@ -14,7 +14,7 @@ bitwarden-cli | aur
 # Development
 vscodium-bin | aur
 claude-code | aur
-codex-cli | aur
+openai-codex | aur
 
 # Communication & Productivity
 slack-desktop | aur

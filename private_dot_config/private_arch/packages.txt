@@ -44,3 +44,6 @@ wl-clipboard | pacman
 lsd | pacman
 bat | pacman
 github-cli | pacman
+ripgrep | pacman
+mkcert | pacman
+monero | pacman

@@ -1,0 +1,69 @@
+{
+    "config_version": "2.8.0",
+    "hostname": "zygalski",
+    "kernels": [
+        "linux"
+    ],
+    "locale_config": {
+        "kb_layout": "us",
+        "sys_enc": "UTF-8",
+        "sys_lang": "en_US"
+    },
+    "mirror_config": {
+        "mirror_regions": {
+            "Worldwide": [
+                "https://geo.mirror.pkgbuild.com/$repo/os/$arch"
+            ]
+        }
+    },
+    "disk_config": {
+        "config_type": "manual_partitioning",
+        "device_modifications": []
+    },
+    "bootloader": "systemd-bootctl",
+    "swap": true,
+    "network_config": {
+        "type": "nm"
+    },
+    "timezone": "Europe/Warsaw",
+    "ntp": true,
+    "additional_repositories": [],
+    "packages": [
+        "base",
+        "base-devel",
+        "linux-firmware",
+        "git",
+        "neovim",
+        "fish",
+        "networkmanager",
+        "pipewire",
+        "pipewire-pulse",
+        "pipewire-alsa",
+        "pipewire-jack",
+        "wireplumber",
+        "xdg-user-dirs",
+        "xdg-utils",
+        "wget",
+        "curl",
+        "openssh",
+        "rsync",
+        "jq"
+    ],
+    "profile_config": {
+        "profile": {
+            "main": "minimal",
+            "details": []
+        },
+        "gfx_driver": "All open-source",
+        "greeter": "none"
+    },
+    "audio_config": {
+        "audio": "pipewire"
+    },
+    "services": [
+        "NetworkManager",
+        "sshd"
+    ],
+    "!users": "Configure your user during interactive install or add here",
+    "version": "2.8.0"
+}

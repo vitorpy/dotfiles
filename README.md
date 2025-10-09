@@ -4,9 +4,23 @@ Managed with [chezmoi](https://www.chezmoi.io/).
 
 ## Quick Start
 
-### Bootstrap a Fresh Arch Linux Install
+### Fresh Arch Linux Installation
 
-The fastest way to set up a new Arch Linux system with all configurations and packages:
+**Step 1: Install Arch Linux**
+
+Use the provided archinstall configuration for automated installation:
+
+```bash
+# On Arch ISO
+curl -O https://raw.githubusercontent.com/vitorpy/dotfiles/main/.config/arch/archinstall-config.json
+archinstall --config archinstall-config.json
+```
+
+See [`ARCHINSTALL-GUIDE.md`](.config/arch/ARCHINSTALL-GUIDE.md) for detailed installation instructions.
+
+**Step 2: Bootstrap Your System**
+
+After Arch installation and first boot, run the bootstrap script to set up everything:
 
 ```bash
 curl -sSL https://vitorpy.com/bootstrap.sh | bash

@@ -39,12 +39,14 @@
                         "wipe": true
                     }
                 ],
-                "wipe": false
+                "wipe": true
             }
         ]
     },
     "bootloader": "systemd-bootctl",
-    "swap": true,
+    "swap": {
+        "type": "zram"
+    },
     "network_config": {
         "type": "nm"
     },
@@ -57,7 +59,9 @@
         "linux-firmware",
         "git",
         "neovim",
+        "vim",
         "fish",
+        "sudo",
         "networkmanager",
         "pipewire",
         "pipewire-pulse",
@@ -70,7 +74,9 @@
         "curl",
         "openssh",
         "rsync",
-        "jq"
+        "jq",
+        "man-db",
+        "man-pages"
     ],
     "profile_config": {
         "profile": {
@@ -87,6 +93,5 @@
         "NetworkManager",
         "sshd"
     ],
-    "!users": "Configure your user during interactive install or add here",
     "version": "2.8.0"
 }

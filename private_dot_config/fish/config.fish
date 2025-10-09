@@ -2,8 +2,6 @@
 
 fish_add_path /home/vitorpy/.local/bin
 
-set NODE_OPTIONS --max-old-space-size=8192
-
 # Created by `pipx` on 2024-04-12 12:49:16
 set PATH $PATH /home/vitorpy/.local/bin
 set OMAKUB_PATH /home/vitorpy/.local/share/omakub
@@ -21,11 +19,7 @@ set PATH $PATH /home/vitorpy/android-studio/bin
 if status is-interactive
     set fish_greeting
     set EDITOR nvim
-    set GTK_THEME "Yaru:dark"
     set HOMEBREW_NO_ENV_HINTS
-    set QT_QPA_PLATFORMTHEME gnome
-    set QT_STYLE_OVERRIDE Adwaita-Dark
-    set MOZ_ENABLE_WAYLAND 0
 
     # Commands to run in interactive sessions can go here
     starship init fish | source

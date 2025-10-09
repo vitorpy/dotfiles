@@ -10,6 +10,7 @@ git | pacman
 chezmoi | pacman
 hyprland | pacman
 bitwarden-cli | pacman
+ly | pacman
 
 # Hyprland ecosystem
 waybar | pacman

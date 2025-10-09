@@ -47,10 +47,14 @@ git remote set-url origin git@tangled.sh:vitorpy.com/dotfiles
 echo "==> Installing all packages..."
 ~/.config/arch/install-packages.sh
 
+# Enable ly display manager
+echo "==> Enabling ly display manager..."
+sudo systemctl enable ly.service
+
 echo ""
 echo "==> Bootstrap complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Install hyprcorners: cargo install hyprcorners"
-echo "  2. Reboot to start Hyprland"
+echo "  2. Reboot to start Hyprland with ly display manager"
 echo "  3. Enjoy your system!"

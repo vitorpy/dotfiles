@@ -38,6 +38,9 @@ openai-codex | aur
 slack-desktop | aur
 tutanota-desktop | flatpak
 
+# Theming
+yaru-gtk-theme | aur
+
 # Utilities
 imagemagick | pacman
 wl-clipboard | pacman

@@ -9,21 +9,21 @@ neovim | pacman
 git | pacman
 chezmoi | pacman
 hyprland | pacman
-bitwarden-cli | aur
+bitwarden-cli | pacman
 
 # Hyprland ecosystem
 waybar | pacman
 hyprpaper | pacman
 hypridle | pacman
 hyprlock | pacman
-hyprland-plugins | aur
+hyprland-plugin-hyprbars | aur
 wofi | pacman
 grim | pacman
 slurp | pacman
 brightnessctl | pacman
 playerctl | pacman
 network-manager-applet | pacman
-ghostty | aur
+ghostty | pacman
 nautilus | pacman
 
 # Note: hyprcorners needs to be installed via cargo:

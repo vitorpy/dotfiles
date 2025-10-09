@@ -91,18 +91,35 @@ Essential packages for the bootstrap script to work:
 
 ## Disk Partitioning
 
-The config is set to `manual_partitioning` - archinstall will guide you through:
+The configuration is **fully automated** for replacing Fedora on `/dev/nvme0n1`.
 
-### Recommended Layout (UEFI):
+### What It Does
+
+The archinstall config will:
+1. **Keep** the existing EFI partition (600M) - **NO FORMATTING**
+2. **Delete** existing partitions 2 and 3 (old /boot and Fedora root)
+3. **Create** new root partition using all remaining space (~464G)
+4. **Enable** zram swap (configured via `"swap": true`)
+
+### Resulting Layout
 ```
-/dev/nvme0n1p1  512M   EFI System      /boot
-/dev/nvme0n1p2  Rest   Linux filesystem /
-swap            8-16G  Linux swap      [swap]
+/dev/nvme0n1p1  600M   EFI (existing)  /boot      [KEPT - not wiped]
+/dev/nvme0n1p2  ~464G  ext4 (new)      /          [FORMATTED]
+[zram0]         ~8G    zram            [swap]     [IN-MEMORY]
 ```
 
-### For dual-boot or existing EFI:
-- Reuse existing EFI partition (don't format!)
-- Create new partition for Arch root
+### IMPORTANT: Different Disk?
+
+If your disk is **NOT** `/dev/nvme0n1`, edit the config before running:
+
+```bash
+# Check your disk name
+lsblk
+
+# Edit the config to change device
+nvim archinstall-config.json
+# Change "device": "/dev/nvme0n1" to your disk (e.g., /dev/sda)
+```
 
 ## Customization
 

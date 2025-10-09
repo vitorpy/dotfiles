@@ -17,8 +17,31 @@
         }
     },
     "disk_config": {
-        "config_type": "manual_partitioning",
-        "device_modifications": []
+        "device_modifications": [
+            {
+                "device": "/dev/nvme0n1",
+                "partitions": [
+                    {
+                        "type": "primary",
+                        "start": "1MiB",
+                        "size": "600MiB",
+                        "filesystem": {"type": "fat32"},
+                        "mountpoint": "/boot",
+                        "flags": ["boot", "esp"],
+                        "wipe": false
+                    },
+                    {
+                        "type": "primary",
+                        "start": "601MiB",
+                        "size": "100%",
+                        "filesystem": {"type": "ext4"},
+                        "mountpoint": "/",
+                        "wipe": true
+                    }
+                ],
+                "wipe": false
+            }
+        ]
     },
     "bootloader": "systemd-bootctl",
     "swap": true,

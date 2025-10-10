@@ -1,0 +1,56 @@
+/* Zenburn theme for wofi */
+
+window {
+    margin: 0px;
+    border: 2px solid #8faf9f;
+    background-color: #3f3f3f;
+    border-radius: 10px;
+}
+
+#input {
+    margin: 5px;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    color: #dcdccc;
+    background-color: #2b2b2b;
+    font-size: 14px;
+}
+
+#inner-box {
+    margin: 5px;
+    border: none;
+    background-color: #3f3f3f;
+}
+
+#outer-box {
+    margin: 5px;
+    border: none;
+    background-color: #3f3f3f;
+}
+
+#scroll {
+    margin: 0px;
+    border: none;
+}
+
+#text {
+    margin: 5px;
+    border: none;
+    color: #dcdccc;
+}
+
+#entry:selected {
+    background-color: #5f7f5f;
+    border-radius: 5px;
+}
+
+#entry:selected #text {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+#entry:hover {
+    background-color: #506070;
+    border-radius: 5px;
+}

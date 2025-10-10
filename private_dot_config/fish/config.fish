@@ -1,5 +1,3 @@
-/home/linuxbrew/.linuxbrew/bin/brew shellenv | source
-
 fish_add_path /home/vitorpy/.local/bin
 
 # Created by `pipx` on 2024-04-12 12:49:16
@@ -19,7 +17,6 @@ set PATH $PATH /home/vitorpy/android-studio/bin
 if status is-interactive
     set fish_greeting
     set EDITOR nvim
-    set HOMEBREW_NO_ENV_HINTS
 
     # Commands to run in interactive sessions can go here
     starship init fish | source
@@ -31,9 +28,9 @@ export NARGO_HOME="/home/vitorpy/.nargo"
 # NVM Setup
 set -x NVM_DIR ~/.nvm
 
-# Load nvm automatically if it exists
-if test -e ~/.nvm/nvm.sh
-    load_nvm
+# Load nvm from Arch package
+if test -e /usr/share/nvm/init-nvm.sh
+    bass source /usr/share/nvm/init-nvm.sh
 end
 
 # pnpm

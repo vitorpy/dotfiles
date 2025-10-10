@@ -73,8 +73,8 @@ fi
 # Backup GPG keys
 echo "==> Backing up GPG keys..."
 
-# GPG key: vitor@vitorpy.com (04983CBC2428686A)
-GPG1_KEY_ID="04983CBC2428686A"
+# GPG key: vitor@vitorpy.com (BBBA1894B466A6F5B8DCC4B14448F2187C3179B9)
+GPG1_KEY_ID="BBBA1894B466A6F5B8DCC4B14448F2187C3179B9"
 GPG1_NAME="GPG Key - vitor@vitorpy.com"
 GPG1_PRIVATE=$(gpg --export-secret-keys --armor "$GPG1_KEY_ID")
 GPG1_PUBLIC=$(gpg --export --armor "$GPG1_KEY_ID")
@@ -83,16 +83,13 @@ bw get item "$GPG1_NAME" --session "$BW_SESSION" &>/dev/null && \
     echo "  - GPG Key '$GPG1_NAME' already exists in Bitwarden, skipping" || \
     (jq -n \
       --arg name "$GPG1_NAME" \
-      --arg keyid "$GPG1_KEY_ID" \
-      --arg private "$GPG1_PRIVATE" \
-      --arg public "$GPG1_PUBLIC" \
-      --arg notes "Key ID: \($keyid)
+      --arg notes "Key ID: $GPG1_KEY_ID
 
 Private Key:
-\($private)
+$GPG1_PRIVATE
 
 Public Key:
-\($public)" \
+$GPG1_PUBLIC" \
       '{
         organizationId: null,
         folderId: null,
@@ -114,16 +111,13 @@ bw get item "$GPG2_NAME" --session "$BW_SESSION" &>/dev/null && \
     echo "  - GPG Key '$GPG2_NAME' already exists in Bitwarden, skipping" || \
     (jq -n \
       --arg name "$GPG2_NAME" \
-      --arg keyid "$GPG2_KEY_ID" \
-      --arg private "$GPG2_PRIVATE" \
-      --arg public "$GPG2_PUBLIC" \
-      --arg notes "Key ID: \($keyid)
+      --arg notes "Key ID: $GPG2_KEY_ID
 
 Private Key:
-\($private)
+$GPG2_PRIVATE
 
 Public Key:
-\($public)" \
+$GPG2_PUBLIC" \
       '{
         organizationId: null,
         folderId: null,

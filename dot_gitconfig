@@ -1,7 +1,7 @@
 [user]
-	email = 12871+vitorpy@users.noreply.github.com
-	name = Vitor Py Braga
-	signingKey = 04983CBC2428686A
+	email = vitor@vitorpy.com
+	name = Vitor Py
+	signingkey = BBBA1894B466A6F5B8DCC4B14448F2187C3179B9
 [commit]
 	gpgsign = true
 [alias]

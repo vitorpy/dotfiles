@@ -19,7 +19,7 @@
 # ==========================
 # # The config file consists of simple key-value pairs,
 # # separated by equals signs.
-font-family = BerkeleyMono Nerd Font
+font-family = FiraCode Nerd Font
 # window-padding-x = 2
 #
 # # Spacing around the equals sign does not matter.
@@ -43,3 +43,4 @@ font-family = BerkeleyMono Nerd Font
 # resize-overlay-duration = 4s 200ms
 theme = Zenburn
 keybind = shift+enter=text:\x1b\r
+command = /usr/bin/fish

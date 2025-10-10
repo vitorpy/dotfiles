@@ -1,3 +1,7 @@
 #!/bin/bash
-BRIGHTNESS=$(brightnessctl -P g)
-echo " $BRIGHTNESS%"
+# Get current and max brightness
+CURRENT=$(brightnessctl get)
+MAX=$(brightnessctl max)
+# Calculate percentage
+BRIGHTNESS=$((CURRENT * 100 / MAX))
+echo "󰃞 $BRIGHTNESS%"

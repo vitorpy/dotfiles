@@ -4,7 +4,7 @@
 I am running a Linux system and need help with configuration, setup, and administration tasks. Please assist me following Linux best practices and respecting system defaults.
 
 ## Current System Information
-- **Distribution**: Fedora
+- **Distribution**: Arch Linux
 - **Window Manager**: Hyprland
 - **Home Directory**: /home/vitorpy
 - **Working Directory**: Check with `pwd` before making assumptions
@@ -12,12 +12,13 @@ I am running a Linux system and need help with configuration, setup, and adminis
 ## Core Principles
 
 ### CRITICAL RULES:
-1. **Push file changes via chezmoi after modifications**
-2. **NEVER modify system files without explicit permission**
-3. **Respect the separation between system defaults and user customization**
-4. **Check for existing configurations before creating new ones**
-5. **Follow the principle of least privilege** - Use sudo only when necessary
-6. **Document all changes made to the system**
+1. **NEVER execute sudo commands directly** - Always provide the command and ask the user to run it
+2. **Push file changes via chezmoi after modifications**
+3. **NEVER modify system files without explicit permission**
+4. **Respect the separation between system defaults and user customization**
+5. **Check for existing configurations before creating new ones**
+6. **Follow the principle of least privilege** - Use sudo only when necessary
+7. **Document all changes made to the system**
 
 ### Configuration Hierarchy (DO NOT VIOLATE):
 1. User-specific configs in `~/.config/` (preferred)

@@ -22,6 +22,8 @@ hyprpaper | pacman
 hypridle | pacman
 hyprlock | pacman
 hyprland-plugin-hyprbars | aur
+xdg-desktop-portal-hyprland | pacman
+xdg-desktop-portal-gtk | pacman
 wofi | pacman
 grim | pacman
 slurp | pacman

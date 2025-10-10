@@ -37,7 +37,7 @@ openai-codex | aur
 
 # Communication & Productivity
 slack-desktop | aur
-tutanota-desktop | flatpak
+com.tutanota.Tutanota | flatpak
 
 # Theming
 yaru-gtk-theme | aur

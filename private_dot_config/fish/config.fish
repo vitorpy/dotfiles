@@ -18,6 +18,9 @@ if status is-interactive
     set fish_greeting
     set EDITOR nvim
 
+    # System update alias
+    alias update="~/.config/arch/update-system.sh"
+
     # Commands to run in interactive sessions can go here
     starship init fish | source
     direnv hook fish | source

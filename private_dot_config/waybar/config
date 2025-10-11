@@ -97,7 +97,7 @@
     "return-type": "json"
   },
   "custom/dnf-updates": {
-    "exec": "~/.config/waybar/scripts/dnf-updates.sh",
+    "exec": "~/.config/waybar/scripts/pacman-updates.sh",
     "interval": 300,
     "return-type": "json"
   },

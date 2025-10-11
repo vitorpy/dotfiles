@@ -15,6 +15,7 @@ ly | pacman
 gnome-keyring | pacman
 fprintd | pacman
 polkit-gnome | pacman
+pacman-contrib | pacman
 
 # Hyprland ecosystem
 waybar | pacman

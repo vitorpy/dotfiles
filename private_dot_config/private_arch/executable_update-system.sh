@@ -73,11 +73,31 @@ else
     flatpak_count=0
 fi
 
+# Firmware
+echo -e "${YELLOW}Firmware updates:${NC}"
+if command -v fwupdmgr &>/dev/null; then
+    # Refresh metadata first
+    fwupdmgr refresh &>/dev/null || true
+    firmware=$(fwupdmgr get-updates 2>/dev/null | grep -E "^\s+├─" || true)
+    firmware_count=$(echo "$firmware" | grep -v '^$' | wc -l)
+    if [ "$firmware_count" -gt 0 ]; then
+        echo "$firmware"
+        echo ""
+    else
+        echo "  No updates available"
+        echo ""
+    fi
+else
+    echo "  fwupd not installed, skipping"
+    echo ""
+    firmware_count=0
+fi
+
 # Summary
-total=$((official_count + aur_count + flatpak_count))
+total=$((official_count + aur_count + flatpak_count + firmware_count))
 echo "────────────────────────────────────────────────────────────"
 echo -e "${GREEN}Total updates available: $total${NC}"
-echo "  Official: $official_count | AUR: $aur_count | Flatpak: $flatpak_count"
+echo "  Official: $official_count | AUR: $aur_count | Flatpak: $flatpak_count | Firmware: $firmware_count"
 echo "────────────────────────────────────────────────────────────"
 echo ""
 
@@ -115,6 +135,13 @@ fi
 if [ "$flatpak_count" -gt 0 ]; then
     echo -e "${BLUE}==> Updating Flatpak packages...${NC}"
     flatpak update -y
+    echo ""
+fi
+
+# Update Firmware
+if [ "$firmware_count" -gt 0 ]; then
+    echo -e "${BLUE}==> Updating firmware...${NC}"
+    sudo fwupdmgr update
     echo ""
 fi
 

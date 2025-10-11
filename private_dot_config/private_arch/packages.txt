@@ -43,6 +43,8 @@ vscodium-bin | aur
 claude-code | aur
 openai-codex | aur
 solana | aur
+docker | pacman
+docker-compose | pacman
 
 # Communication & Productivity
 slack-desktop | aur

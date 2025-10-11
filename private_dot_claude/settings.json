@@ -1,4 +1,4 @@
 {
-  "alwaysThinkingEnabled": false,
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "alwaysThinkingEnabled": true
 }

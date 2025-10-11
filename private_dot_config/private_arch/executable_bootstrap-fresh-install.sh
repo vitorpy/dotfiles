@@ -55,6 +55,10 @@ echo "==> Installing ly configuration..."
 echo "==> Configuring silent boot..."
 ~/.config/arch/configure-silent-boot.sh
 
+# Setup Docker
+echo "==> Setting up Docker..."
+~/.config/arch/setup-docker.sh
+
 # Enable ly display manager
 echo "==> Enabling ly display manager..."
 sudo systemctl enable ly.service

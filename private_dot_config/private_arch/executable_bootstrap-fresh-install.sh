@@ -47,9 +47,14 @@ git remote set-url origin git@tangled.sh:vitorpy.com/dotfiles
 echo "==> Installing all packages..."
 ~/.config/arch/install-packages.sh
 
+# Install ly configuration
+echo "==> Installing ly configuration..."
+~/.config/arch/install-ly-config.sh
+
 # Enable ly display manager
 echo "==> Enabling ly display manager..."
 sudo systemctl enable ly.service
+sudo systemctl disable getty@tty2.service
 
 echo ""
 echo "==> Bootstrap complete!"

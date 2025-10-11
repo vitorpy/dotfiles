@@ -52,6 +52,7 @@ com.tutanota.Tutanota | flatpak
 # Theming
 yaru-gtk-theme | aur
 yaru-icon-theme | aur
+terminus-font | pacman
 
 # Utilities
 imagemagick | pacman

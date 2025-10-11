@@ -51,6 +51,10 @@ echo "==> Installing all packages..."
 echo "==> Installing ly configuration..."
 ~/.config/arch/install-ly-config.sh
 
+# Configure silent boot
+echo "==> Configuring silent boot..."
+~/.config/arch/configure-silent-boot.sh
+
 # Enable ly display manager
 echo "==> Enabling ly display manager..."
 sudo systemctl enable ly.service

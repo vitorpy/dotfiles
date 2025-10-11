@@ -7,7 +7,7 @@ set -e
 echo "==> Configuring silent boot..."
 
 # Silent boot kernel parameters
-SILENT_PARAMS="quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0"
+SILENT_PARAMS="quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0 video=2256x1504"
 
 # Find all boot entries
 BOOT_ENTRIES=$(find /boot/loader/entries/ -name "*.conf" -type f)

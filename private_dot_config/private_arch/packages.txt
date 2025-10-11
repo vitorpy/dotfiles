@@ -36,6 +36,9 @@ nautilus | pacman
 # Note: hyprcorners needs to be installed via cargo:
 # cargo install hyprcorners
 
+# Note: sea-orm-cli needs to be installed via cargo:
+# cargo install sea-orm-cli
+
 # Development
 rustup | pacman
 nvm | pacman
@@ -61,6 +64,7 @@ imagemagick | pacman
 wl-clipboard | pacman
 lsd | pacman
 bat | pacman
+fzf | pacman
 github-cli | pacman
 ripgrep | pacman
 mkcert | pacman

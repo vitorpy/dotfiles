@@ -21,6 +21,9 @@ if status is-interactive
     # System update alias
     alias update="~/.config/arch/update-system.sh"
 
+    # GNOME Control Center (works outside GNOME)
+    alias gnome-settings="env XDG_CURRENT_DESKTOP=GNOME gnome-control-center"
+
     # Commands to run in interactive sessions can go here
     starship init fish | source
     direnv hook fish | source

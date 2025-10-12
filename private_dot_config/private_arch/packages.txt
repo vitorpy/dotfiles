@@ -38,6 +38,8 @@ nautilus | pacman
 # GNOME Apps & Integration
 gnome-online-accounts | pacman
 gvfs-goa | pacman
+gvfs-google | pacman
+gvfs-dnssd | pacman
 gnome-control-center | pacman
 gnome-tweaks | pacman
 gnome-calendar | pacman
@@ -96,4 +98,3 @@ monero | pacman
 unzip | pacman
 direnv | pacman
 veracrypt | pacman
-davfs2 | pacman

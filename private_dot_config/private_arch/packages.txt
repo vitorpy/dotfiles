@@ -35,6 +35,22 @@ network-manager-applet | pacman
 ghostty | pacman
 nautilus | pacman
 
+# GNOME Apps & Integration
+gnome-online-accounts | pacman
+gvfs-goa | pacman
+gnome-control-center | pacman
+gnome-tweaks | pacman
+gnome-calendar | pacman
+gnome-weather | pacman
+gnome-clocks | pacman
+gnome-characters | pacman
+gnome-calculator | pacman
+gnome-disk-utility | pacman
+file-roller | pacman
+evince | pacman
+loupe | pacman
+vlc | pacman
+
 # Note: hyprcorners needs to be installed via cargo:
 # cargo install hyprcorners
 

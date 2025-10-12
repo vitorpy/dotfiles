@@ -75,6 +75,8 @@ com.tutanota.Tutanota | flatpak
 # Theming & Fonts
 yaru-gtk-theme | aur
 yaru-icon-theme | aur
+kvantum-qt5 | pacman
+adwaita-qt5 | aur
 terminus-font | pacman
 noto-fonts | pacman
 noto-fonts-cjk | pacman

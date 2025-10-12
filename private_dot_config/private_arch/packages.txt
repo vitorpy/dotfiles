@@ -93,6 +93,7 @@ wl-clipboard | pacman
 lsd | pacman
 bat | pacman
 fzf | pacman
+fastfetch | pacman
 github-cli | pacman
 ripgrep | pacman
 mkcert | pacman

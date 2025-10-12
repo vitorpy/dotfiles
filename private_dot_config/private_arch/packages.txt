@@ -11,6 +11,7 @@ git | pacman
 chezmoi | pacman
 hyprland | pacman
 bitwarden-cli | pacman
+bitwarden | pacman
 ly | pacman
 gnome-keyring | pacman
 fprintd | pacman
@@ -94,6 +95,7 @@ lsd | pacman
 bat | pacman
 fzf | pacman
 fastfetch | pacman
+jan-appimage | aur
 github-cli | pacman
 ripgrep | pacman
 mkcert | pacman

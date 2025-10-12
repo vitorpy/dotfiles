@@ -22,10 +22,10 @@ echo ""
 # Official repos
 echo -e "${YELLOW}Official repositories:${NC}"
 if command -v checkupdates &>/dev/null; then
-    official=$(checkupdates 2>/dev/null)
+    official=$(checkupdates 2>/dev/null || true)
     official_count=$(echo "$official" | grep -v '^$' | wc -l)
 else
-    official=$(pacman -Qu 2>/dev/null)
+    official=$(pacman -Qu 2>/dev/null || true)
     official_count=$(echo "$official" | grep -v '^$' | wc -l)
 fi
 
@@ -40,7 +40,7 @@ fi
 # AUR
 echo -e "${YELLOW}AUR packages:${NC}"
 if command -v yay &>/dev/null; then
-    aur=$(yay -Qua 2>/dev/null)
+    aur=$(yay -Qua 2>/dev/null || true)
     aur_count=$(echo "$aur" | grep -v '^$' | wc -l)
     if [ "$aur_count" -gt 0 ]; then
         echo "$aur"
@@ -58,7 +58,7 @@ fi
 # Flatpak
 echo -e "${YELLOW}Flatpak packages:${NC}"
 if command -v flatpak &>/dev/null; then
-    flatpak=$(flatpak remote-ls --updates 2>/dev/null)
+    flatpak=$(flatpak remote-ls --updates 2>/dev/null || true)
     flatpak_count=$(echo "$flatpak" | grep -v '^$' | wc -l)
     if [ "$flatpak_count" -gt 0 ]; then
         echo "$flatpak"
@@ -148,7 +148,7 @@ fi
 # Clean up
 echo -e "${BLUE}==> Cleaning up...${NC}"
 echo "Removing orphaned packages..."
-orphans=$(pacman -Qtdq 2>/dev/null)
+orphans=$(pacman -Qtdq 2>/dev/null || true)
 if [ ! -z "$orphans" ]; then
     echo "$orphans"
     sudo pacman -Rns $(pacman -Qtdq) --noconfirm

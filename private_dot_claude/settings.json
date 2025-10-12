@@ -1,4 +1,17 @@
 {
   "includeCoAuthoredBy": false,
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/vitorpy/.claude/count_tokens.js"
+          }
+        ]
+      }
+    ]
+  }
 }

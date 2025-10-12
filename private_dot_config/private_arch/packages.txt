@@ -72,7 +72,9 @@ docker-compose | pacman
 # Communication & Productivity
 slack-desktop | aur
 telegram-desktop | pacman
+discord | pacman
 com.tutanota.Tutanota | flatpak
+calibre | pacman
 
 # Theming & Fonts
 yaru-gtk-theme | aur

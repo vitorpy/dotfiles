@@ -245,16 +245,12 @@ exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id dbus-update-activation-environment --all
 exec --no-startup-id gnome-keyring-daemon --start --components=secrets,ssh,pkcs11
 exec --no-startup-id nm-applet --indicator
+exec --no-startup-id libinput-gestures
 
 # XDG Desktop Portal (for screen sharing, etc.)
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 
-# Bar (using waybar - comment out if you want sway's built-in bar)
-bar {
-    swaybar_command waybar
-}
-
-# Alternative: Sway's built-in bar (uncomment to use)
+# Alternative: Sway's built-in bar (uncomment if you want to replace waybar)
 # bar {
 #     position top
 #     status_command while date +'%Y-%m-%d %H:%M:%S %p'; do sleep 1; done

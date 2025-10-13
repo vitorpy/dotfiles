@@ -54,6 +54,15 @@ evince | pacman
 loupe | pacman
 vlc | pacman
 
+# Sway ecosystem (alternative to Hyprland)
+# Uncomment if migrating from Hyprland to Sway
+# sway | pacman
+# swayidle | pacman
+# swaylock-effects-git | aur
+# swaylock-fprintd | aur
+# swaybg | pacman
+# xdg-desktop-portal-wlr | pacman
+
 # Note: hyprcorners needs to be installed via cargo:
 # cargo install hyprcorners
 

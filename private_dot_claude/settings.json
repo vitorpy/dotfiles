@@ -1,6 +1,5 @@
 {
   "includeCoAuthoredBy": false,
-  "alwaysThinkingEnabled": true,
   "hooks": {
     "Stop": [
       {
@@ -13,5 +12,6 @@
         ]
       }
     ]
-  }
+  },
+  "alwaysThinkingEnabled": true
 }

@@ -59,7 +59,7 @@ vlc | pacman
 # sway | pacman
 # swayidle | pacman
 # swaylock-effects-git | aur
-# swaylock-fprintd | aur
+# swaylock-fprintd-git | aur
 # swaybg | pacman
 # xdg-desktop-portal-wlr | pacman
 

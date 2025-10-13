@@ -61,6 +61,7 @@ swaylock-fprintd-git | aur
 swaybg | pacman
 xdg-desktop-portal-wlr | pacman
 libinput-gestures | aur
+mako | pacman
 
 # Note: hyprcorners needs to be installed via cargo:
 # cargo install hyprcorners

@@ -114,3 +114,5 @@ unzip | pacman
 direnv | pacman
 veracrypt | pacman
 framework-tool-tui | aur
+xmlstarlet | pacman
+pandoc | pacman

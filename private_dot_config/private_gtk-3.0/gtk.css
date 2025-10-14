@@ -1,0 +1,46 @@
+/* GTK 3 Color Overrides - Zenburn Green Accent */
+
+@define-color accent_bg_color #8faf9f;
+@define-color accent_fg_color #1f1f1f;
+@define-color accent_color #8faf9f;
+
+/* Selection colors */
+*:selected,
+*:selected:focus {
+    background-color: #8faf9f;
+    color: #1f1f1f;
+}
+
+/* Checkboxes and radio buttons */
+check:checked,
+radio:checked {
+    background-color: #8faf9f;
+    border-color: #8faf9f;
+}
+
+/* Switches */
+switch:checked {
+    background-color: #8faf9f;
+}
+
+/* Progress bars */
+progressbar progress {
+    background-color: #8faf9f;
+}
+
+/* Links */
+link,
+link:link {
+    color: #8faf9f;
+}
+
+/* Focus and active states */
+*:focus {
+    outline-color: #8faf9f;
+}
+
+button.suggested-action,
+.primary-toolbar button.suggested-action {
+    background-color: #8faf9f;
+    color: #1f1f1f;
+}

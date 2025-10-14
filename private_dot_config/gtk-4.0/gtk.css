@@ -1,0 +1,44 @@
+/* GTK 4 Color Overrides - Zenburn Green Accent */
+
+@define-color accent_bg_color #8faf9f;
+@define-color accent_fg_color #1f1f1f;
+@define-color accent_color #8faf9f;
+
+/* Selection colors */
+selection {
+    background-color: #8faf9f;
+    color: #1f1f1f;
+}
+
+/* Checkboxes and radio buttons */
+checkbutton:checked,
+check:checked {
+    background-color: #8faf9f;
+    border-color: #8faf9f;
+}
+
+/* Switches */
+switch:checked {
+    background-color: #8faf9f;
+}
+
+/* Progress bars */
+progressbar > trough > progress {
+    background-color: #8faf9f;
+}
+
+/* Links */
+link {
+    color: #8faf9f;
+}
+
+/* Focus states */
+*:focus-visible {
+    outline-color: #8faf9f;
+}
+
+/* Primary/suggested buttons */
+button.suggested-action {
+    background-color: #8faf9f;
+    color: #1f1f1f;
+}

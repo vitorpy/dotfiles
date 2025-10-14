@@ -35,7 +35,7 @@ icon-path=/usr/share/icons/Yaru
 group-by=app-name
 
 # Do Not Disturb mode
-[mode=dnd]
+[mode=do-not-disturb]
 invisible=1
 
 # Urgency overrides

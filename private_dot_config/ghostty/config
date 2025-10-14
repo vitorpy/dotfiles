@@ -44,3 +44,7 @@ font-family = FiraCode Nerd Font
 theme = Zenburn
 keybind = shift+enter=text:\x1b\r
 command = /usr/bin/fish
+
+# Cursor visibility
+cursor-style = block
+cursor-style-blink = true

@@ -103,6 +103,7 @@ wl-clipboard | pacman
 lsd | pacman
 bat | pacman
 fzf | pacman
+zoxide | pacman
 fastfetch | pacman
 jan-appimage | aur
 github-cli | pacman
@@ -112,3 +113,4 @@ monero | pacman
 unzip | pacman
 direnv | pacman
 veracrypt | pacman
+framework-tool-tui | aur

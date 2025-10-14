@@ -75,9 +75,9 @@
     "on-click": "gnome-calendar"
   },
   "custom/kblayout": {
-    "exec": "~/.config/waybar/scripts/kblayout.sh",
+    "exec": "~/.config/waybar/scripts/kblayout-auto.sh",
     "interval": 1,
-    "on-click": "/home/vitorpy/.config/waybar/scripts/kbtoggle.sh"
+    "on-click": "/home/vitorpy/.config/waybar/scripts/kbtoggle-auto.sh"
   },
   "custom/power": {
     "format": "⏻",

@@ -27,6 +27,10 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
     starship init fish | source
     direnv hook fish | source
+
+    # zoxide - smarter cd command
+    zoxide init fish | source
+    alias cd="z"
 end
 
 export NARGO_HOME="/home/vitorpy/.nargo"

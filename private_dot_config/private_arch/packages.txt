@@ -78,6 +78,7 @@ openai-codex | aur
 solana | aur
 docker | pacman
 docker-compose | pacman
+sagemath | pacman
 
 # Communication & Productivity
 slack-desktop | aur

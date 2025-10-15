@@ -69,16 +69,19 @@ mako | pacman
 # Note: sea-orm-cli needs to be installed via cargo:
 # cargo install sea-orm-cli
 
+# Note: Solana needs to be installed via their installer:
+# curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
+
 # Development
 rustup | pacman
 nvm | pacman
 vscodium-bin | aur
 claude-code | aur
 openai-codex | aur
-solana | aur
 docker | pacman
 docker-compose | pacman
 sagemath | pacman
+jupyterlab | pacman
 
 # Communication & Productivity
 slack-desktop | aur

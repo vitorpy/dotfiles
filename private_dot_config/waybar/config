@@ -3,7 +3,8 @@
   "spacing": 0,
   "modules-left": [
     "battery#charging",
-    "custom/dnf-updates"
+    "custom/dnf-updates",
+    "custom/reboot-required"
   ],
   "modules-center": [
     "custom/clock"
@@ -107,5 +108,10 @@
     "on-click": "/usr/bin/makoctl dismiss -a",
     "on-click-right": "/usr/bin/makoctl reload",
     "signal": 0
+  },
+  "custom/reboot-required": {
+    "exec": "~/.config/waybar/scripts/reboot-required.sh",
+    "interval": 300,
+    "return-type": "json"
   }
 }

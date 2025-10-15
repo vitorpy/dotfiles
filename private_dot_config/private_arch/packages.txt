@@ -83,6 +83,9 @@ claude-code | aur
 openai-codex | aur
 docker | pacman
 docker-compose | pacman
+llvm | pacman
+clang | pacman
+symengine | pacman
 sagemath | pacman
 jupyterlab | pacman
 jupyter-notebook | pacman

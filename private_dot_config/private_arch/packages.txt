@@ -72,6 +72,9 @@ mako | pacman
 # Note: Solana needs to be installed via their installer:
 # curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
 
+# Note: Qwen Code needs to be installed via npm:
+# npm install -g @qwen-code/qwen-code@latest
+
 # Development
 rustup | pacman
 nvm | pacman

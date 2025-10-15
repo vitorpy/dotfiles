@@ -57,7 +57,8 @@
     "format": "{capacity}% {icon}", 
     "format-icons": ["","","","",""],
     "states": {
-      "warning": 5
+      "critical": 5,
+      "warning": 10
     }
   },
   "battery#charging": {

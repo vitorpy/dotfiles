@@ -1,13 +1,28 @@
 /* Global look + font */
-* { font-family: "NotoSans Nerd Font", sans-serif; }
+* {
+  font-family: "NotoSans Nerd Font", sans-serif;
+}
 window#waybar {
   background: transparent;
   border: none;
   font-size: 16px;                  /* bump if you want 13–14px */
 }
 
+/* Reset default borders/outlines for all widgets */
+.modules-left > *,
+.modules-center > *,
+.modules-right > * {
+  border: none;
+  outline: none;
+}
+
 /* add outer padding so edge widgets (e.g., power) have room for popups */
-.modules-left  { padding-left: 10px;  margin: 0; }
+.modules-left  {
+  padding-left: 0;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
 #battery.charging { 
   background: #1f1f1f;
   color: #dcdccc;
@@ -17,7 +32,29 @@ window#waybar {
   padding: 0 10px;
 }
 
+#custom-dnf-updates {
+  border: none;
+  box-shadow: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}
+
 #custom-dnf-updates.updates-available {
+  background: #1f1f1f;
+  color: #dcdccc;
+  border-top: 1px solid #3f3f3f;
+  border-right: 1px solid #3f3f3f;
+  border-bottom: 1px solid #3f3f3f;
+  border-left: none;
+  border-radius: 14px;
+  margin: 4px 4px 4px 0;
+  padding: 0 10px;
+  box-shadow: none;
+  outline: none;
+}
+
+#custom-reboot-required.reboot-required {
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;
@@ -42,7 +79,10 @@ window#waybar {
 }
 
 /* uniform internal spacing for every module */
-.modules-left  > *,
+.modules-left  > * {
+  padding: 0;                        /* left modules are self-contained pills */
+  margin: 0;
+}
 .modules-center> *,
 .modules-right > * {
   padding: 0 12px;                   /* more space than before */
@@ -50,7 +90,6 @@ window#waybar {
 }
 
 /* separators (kept subtle) */
-.modules-left  > * + *,
 .modules-center> * + * {
   border-left: 1px solid #3f3f3f;
   padding-left: 8px;
@@ -120,7 +159,8 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
 #network           { min-width: 160px; }
 #power-profiles-daemon { min-width: 100px; }
 #battery           { min-width: 70px; }
-#battery.warning   { color: #ff0000; }
+#battery.warning   { color: #cc9393; }
+#battery.critical  { background: #cc9393; color: #1f1f1f; }
 #cpu               { min-width: 48px; }
 #temperature       { min-width: 56px; }
 #custom-kblayout   { min-width: 34px; }

@@ -59,6 +59,10 @@ echo "==> Configuring silent boot..."
 echo "==> Setting up Docker..."
 ~/.config/arch/setup-docker.sh
 
+# Configure keyboard layout
+echo "==> Configuring keyboard layout..."
+~/.config/arch/configure-keyboard.sh
+
 # Enable ly display manager
 echo "==> Enabling ly display manager..."
 sudo systemctl enable ly.service

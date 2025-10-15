@@ -109,7 +109,7 @@ lsd | pacman
 bat | pacman
 fzf | pacman
 zoxide | pacman
-pipx | pacman
+python-pipx | pacman
 fastfetch | pacman
 jan-appimage | aur
 github-cli | pacman

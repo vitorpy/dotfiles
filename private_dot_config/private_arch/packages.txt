@@ -121,6 +121,7 @@ imagemagick | pacman
 wl-clipboard | pacman
 lsd | pacman
 bat | pacman
+less | pacman
 fzf | pacman
 zoxide | pacman
 python-pipx | pacman

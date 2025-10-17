@@ -55,6 +55,7 @@ loupe | pacman
 vlc | pacman
 
 # Multimedia & Hardware Acceleration
+ffmpeg | pacman
 libva-utils | pacman
 libva-mesa-driver | pacman
 mesa | pacman

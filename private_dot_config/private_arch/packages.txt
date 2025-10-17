@@ -54,6 +54,12 @@ evince | pacman
 loupe | pacman
 vlc | pacman
 
+# Multimedia & Hardware Acceleration
+libva-utils | pacman
+libva-mesa-driver | pacman
+mesa | pacman
+vulkan-radeon | pacman
+
 # Sway ecosystem (alternative to Hyprland)
 sway | pacman
 swayidle | pacman

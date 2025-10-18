@@ -1,6 +1,6 @@
-fish_add_path /home/vitorpy/.local/bin
+fish_add_path $HOME/.local/bin
 
-set OMAKUB_PATH /home/vitorpy/.local/share/omakub
+set OMAKUB_PATH $HOME/.local/share/omakub
 
 # bun
 set BUN_INSTALL "$HOME/.bun"
@@ -13,7 +13,7 @@ if status is-interactive
     set EDITOR nvim
 
     # System update alias
-    alias update="~/.config/arch/update-system.sh"
+    alias update="$HOME/.config/arch/update-system.sh"
 
     # GNOME Control Center (works outside GNOME)
     alias gnome-settings="env XDG_CURRENT_DESKTOP=GNOME gnome-control-center"
@@ -27,10 +27,10 @@ if status is-interactive
     alias cd="z"
 end
 
-export NARGO_HOME="/home/vitorpy/.nargo"
+export NARGO_HOME="$HOME/.nargo"
 
 # NVM Setup
-set -x NVM_DIR ~/.nvm
+set -x NVM_DIR $HOME/.nvm
 
 # Load nvm from Arch package
 if test -e /usr/share/nvm/init-nvm.sh
@@ -38,7 +38,7 @@ if test -e /usr/share/nvm/init-nvm.sh
 end
 
 # pnpm
-set -gx PNPM_HOME "/home/vitorpy/.local/share/pnpm"
+set -gx PNPM_HOME "$HOME/.local/share/pnpm"
 if not string match -q -- $PNPM_HOME $PATH
   set -gx PATH "$PNPM_HOME" $PATH
 end
@@ -46,4 +46,4 @@ end
 
 
 # opencode
-fish_add_path /home/vitorpy/.opencode/bin
+fish_add_path $HOME/.opencode/bin

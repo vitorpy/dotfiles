@@ -10,5 +10,6 @@
         "fish": {
             "path": "/usr/bin/fish"
         }
-    }
+    },
+    "workbench.secondarySideBar.defaultVisibility": "hidden"
 }

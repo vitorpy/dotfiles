@@ -1,16 +1,10 @@
 fish_add_path /home/vitorpy/.local/bin
 
-# Created by `pipx` on 2024-04-12 12:49:16
-set PATH $PATH /home/vitorpy/.local/bin
 set OMAKUB_PATH /home/vitorpy/.local/share/omakub
 
 # bun
 set BUN_INSTALL "$HOME/.bun"
 set PATH $BUN_INSTALL/bin $PATH
-
-# Android SDK
-set PATH $PATH /home/vitorpy/Android/Sdk/platform-tools
-set PATH $PATH /home/vitorpy/android-studio/bin
 
 # ANTHROPIC_API_KEY should be set via environment or secure method
 

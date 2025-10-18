@@ -7,20 +7,5 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 
-# >>> juliaup initialize >>>
-
-# !! Contents within this block are managed by juliaup !!
-
-case ":$PATH:" in
-    *:$HOME/.juliaup/bin:*)
-        ;;
-
-    *)
-        export PATH=$HOME/.juliaup/bin${PATH:+:${PATH}}
-        ;;
-esac
-
-# <<< juliaup initialize <<<
-
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm

@@ -84,7 +84,7 @@ mako | pacman
 
 # Development
 rustup | pacman
-zigup-bin | aur
+zvm | aur
 nvm | pacman
 vscodium-bin | aur
 claude-code | aur

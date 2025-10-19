@@ -129,6 +129,7 @@ fastfetch | pacman
 jan-appimage | aur
 github-cli | pacman
 ripgrep | pacman
+net-tools | pacman
 mkcert | pacman
 monero | pacman
 unzip | pacman

@@ -103,6 +103,7 @@ jupyter-notebook | pacman
 slack-desktop | aur
 telegram-desktop | pacman
 discord | pacman
+signal-desktop | pacman
 com.tutanota.Tutanota | flatpak
 calibre | pacman
 

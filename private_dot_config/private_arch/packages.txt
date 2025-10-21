@@ -87,6 +87,7 @@ rustup | pacman
 zvm | aur
 nvm | pacman
 go | pacman
+gnucobol | aur
 vscodium-bin | aur
 claude-code | aur
 openai-codex | aur

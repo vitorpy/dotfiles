@@ -136,6 +136,9 @@ monero | pacman
 zcash-bin | aur
 unzip | pacman
 direnv | pacman
+uv | pacman
+tree | pacman
+bc | pacman
 veracrypt | pacman
 framework-tool-tui | aur
 xmlstarlet | pacman

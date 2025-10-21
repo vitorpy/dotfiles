@@ -13,5 +13,8 @@
       }
     ]
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "enabledPlugins": {
+    "beads@beads-marketplace": true
+  }
 }

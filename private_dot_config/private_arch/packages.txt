@@ -133,6 +133,7 @@ ripgrep | pacman
 net-tools | pacman
 mkcert | pacman
 monero | pacman
+zcash-bin | aur
 unzip | pacman
 direnv | pacman
 veracrypt | pacman

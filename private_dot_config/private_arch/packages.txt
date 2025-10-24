@@ -97,6 +97,7 @@ docker | pacman
 docker-compose | pacman
 llvm | pacman
 clang | pacman
+gdb | pacman
 symengine | pacman
 sagemath | pacman
 jupyterlab | pacman

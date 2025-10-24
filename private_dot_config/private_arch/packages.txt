@@ -93,8 +93,9 @@ vscodium-bin | aur
 claude-code | aur
 openai-codex | aur
 gemini-cli-bin | aur
-docker | pacman
-docker-compose | pacman
+podman | pacman
+podman-compose | pacman
+podman-docker | pacman
 llvm | pacman
 clang | pacman
 gdb | pacman

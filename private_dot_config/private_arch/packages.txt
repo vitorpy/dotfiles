@@ -8,6 +8,7 @@ fish | pacman
 starship | pacman
 neovim | pacman
 git | pacman
+opendoas | pacman
 chezmoi | pacman
 hyprland | pacman
 bitwarden-cli | pacman

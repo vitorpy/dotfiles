@@ -88,9 +88,11 @@ zvm | aur
 nvm | pacman
 go | pacman
 gnucobol | aur
+subversion | pacman
 vscodium-bin | aur
 claude-code | aur
 openai-codex | aur
+gemini-cli-bin | aur
 docker | pacman
 docker-compose | pacman
 llvm | pacman

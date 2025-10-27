@@ -139,7 +139,7 @@ ripgrep | pacman
 net-tools | pacman
 mkcert | pacman
 monero | pacman
-zcash-bin | aur
+mosh | pacman
 unzip | pacman
 direnv | pacman
 uv | pacman

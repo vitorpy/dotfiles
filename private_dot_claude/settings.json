@@ -1,18 +1,5 @@
 {
   "includeCoAuthoredBy": false,
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/vitorpy/.claude/count_tokens.js"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "beads@beads-marketplace": true
   },

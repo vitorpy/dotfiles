@@ -131,7 +131,6 @@ bat | pacman
 less | pacman
 fzf | pacman
 zoxide | pacman
-python-pipx | pacman
 fastfetch | pacman
 jan-appimage | aur
 github-cli | pacman

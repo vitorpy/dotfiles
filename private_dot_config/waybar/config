@@ -4,7 +4,8 @@
   "modules-left": [
     "battery#charging",
     "custom/dnf-updates",
-    "custom/reboot-required"
+    "custom/reboot-required",
+    "custom/hyprwhspr"
   ],
   "modules-center": [
     "custom/clock"
@@ -114,5 +115,16 @@
     "exec": "~/.config/waybar/scripts/reboot-required.sh",
     "interval": 300,
     "return-type": "json"
+  },
+  "custom/hyprwhspr": {
+      "exec": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh status",
+      "interval": 2,
+      "return-type": "json",
+      "exec-on-event": true,
+      "format": "{}",
+      "on-click": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh toggle",
+      "on-click-right": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh start",
+      "on-click-middle": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh restart",
+      "tooltip": true
   }
 }

@@ -60,6 +60,7 @@ libva-utils | pacman
 libva-mesa-driver | pacman
 mesa | pacman
 vulkan-radeon | pacman
+vulkan-tools | pacman
 
 # Sway ecosystem (alternative to Hyprland)
 sway | pacman

@@ -31,6 +31,38 @@ function M.setup_ide_layout()
 
   -- Move back to top split (editor)
   vim.cmd("wincmd k")
+
+  -- Setup autocommand to quit when only tree and terminal are left
+  vim.api.nvim_create_autocmd("BufDelete", {
+    group = vim.api.nvim_create_augroup("IDEAutoQuit", { clear = true }),
+    callback = function()
+      -- Small delay to let buffer deletion complete
+      vim.defer_fn(function()
+        local buf_list = vim.api.nvim_list_bufs()
+        local has_normal_buffer = false
+
+        for _, buf in ipairs(buf_list) do
+          -- Only check loaded and valid buffers
+          if vim.api.nvim_buf_is_loaded(buf) and vim.api.nvim_buf_is_valid(buf) then
+            local buftype = vim.api.nvim_buf_get_option(buf, "buftype")
+            local filetype = vim.api.nvim_buf_get_option(buf, "filetype")
+            local bufname = vim.api.nvim_buf_get_name(buf)
+
+            -- Check if it's a normal editable buffer (not tree, not terminal, not special)
+            if buftype == "" and filetype ~= "NvimTree" and bufname ~= "" then
+              has_normal_buffer = true
+              break
+            end
+          end
+        end
+
+        -- If no normal buffers left, quit vim
+        if not has_normal_buffer then
+          vim.cmd("qall")
+        end
+      end, 100)
+    end,
+  })
 end
 
 -- Create the :IDE command

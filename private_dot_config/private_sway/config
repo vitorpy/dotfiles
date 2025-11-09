@@ -73,6 +73,22 @@ gaps outer 20
 default_border pixel 2
 default_floating_border pixel 2
 
+# SwayFX: Rounded corners
+corner_radius 10
+
+# SwayFX: Shadows
+shadows enable
+shadow_blur_radius 20
+shadow_color #00000099
+
+# SwayFX: Dim inactive windows
+default_dim_inactive 0.15
+
+# SwayFX: Blur (optional, can be heavy on performance)
+# blur enable
+# blur_passes 2
+# blur_radius 5
+
 # Hide title bars (cleaner look)
 titlebar_border_thickness 0
 titlebar_padding 0
@@ -86,8 +102,8 @@ for_window [app_id="org.telegram.desktop.*"] border pixel 0
 for_window [class="codium"] border pixel 0
 for_window [class="Jan"] border pixel 0
 
-# Ghostty with decorations (title bar)
-for_window [app_id="com.mitchellh.ghostty"] border normal
+# Ghostty with pixel borders (shows rounded corners better)
+for_window [app_id="com.mitchellh.ghostty"] border pixel 2
 
 # Fix for dragging XWayland windows
 for_window [shell="xwayland"] title_format "%title [XWayland]"

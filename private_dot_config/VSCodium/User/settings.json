@@ -11,5 +11,9 @@
             "path": "/usr/bin/fish"
         }
     },
-    "workbench.secondarySideBar.defaultVisibility": "hidden"
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "git.openRepositoryInParentFolders": "never",
+    "git.autofetch": true,
+    "lean4.alwaysAskBeforeInstallingLeanVersions": false,
+    "zig.zls.enabled": "on"
 }

@@ -1,12 +1,12 @@
 {
   "includeCoAuthoredBy": false,
-  "enabledPlugins": {
-    "beads@beads-marketplace": true
-  },
-  "alwaysThinkingEnabled": true,
   "statusLine": {
     "type": "command",
     "command": "/home/vitorpy/.local/bin/statusline",
     "padding": 0
-  }
+  },
+  "enabledPlugins": {
+    "beads@beads-marketplace": true
+  },
+  "alwaysThinkingEnabled": false
 }

@@ -39,3 +39,5 @@ export ANTHROPIC_API_KEY="sk-ant-api03-pAxVLHqsd81E794fXJGSvmR2m0QaN1edERLUMzRem
 export DASHSCOPE_API_KEY="sk-80fc2a96929a470097c1230d044047d1"
 
 [[ "$TERM_PROGRAM" == "vscode" ]] && unset ARGV0
+
+alias claude="/home/vitorpy/.claude/local/claude"

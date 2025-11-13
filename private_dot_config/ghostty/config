@@ -48,3 +48,7 @@ command = /usr/bin/fish
 # Cursor visibility
 cursor-style = block
 cursor-style-blink = true
+
+# Clipboard (OSC 52 support for remote tmux)
+clipboard-read = allow
+clipboard-write = allow

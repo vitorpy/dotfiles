@@ -1,5 +1,10 @@
 Host aur.archlinux.org
   IdentityFile ~/.ssh/aur
   User aur
+
+Host scherbius.vitorpy.com
+  User vitorpy
+  RequestTTY yes
+
 Host rejewski.vitorpy.com
   User vitorpy

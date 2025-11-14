@@ -29,7 +29,7 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 # NVM Setup
 export NVM_DIR="$HOME/.nvm"
-[ -s "/usr/share/nvm/init-nvm.sh" ] && source /usr/share/nvm/init-nvm.sh
+[ -s "/usr/share/nvm/init-nvm.sh" ] && source /usr/share/nvm/init-nvm.sh 2>/dev/null
 
 # zvm (Zig Version Manager)
 export PATH="$HOME/.zvm/bin:$PATH"

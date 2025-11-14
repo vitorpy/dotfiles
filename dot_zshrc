@@ -35,8 +35,6 @@ if [[ $- == *i* ]]; then
     alias icat='kitten icat'
     alias ls='lsd'
     alias vim='nvim'
-    alias ssh='TERM=xterm-256color /usr/bin/ssh'
-    alias mosh='TERM=xterm-256color /usr/bin/mosh'
     alias turbo='npx turbo@latest'
 
     # Starship prompt

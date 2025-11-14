@@ -4,7 +4,8 @@ Host aur.archlinux.org
 
 Host scherbius.vitorpy.com
   User vitorpy
-  RequestTTY yes
+  ForwardAgent yes
 
 Host rejewski.vitorpy.com
   User vitorpy
+  ForwardAgent yes

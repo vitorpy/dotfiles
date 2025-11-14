@@ -43,7 +43,7 @@ font-family = FiraCode Nerd Font
 # resize-overlay-duration = 4s 200ms
 theme = Zenburn
 keybind = shift+enter=text:\x1b\r
-command = /usr/bin/fish
+command = /usr/bin/zsh
 
 # Cursor visibility
 cursor-style = block

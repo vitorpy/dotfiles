@@ -1,7 +1,7 @@
 [user]
 	email = vitor@vitorpy.com
 	name = Vitor Py
-  signingkey = AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd
 [gpg]
   format = ssh
 [commit]

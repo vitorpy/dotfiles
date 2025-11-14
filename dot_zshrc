@@ -1,12 +1,57 @@
-
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"
-
-# >>> juliaup initialize >>>
-
-# !! Contents within this block are managed by juliaup !!
-
-path=('/home/vitorpy/.juliaup/bin' $path)
+# Path configuration
+path=("$HOME/.local/bin" $path)
+path=("$HOME/.zvm/bin" $path)
 export PATH
 
-# <<< juliaup initialize <<<
+# Editor
+export EDITOR=nvim
+
+# NVM Setup
+export NVM_DIR="$HOME/.nvm"
+# Load nvm from Arch package
+[ -f /usr/share/nvm/init-nvm.sh ] && source /usr/share/nvm/init-nvm.sh
+
+# pnpm
+export PNPM_HOME="$HOME/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# SSH Agent (Bitwarden)
+export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
+
+# Interactive shell configuration
+if [[ $- == *i* ]]; then
+    # System update alias
+    alias update="$HOME/.config/arch/update-system.sh"
+
+    # GNOME Control Center (works outside GNOME)
+    alias gnome-settings="env XDG_CURRENT_DESKTOP=GNOME gnome-control-center"
+
+    # Starship prompt
+    eval "$(starship init zsh)"
+
+    # direnv
+    eval "$(direnv hook zsh)"
+
+    # zoxide - smarter cd command
+    eval "$(zoxide init zsh)"
+    alias cd="z"
+
+    # Enable completion system
+    autoload -Uz compinit
+    compinit
+
+    # History configuration
+    HISTSIZE=10000
+    SAVEHIST=10000
+    HISTFILE=~/.zsh_history
+    setopt HIST_IGNORE_DUPS
+    setopt HIST_FIND_NO_DUPS
+    setopt SHARE_HISTORY
+
+    # Case-insensitive completion
+    zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+fi

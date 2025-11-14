@@ -1,13 +1,6 @@
 fish_add_path $HOME/.local/bin
 
-set OMAKUB_PATH $HOME/.local/share/omakub
-
-# bun
-set BUN_INSTALL "$HOME/.bun"
-set PATH $BUN_INSTALL/bin $PATH
-
 # ANTHROPIC_API_KEY should be set via environment or secure method
-
 if status is-interactive
     set fish_greeting
     set EDITOR nvim
@@ -27,8 +20,6 @@ if status is-interactive
     alias cd="z"
 end
 
-export NARGO_HOME="$HOME/.nargo"
-
 # NVM Setup
 set -x NVM_DIR $HOME/.nvm
 
@@ -46,3 +37,5 @@ end
 
 # zvm (Zig Version Manager)
 fish_add_path $HOME/.zvm/bin
+
+set -x SSH_AUTH_SOCK $HOME/.bitwarden-ssh-agent.sock

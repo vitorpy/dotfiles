@@ -34,8 +34,10 @@ export NVM_DIR="$HOME/.nvm"
 # zvm (Zig Version Manager)
 export PATH="$HOME/.zvm/bin:$PATH"
 
+{{- if eq .chezmoi.hostname "zygalski" }}
 # API Keys for AI models (from Bitwarden)
 export ANTHROPIC_API_KEY="{{ (bitwarden "item" "Anthropic API Key").login.password }}"
+{{- end }}
 
 [[ "$TERM_PROGRAM" == "vscode" ]] && unset ARGV0
 

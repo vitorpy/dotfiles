@@ -44,6 +44,13 @@ if [[ $- == *i* ]]; then
     eval "$(zoxide init zsh)"
     alias cd="z"
 
+    # fzf - fuzzy finder key bindings
+    # Ctrl+R: command history search
+    # Ctrl+T: file search
+    # Alt+C: directory search
+    [ -f /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
+    [ -f /usr/share/fzf/completion.zsh ] && source /usr/share/fzf/completion.zsh
+
     # Enable completion system
     autoload -Uz compinit
     compinit

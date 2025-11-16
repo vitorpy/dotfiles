@@ -19,9 +19,6 @@ case ":$PATH:" in
 esac
 # pnpm end
 
-# SSH Agent (Bitwarden)
-export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
-
 # Interactive shell configuration
 if [[ $- == *i* ]]; then
     # System update alias

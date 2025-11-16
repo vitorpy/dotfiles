@@ -5,8 +5,5 @@
     "command": "/home/vitorpy/.local/bin/statusline",
     "padding": 0
   },
-  "enabledPlugins": {
-    "beads@beads-marketplace": true
-  },
   "alwaysThinkingEnabled": true
 }

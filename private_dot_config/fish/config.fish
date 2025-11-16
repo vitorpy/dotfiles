@@ -38,4 +38,3 @@ end
 # zvm (Zig Version Manager)
 fish_add_path $HOME/.zvm/bin
 
-set -x SSH_AUTH_SOCK $HOME/.bitwarden-ssh-agent.sock

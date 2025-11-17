@@ -1,4 +1,4 @@
-# Starship configuration
+# Starship configuration with Zenburn colors
 "$schema" = "https://starship.rs/config-schema.json"
 
 format = """
@@ -19,19 +19,19 @@ symbol = " "
 [directory]
 truncation_length = 3
 truncate_to_repo = true
-style = "bold cyan"
+style = "bold #8cd0d3"  # Zenburn blue
 
 [git_branch]
 symbol = " "
-style = "bold purple"
+style = "bold #dc8cc3"  # Zenburn purple
 
 [git_status]
-style = "bold red"
+style = "bold #cc9393"  # Zenburn red
 
 [cmd_duration]
 min_time = 500
-format = "took [$duration](bold yellow)"
+format = "took [$duration](bold #dfaf8f)"  # Zenburn orange
 
 [character]
-success_symbol = "[❯](bold green)"
-error_symbol = "[❯](bold red)"
+success_symbol = "[❯](bold #7f9f7f)"  # Zenburn green
+error_symbol = "[❯](bold #cc9393)"    # Zenburn red

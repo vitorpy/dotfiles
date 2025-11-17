@@ -1,6 +1,7 @@
 # Path configuration
 path=("$HOME/.local/bin" $path)
 path=("$HOME/.zvm/bin" $path)
+path=("$HOME/go/bin" $path)
 export PATH
 
 # Editor

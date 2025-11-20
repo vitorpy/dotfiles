@@ -20,6 +20,11 @@ case ":$PATH:" in
 esac
 # pnpm end
 
+{{- if eq .chezmoi.hostname "zygalski" }}
+# API Keys for AI models (from Bitwarden)
+export GROK_API_KEY="{{ (bitwarden "item" "GROK_API_KEY").notes }}"
+{{- end }}
+
 # Interactive shell configuration
 if [[ $- == *i* ]]; then
     # System update alias
@@ -30,10 +35,10 @@ if [[ $- == *i* ]]; then
 
     # Command aliases
     alias cat='bat'
-    alias icat='kitten icat'
     alias ls='lsd'
     alias vim='nvim'
-    alias turbo='npx turbo@latest'
+    alias grok='codex --model grok-code-fast-1 --config model_provider="xai"'
+    alias grok-full='codex --model grok-4-latest --config model_provider="xai"'
 
     # Starship prompt
     eval "$(starship init zsh)"

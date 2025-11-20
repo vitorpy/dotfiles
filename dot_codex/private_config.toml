@@ -1,0 +1,53 @@
+model = "gpt-5.1"
+model_provider = "xai"
+model_reasoning_effort = "high"
+
+[model_providers.xai]
+name = "Grok (xAI)"
+base_url = "https://api.x.ai/v1"
+env_key = "GROK_API_KEY"
+wire_api = "chat"
+
+[profiles.grok]
+model_provider = "xai"
+model = "grok-code-fast-1"
+
+[projects."/home/vitorpy/code/dex-web"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/.config"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/code/jupyter-sage-mcp"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/code/zyga"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/code/cobolana"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/code/xmr-bridge"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/zyga"]
+trust_level = "trusted"
+
+[mcp_servers.browsermcp]
+command = "npx"
+args = ["@browsermcp/mcp@latest"]
+
+[mcp_servers.solanamcp]
+url = "https://mcp.solana.com/mcp"
+
+[mcp_servers.sagemath]
+command = "python"
+args = ["/home/vitorpy/code/jupyter-sage-mcp/sagemath_mcp_server.py"]
+
+[mcp_servers.sagemath.env]
+SAGE_COMMAND = "sage"
+SAGE_EXECUTION_MODE = "interactive"
+LOG_LEVEL = "INFO"
+
+[notice]
+hide_gpt5_1_migration_prompt = true

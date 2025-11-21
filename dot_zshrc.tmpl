@@ -13,6 +13,9 @@ export NVM_DIR="$HOME/.nvm"
 # Load nvm from Arch package
 [ -f /usr/share/nvm/init-nvm.sh ] && source /usr/share/nvm/init-nvm.sh
 
+# Lean
+[ -f "$HOME/.elan/env" ] && source "$HOME/.elan/env"
+
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in

@@ -5,7 +5,9 @@ Host aur.archlinux.org
 Host scherbius.vitorpy.com
   User vitorpy
   ForwardAgent yes
+  SendEnv GROK_API_KEY
 
 Host rejewski.vitorpy.com
   User vitorpy
   ForwardAgent yes
+  SendEnv GROK_API_KEY

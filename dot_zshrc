@@ -24,11 +24,6 @@ case ":$PATH:" in
 esac
 # pnpm end
 
-{{- if eq .chezmoi.hostname "zygalski" }}
-# API Keys for AI models (from Bitwarden)
-export GROK_API_KEY="{{ (bitwarden "item" "GROK_API_KEY").notes }}"
-{{- end }}
-
 # Interactive shell configuration
 if [[ $- == *i* ]]; then
     # System update alias

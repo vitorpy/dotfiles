@@ -84,6 +84,10 @@ env = NODE_OPTIONS,--max-old-space-size=8192
 # Bitwarden
 env = SSH_AUTH_SOCK,/home/vitorpy/.bitwarden-ssh-agent.sock
 
+{{- if eq .chezmoi.hostname "zygalski" }}
+# API Keys for AI models (from Bitwarden)
+env = GROK_API_KEY,{{ (bitwarden "item" "GROK_API_KEY").notes }}
+{{- end }}
 
 #####################
 ### LOOK AND FEEL ###

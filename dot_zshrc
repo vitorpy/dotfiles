@@ -38,6 +38,7 @@ if [[ $- == *i* ]]; then
     alias vim='nvim'
     alias grok='codex --model grok-code-fast-1 --config model_provider="xai"'
     alias grok-full='codex --model grok-4-latest --config model_provider="xai"'
+    alias codex-local='codex --oss'
 
     # Starship prompt
     eval "$(starship init zsh)"

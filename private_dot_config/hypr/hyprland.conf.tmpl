@@ -47,7 +47,7 @@ $screenshot = grim -g "$(slurp)" - | wl-copy
 # Or execute your favorite apps at launch like this:
 
 exec-once = hyprctl plugin load /usr/lib/libhyprbars.so
-# exec-once = hyprctl plugin load /usr/lib64/hyprland/libhyprexpo.so
+exec-once = hyprctl plugin load /usr/lib64/hyprland/libhyprexpo.so
 exec-once = /home/vitorpy/.cargo/bin/hyprcorners
 exec-once = waybar & hyprpaper & hypridle & mako
 exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
@@ -171,25 +171,24 @@ misc {
     disable_hyprland_logo = true # If true disables the random hyprland logo / anime girl background. :(
 }
 
-# plugin {
-#   hyprexpo {
-#     columns = 3                # Optional: how many columns in the overview grid
-#     gesture_distance = 300     # Minimum gesture distance to trigger (tweak as needed)
-#     gesture_positive = false   # false = swipe-up, true = swipe-down
-#     gesture_fingers = 3        # Activate only on a 3-finger swipe
-#   }
-# }
+plugin {
+    hyprexpo {
+        columns = 3
+        gesture_distance = 300
+        gesture_positive = false
+        gesture_fingers = 3
+    }
+}
 
 plugin {
     hyprbars {
         bar_height = 25
         bar_text_font = NotoSans Nerd Font
         col.text = rgb(dcdccc)
+
+        hyprbars-button = rgb(1f1f1f), 20, 󰖭, hyprctl dispatch killactive, rgb(dcdccc)
     }
 }
-
-# Buttons must be defined outside the plugin block
-hyprbars-button = rgb(1f1f1f), 20, 󰖭, hyprctl dispatch killactive, rgb(dcdccc)
 
 windowrule = plugin:hyprbars:nobar, class:chromium
 windowrule = plugin:hyprbars:nobar, class:chromium-browser
@@ -233,6 +232,11 @@ input {
 # See https://wiki.hyprland.org/Configuring/Keywords/#per-device-input-configs for more
 device {
    name = logitech-pebble-mouse
+   natural_scroll = true
+}
+
+device {
+   name = logitech-m350
    natural_scroll = true
 }
 

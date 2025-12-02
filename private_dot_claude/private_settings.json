@@ -1,9 +1,4 @@
 {
   "includeCoAuthoredBy": false,
-  "statusLine": {
-    "type": "command",
-    "command": "/home/vitorpy/.local/bin/statusline",
-    "padding": 0
-  },
   "alwaysThinkingEnabled": true
 }

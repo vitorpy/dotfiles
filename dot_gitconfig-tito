@@ -1,0 +1,10 @@
+[user]
+	email = vitor@vitorpy.com
+	name = Vitor Py
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJAKVxPIZpwFMNX+gH1PmuIHqrlP+vUftjmYYfZJFYxo
+[gpg]
+  format = ssh
+[commit]
+	gpgsign = true
+[core]
+  sshCommand = ssh -i ~/.ssh/tito.pub -F /dev/null -o 'IdentitiesOnly yes'

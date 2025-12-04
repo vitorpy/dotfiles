@@ -14,6 +14,8 @@
 	excludesFile = ~/.gitignore
 [push]
 	autoSetupRemote = true
+[core]
+  sshCommand = ssh -i ~/.ssh/vitorpy.pub -F /dev/null -o 'IdentitiesOnly yes'
 [includeIf "gitdir:~/poker/"]
     path = ~/.gitconfig-tito
 [diff "lockb"]

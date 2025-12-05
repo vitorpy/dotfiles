@@ -1,5 +1,3 @@
-@import "/usr/lib/hyprwhspr/config/waybar/hyprwhspr-style.css";
-
 /* Global look + font */
 * {
   font-family: "NotoSans Nerd Font", sans-serif;
@@ -57,15 +55,6 @@ window#waybar {
 }
 
 #custom-reboot-required.reboot-required {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;
-  border-radius: 14px;
-  margin: 4px 8px;
-  padding: 0 10px;
-}
-
-#custom-hyprwhspr {
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;

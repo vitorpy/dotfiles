@@ -7,18 +7,9 @@ base_url = "https://api.x.ai/v1"
 env_key = "GROK_API_KEY"
 wire_api = "chat"
 
-[model_providers.ollama]
-name = "Ollama (Local)"
-base_url = "http://localhost:11434/v1"
-wire_api = "chat"
-
 [profiles.grok]
 model_provider = "xai"
 model = "grok-code-fast-1"
-
-[profiles.ollama]
-model_provider = "ollama"
-model = "qwen2.5-coder:14b"
 
 [projects."/home/vitorpy/code/dex-web"]
 trust_level = "trusted"
@@ -43,22 +34,6 @@ trust_level = "trusted"
 
 [projects."/home/vitorpy/src/feanor-math"]
 trust_level = "trusted"
-
-[mcp_servers.browsermcp]
-command = "npx"
-args = ["@browsermcp/mcp@latest"]
-
-[mcp_servers.solanamcp]
-url = "https://mcp.solana.com/mcp"
-
-[mcp_servers.sagemath]
-command = "python"
-args = ["/home/vitorpy/code/jupyter-sage-mcp/sagemath_mcp_server.py"]
-
-[mcp_servers.sagemath.env]
-SAGE_COMMAND = "sage"
-SAGE_EXECUTION_MODE = "interactive"
-LOG_LEVEL = "INFO"
 
 [notice]
 hide_gpt5_1_migration_prompt = true

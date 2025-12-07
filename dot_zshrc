@@ -40,6 +40,11 @@ if [[ $- == *i* ]]; then
     alias grok-full='codex --model grok-4-latest --config model_provider="xai"'
     alias codex-local='codex --oss'
 
+    # VPN aliases
+    alias vpn-on='sudo systemctl start openvpn-client@rejewski'
+    alias vpn-off='sudo systemctl stop openvpn-client@rejewski'
+    alias vpn-status='systemctl is-active openvpn-client@rejewski && curl -s ifconfig.me'
+
     # Starship prompt
     eval "$(starship init zsh)"
 

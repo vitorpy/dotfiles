@@ -4,7 +4,7 @@
 @define-color md3_surface_container_high #2B292F;
 @define-color md3_on_surface #E6E1E5;
 @define-color md3_on_surface_variant #CAC4D0;
-@define-color md3_outline #49454F;
+@define-color md3_outline #938F99;
 @define-color md3_outline_variant #49454F;
 @define-color md3_primary #f0dfaf;
 @define-color md3_on_primary #1D1B20;
@@ -16,12 +16,13 @@
 /* Global look + font */
 * {
   font-family: "Roboto", "Material Symbols Outlined", sans-serif;
+  font-weight: 500;                    /* MD3 Label Medium weight */
 }
 
 window#waybar {
   background: transparent;
   border: none;
-  font-size: 16px;                  /* bump if you want 13–14px */
+  font-size: 14px;                     /* MD3 Label Large for compact density */
 }
 
 /* Reset default borders/outlines for all widgets */
@@ -40,12 +41,12 @@ window#waybar {
   box-shadow: none;
 }
 
-#battery.charging { 
-  background: @md3_surface_container;
+#battery.charging {
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border: 1px solid @md3_outline;
+  border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 4px 8px;
+  margin: 8px 16px;
   padding: 0 12px;
 }
 
@@ -58,43 +59,41 @@ window#waybar {
 }
 
 #custom-dnf-updates.updates-available {
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border-top: 1px solid @md3_outline;
-  border-right: 1px solid @md3_outline;
-  border-bottom: 1px solid @md3_outline;
-  border-left: none;
+  border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 4px 4px 4px 8px;
+  margin: 8px 16px;
   padding: 0 12px;
   box-shadow: none;
   outline: none;
 }
 
 #custom-reboot-required.reboot-required {
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border: 1px solid @md3_outline;
+  border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 4px 8px;
+  margin: 8px 16px;
   padding: 0 12px;
 }
 
 .modules-right {
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border: 1px solid @md3_outline;      /* unified stroke (replaces border-bottom) */
+  border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
-  margin: 4px 8px;                 /* space around the whole right group */
-  padding: 0 8px;                  /* space between pill edge and first/last item */
+  margin: 8px 16px;                    /* increased breathing room */
+  padding: 0 8px;
 }
 
-.modules-center { 
+.modules-center {
   border-radius: 12px;
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border-bottom: 1px solid @md3_outline;
-  margin-top: 8px;
+  border: none;                        /* MD3: tonal elevation, not borders */
+  margin: 8px 16px;
+  padding: 0 8px;
 }
 
 /* uniform internal spacing for every module */
@@ -122,7 +121,7 @@ window#waybar {
 }
 
 .modules-right > * + * {
-  box-shadow: inset 1px 0 0 @md3_outline;   /* separator line without extra gap */
+  box-shadow: inset 1px 0 0 @md3_outline_variant;   /* subtle MD3 separator */
 }
 
 /* center clock – more room, no separator */
@@ -156,14 +155,20 @@ button:hover {
 
 /* power widget (custom/power usually maps to #custom-power) */
 #custom-power { padding: 0 16px; }
+#custom-power:hover {
+  background-color: alpha(@md3_primary, 0.08);
+  color: @md3_on_surface;
+  border-radius: 8px;                  /* MD3 icon button hover */
+}
 
 /* popup menu (Waybar's GTK menu) */
 menu {
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border: 1px solid @md3_outline;
-  margin-top: 8px;                   /* drop it away from bar so it's not clipped */
-  min-width: 180px;                  /* avoid super-narrow menus */
+  border: none;                        /* MD3: tonal elevation, not borders */
+  border-radius: 12px;
+  margin-top: 8px;                     /* drop it away from bar so it's not clipped */
+  min-width: 180px;                    /* avoid super-narrow menus */
 }
 menu > menuitem { padding: 8px 12px; }
 menu > menuitem:hover {
@@ -173,22 +178,24 @@ menu > menuitem:hover {
 
 #custom-mako-dnd {
   padding: 0 12px;
-  border-left: 1px solid @md3_outline;
+  border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
 #custom-mako-dnd:hover {
   background-color: alpha(@md3_primary, 0.08);
   color: @md3_on_surface;
+  border-radius: 8px;                  /* MD3 icon button hover */
 }
 
 #custom-mako-clear {
   padding: 0 12px;
-  border-left: 1px solid @md3_outline;
+  border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
 #custom-mako-clear:hover {
   background-color: alpha(@md3_primary, 0.08);
   color: @md3_on_surface;
+  border-radius: 8px;                  /* MD3 icon button hover */
 }
 
 /* per-module minimum widths (tune to taste) */
@@ -212,11 +219,11 @@ menu > menuitem:hover {
 #clock             { min-width: 190px; }
 
 .modules-center {
-  background: @md3_surface_container;
+  background: @md3_surface_container_high;
   color: @md3_on_surface;
-  border: 1px solid @md3_outline;   /* was border-bottom only */
+  border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
-  margin: 4px 8px;             /* was margin-top: 8px */
+  margin: 8px 16px;
   padding: 0 8px;
 }
 
@@ -230,5 +237,5 @@ menu > menuitem:hover {
 .modules-center > * + * {
   border-left: none;           /* override previous rule */
   padding-left: 0;             /* override previous rule */
-  box-shadow: inset 1px 0 0 @md3_outline;
+  box-shadow: inset 1px 0 0 @md3_outline_variant;   /* subtle MD3 separator */
 }

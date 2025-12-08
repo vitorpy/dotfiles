@@ -9,7 +9,8 @@
       "Bash(notify-send:*)",
       "WebFetch(domain:fonts.google.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

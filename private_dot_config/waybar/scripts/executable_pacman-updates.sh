@@ -27,7 +27,7 @@ if [ "$total_updates" -gt 0 ]; then
     else
         tooltip="$official_updates updates available"
     fi
-    echo "{\"text\":\"\\uf02d $total_updates\", \"tooltip\":\"$tooltip\", \"class\":\"updates-available\"}"
+    echo "{\"text\":\"\\uf090 $total_updates\", \"tooltip\":\"$tooltip\", \"class\":\"updates-available\"}"
 else
     echo "{\"text\":\"\", \"tooltip\":\"System up to date\", \"class\":\"up-to-date\"}"
 fi

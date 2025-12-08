@@ -2,6 +2,7 @@
 * {
   font-family: "Noto Sans", "Material Symbols Outlined", sans-serif;
 }
+
 window#waybar {
   background: transparent;
   border: none;
@@ -23,11 +24,12 @@ window#waybar {
   border: none;
   box-shadow: none;
 }
+
 #battery.charging { 
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;
-  border-radius: 14px;
+  border-radius: 12px;
   margin: 4px 8px;
   padding: 0 10px;
 }
@@ -47,7 +49,7 @@ window#waybar {
   border-right: 1px solid #3f3f3f;
   border-bottom: 1px solid #3f3f3f;
   border-left: none;
-  border-radius: 14px;
+  border-radius: 12px;
   margin: 4px 4px 4px 8px;
   padding: 0 10px;
   box-shadow: none;
@@ -58,7 +60,7 @@ window#waybar {
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;
-  border-radius: 14px;
+  border-radius: 12px;
   margin: 4px 8px;
   padding: 0 10px;
 }
@@ -67,12 +69,13 @@ window#waybar {
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;      /* unified stroke (replaces border-bottom) */
-  border-radius: 14px;
+  border-radius: 12px;
   margin: 4px 8px;                 /* space around the whole right group */
   padding: 0 8px;                  /* space between pill edge and first/last item */
 }
+
 .modules-center { 
-  border-radius: 14px;
+  border-radius: 12px;
   background: #1f1f1f;
   color: #dcdccc;
   border-bottom: 1px solid #3f3f3f;
@@ -84,6 +87,7 @@ window#waybar {
   padding: 0;                        /* left modules are self-contained pills */
   margin: 0;
 }
+
 .modules-center> *,
 .modules-right > * {
   padding: 0 12px;                   /* more space than before */
@@ -95,11 +99,13 @@ window#waybar {
   border-left: 1px solid #3f3f3f;
   padding-left: 8px;
 }
+
 /* internal item spacing stays uniform + tight separators from before */
 .modules-right > * {
   padding: 0 10px;
   margin: 0;
 }
+
 .modules-right > * + * {
   box-shadow: inset 1px 0 0 #3f3f3f;   /* separator line without extra gap */
 }
@@ -139,6 +145,7 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
   padding: 0 10px;
   border-left: 1px solid #3f3f3f;
 }
+
 #custom-mako-dnd:hover {
   background: #f0dfaf;
   color: #1f1f1f;
@@ -148,6 +155,7 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
   padding: 0 10px;
   border-left: 1px solid #3f3f3f;
 }
+
 #custom-mako-clear:hover {
   background: #f0dfaf;
   color: #1f1f1f;
@@ -177,7 +185,7 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
   background: #1f1f1f;
   color: #dcdccc;
   border: 1px solid #3f3f3f;   /* was border-bottom only */
-  border-radius: 14px;
+  border-radius: 12px;
   margin: 4px 8px;             /* was margin-top: 8px */
   padding: 0 8px;
 }

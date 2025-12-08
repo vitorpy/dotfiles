@@ -25,8 +25,8 @@
   ],
   "pulseaudio": {
     "format": "{icon} {volume}%",
-    "format-muted": " off",
-    "format-icons": { "default": ["", ""] },
+    "format-muted": " off",
+    "format-icons": { "default": ["", ""] },
     "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
     "on-click-right": "~/.config/waybar/scripts/audio-output-select.sh",
     "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
@@ -35,8 +35,8 @@
   },
   "pulseaudio#mic": {
     "format": "{format_source}",
-    "format-source": " {volume}%",
-    "format-source-muted": " off",
+    "format-source": " {volume}%",
+    "format-source-muted": " off",
     "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
     "on-click-right": "~/.config/waybar/scripts/audio-input-select.sh",
     "on-scroll-up": "pactl set-source-volume @DEFAULT_SOURCE@ +5%",
@@ -55,21 +55,20 @@
   "power-profiles-daemon": { "format": "{profile}" },
   "battery": { 
     "format": "{capacity}% {icon}", 
-    "format-icons": ["","","","",""],
+    "format-icons": ["","","","",""],
     "states": {
       "critical": 5,
       "warning": 10
     }
   },
   "battery#charging": {
-    "format-charging": "",
+    "format-charging": "\ue1a3",
     "format": "",
     "tooltip": false,
     "interval": 5
   },
   "cpu": { "format": "{usage}%"},
-  "temperature": { "format": "{temperatureC}°C" },
-  "custom/weather": { "exec": "~/.config/waybar/scripts/weather.sh", "interval": 600 },
+  "temperature": { "format": "{temperatureC} °C" },
   "custom/clock": {
     "exec": "~/.config/waybar/scripts/smart-clock.sh",
     "interval": 30,
@@ -82,7 +81,7 @@
     "on-click": "/home/vitorpy/.config/waybar/scripts/kbtoggle-auto.sh"
   },
   "custom/power": {
-    "format": "⏻",
+    "format": "\uf8c7",
     "tooltip": false,
     "menu": "on-click",
     "menu-file": "~/.config/waybar/power_menu.xml",
@@ -104,7 +103,7 @@
     "return-type": "json"
   },
   "custom/mako-clear": {
-    "format": "",
+    "format": "",
     "tooltip": "Dismiss all notifications",
     "on-click": "/usr/bin/makoctl dismiss -a",
     "on-click-right": "/usr/bin/makoctl reload",

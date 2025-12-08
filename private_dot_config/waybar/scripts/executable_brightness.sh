@@ -4,4 +4,4 @@ CURRENT=$(brightnessctl get)
 MAX=$(brightnessctl max)
 # Calculate percentage
 BRIGHTNESS=$((CURRENT * 100 / MAX))
-echo "󰃞 $BRIGHTNESS%"
+printf '\ue1ac %s%%\n' "$BRIGHTNESS"

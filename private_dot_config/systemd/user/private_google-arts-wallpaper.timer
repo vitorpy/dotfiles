@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Google Arts & Culture wallpaper update
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+OnBootSec=1min
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Fetch Google Arts & Culture wallpaper
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/google-arts-wallpaper
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-1
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,78 @@
+#!/bin/bash
+# Google Arts & Culture Wallpaper Fetcher
+# Fetches random artwork from Google Arts & Culture and sets it as wallpaper
+
+set -euo pipefail
+
+# Configuration
+DATA_DIR="${HOME}/.local/share/google-arts"
+API_URL="https://www.gstatic.com/culturalinstitute/tabext/imax_2_2.json"
+RESOLUTION="2560"
+CURRENT_IMAGE="${DATA_DIR}/current.webp"
+CURRENT_META="${DATA_DIR}/current.json"
+
+# Ensure data directory exists
+mkdir -p "${DATA_DIR}"
+
+# Fetch artwork list and pick a random one
+echo "Fetching artwork list..."
+ARTWORK=$(curl -sS "${API_URL}" | jq -c '.[]' | shuf -n 1)
+
+if [[ -z "${ARTWORK}" ]]; then
+    echo "Error: Failed to fetch artwork data" >&2
+    exit 1
+fi
+
+# Extract metadata
+TITLE=$(echo "${ARTWORK}" | jq -r '.title')
+CREATOR=$(echo "${ARTWORK}" | jq -r '.creator')
+ATTRIBUTION=$(echo "${ARTWORK}" | jq -r '.attribution')
+IMAGE_BASE=$(echo "${ARTWORK}" | jq -r '.image')
+LINK=$(echo "${ARTWORK}" | jq -r '.link')
+
+# Construct full URLs
+IMAGE_URL="${IMAGE_BASE}=s${RESOLUTION}-rw"
+ART_LINK="https://artsandculture.google.com/${LINK}"
+
+echo "Selected: ${TITLE} by ${CREATOR}"
+echo "Source: ${ATTRIBUTION}"
+
+# Download image
+echo "Downloading image at ${RESOLUTION}px..."
+if ! curl -sS -o "${CURRENT_IMAGE}" "${IMAGE_URL}"; then
+    echo "Error: Failed to download image" >&2
+    exit 1
+fi
+
+# Save metadata
+cat > "${CURRENT_META}" << EOF
+{
+    "title": "${TITLE}",
+    "creator": "${CREATOR}",
+    "attribution": "${ATTRIBUTION}",
+    "link": "${ART_LINK}",
+    "downloaded": "$(date -Iseconds)"
+}
+EOF
+
+echo "Metadata saved to ${CURRENT_META}"
+
+# Update hyprpaper
+if command -v hyprctl &> /dev/null; then
+    echo "Updating hyprpaper..."
+    hyprctl hyprpaper unload all 2>/dev/null || true
+    hyprctl hyprpaper preload "${CURRENT_IMAGE}"
+    hyprctl hyprpaper wallpaper ",${CURRENT_IMAGE}"
+    echo "Wallpaper updated successfully!"
+else
+    echo "hyprctl not found - wallpaper downloaded but not applied"
+    echo "Image saved to: ${CURRENT_IMAGE}"
+fi
+
+# Display current artwork info
+echo ""
+echo "Current wallpaper:"
+echo "  Title: ${TITLE}"
+echo "  Artist: ${CREATOR}"
+echo "  Museum: ${ATTRIBUTION}"
+echo "  Link: ${ART_LINK}"

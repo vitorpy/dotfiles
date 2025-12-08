@@ -1,6 +1,6 @@
 /* Global look + font */
 * {
-  font-family: "NotoSans Nerd Font", sans-serif;
+  font-family: "Noto Sans", "Material Symbols Outlined", sans-serif;
 }
 window#waybar {
   background: transparent;

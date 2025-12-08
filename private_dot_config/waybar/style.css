@@ -1,6 +1,21 @@
+/* MD3 Dark Theme Palette (Pragmatic - keeping warm accent) */
+@define-color md3_surface #1D1B20;
+@define-color md3_surface_container #25232A;
+@define-color md3_surface_container_high #2B292F;
+@define-color md3_on_surface #E6E1E5;
+@define-color md3_on_surface_variant #CAC4D0;
+@define-color md3_outline #49454F;
+@define-color md3_outline_variant #49454F;
+@define-color md3_primary #f0dfaf;
+@define-color md3_on_primary #1D1B20;
+@define-color md3_secondary #9ece9e;
+@define-color md3_secondary_container #3a4a3a;
+@define-color md3_error #F2B8B5;
+@define-color md3_on_error #1D1B20;
+
 /* Global look + font */
 * {
-  font-family: "Noto Sans", "Material Symbols Outlined", sans-serif;
+  font-family: "Roboto", "Material Symbols Outlined", sans-serif;
 }
 
 window#waybar {
@@ -26,12 +41,12 @@ window#waybar {
 }
 
 #battery.charging { 
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border: 1px solid @md3_outline;
   border-radius: 12px;
   margin: 4px 8px;
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 #custom-dnf-updates {
@@ -43,32 +58,32 @@ window#waybar {
 }
 
 #custom-dnf-updates.updates-available {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border-top: 1px solid #3f3f3f;
-  border-right: 1px solid #3f3f3f;
-  border-bottom: 1px solid #3f3f3f;
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border-top: 1px solid @md3_outline;
+  border-right: 1px solid @md3_outline;
+  border-bottom: 1px solid @md3_outline;
   border-left: none;
   border-radius: 12px;
   margin: 4px 4px 4px 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   box-shadow: none;
   outline: none;
 }
 
 #custom-reboot-required.reboot-required {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border: 1px solid @md3_outline;
   border-radius: 12px;
   margin: 4px 8px;
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 .modules-right {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;      /* unified stroke (replaces border-bottom) */
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border: 1px solid @md3_outline;      /* unified stroke (replaces border-bottom) */
   border-radius: 12px;
   margin: 4px 8px;                 /* space around the whole right group */
   padding: 0 8px;                  /* space between pill edge and first/last item */
@@ -76,9 +91,9 @@ window#waybar {
 
 .modules-center { 
   border-radius: 12px;
-  background: #1f1f1f;
-  color: #dcdccc;
-  border-bottom: 1px solid #3f3f3f;
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border-bottom: 1px solid @md3_outline;
   margin-top: 8px;
 }
 
@@ -96,69 +111,84 @@ window#waybar {
 
 /* separators (kept subtle) */
 .modules-center> * + * {
-  border-left: 1px solid #3f3f3f;
+  border-left: 1px solid @md3_outline;
   padding-left: 8px;
 }
 
 /* internal item spacing stays uniform + tight separators from before */
 .modules-right > * {
-  padding: 0 10px;
+  padding: 0 12px;
   margin: 0;
 }
 
 .modules-right > * + * {
-  box-shadow: inset 1px 0 0 #3f3f3f;   /* separator line without extra gap */
+  box-shadow: inset 1px 0 0 @md3_outline;   /* separator line without extra gap */
 }
 
 /* center clock – more room, no separator */
-#clock { padding: 0 14px; border: none; }
+#clock { padding: 0 16px; border: none; }
 
-/* hover accent */
-button:hover { background: #f0dfaf; color: #1f1f1f; }
+/* hover accent - MD3 state layer (8% primary overlay) */
+button:hover {
+  background-color: alpha(@md3_primary, 0.08);
+  color: @md3_on_surface;
+}
 
-/* workspaces (optional) */
-#workspaces button { color: #9ece9e; background: #1f1f1f; }
-#workspaces button.active { background: #8faf9f; color: #1f1f1f; }
+/* workspaces */
+#workspaces button {
+  color: @md3_secondary;
+  background-color: @md3_surface_container;
+}
+#workspaces button:hover {
+  background-color: alpha(@md3_secondary, 0.08);
+}
+#workspaces button.active {
+  background-color: @md3_secondary_container;
+  color: @md3_on_surface;
+}
 
 /* tray spacing */
-#tray { padding: 0 6px; }
-#tray > * { margin-right: 10px; }
+#tray { padding: 0 8px; }
+#tray > * { margin-right: 8px; }
 
 /* keyboard layout */
 #custom-kblayout { min-width: 32px; }
 
 /* power widget (custom/power usually maps to #custom-power) */
-#custom-power { padding: 0 14px; }
+#custom-power { padding: 0 16px; }
 
 /* popup menu (Waybar's GTK menu) */
 menu {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;
-  margin-top: 6px;                   /* drop it away from bar so it’s not clipped */
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border: 1px solid @md3_outline;
+  margin-top: 8px;                   /* drop it away from bar so it's not clipped */
   min-width: 180px;                  /* avoid super-narrow menus */
 }
-menu > menuitem { padding: 6px 12px; }
-menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
+menu > menuitem { padding: 8px 12px; }
+menu > menuitem:hover {
+  background-color: alpha(@md3_primary, 0.08);
+  color: @md3_on_surface;
+}
 
 #custom-mako-dnd {
-  padding: 0 10px;
-  border-left: 1px solid #3f3f3f;
+  padding: 0 12px;
+  border-left: 1px solid @md3_outline;
 }
 
 #custom-mako-dnd:hover {
-  background: #f0dfaf;
-  color: #1f1f1f;
+  background-color: alpha(@md3_primary, 0.08);
+  color: @md3_on_surface;
 }
 
 #custom-mako-clear {
-  padding: 0 10px;
-  border-left: 1px solid #3f3f3f;
+  padding: 0 12px;
+  border-left: 1px solid @md3_outline;
 }
 
 #custom-mako-clear:hover {
-  background: #f0dfaf;
-  color: #1f1f1f;
+  background-color: alpha(@md3_primary, 0.08);
+  color: @md3_on_surface;
 }
 
 /* per-module minimum widths (tune to taste) */
@@ -167,9 +197,9 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
 #custom-brightness { min-width: 70px; }   /* brightness control */
 #network           { min-width: 160px; }
 #power-profiles-daemon { min-width: 100px; }
-#battery           { min-width: 70px; }
-#battery.warning   { color: #cc9393; }
-#battery.critical  { background: #cc9393; color: #1f1f1f; }
+#battery           { min-width: 34px; }
+#battery.warning   { color: @md3_error; }
+#battery.critical  { background: @md3_error; color: @md3_surface_container; }
 #cpu               { min-width: 48px; }
 #temperature       { min-width: 56px; }
 #custom-kblayout   { min-width: 34px; }
@@ -182,9 +212,9 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
 #clock             { min-width: 190px; }
 
 .modules-center {
-  background: #1f1f1f;
-  color: #dcdccc;
-  border: 1px solid #3f3f3f;   /* was border-bottom only */
+  background: @md3_surface_container;
+  color: @md3_on_surface;
+  border: 1px solid @md3_outline;   /* was border-bottom only */
   border-radius: 12px;
   margin: 4px 8px;             /* was margin-top: 8px */
   padding: 0 8px;
@@ -192,7 +222,7 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
 
 /* center group item spacing to match right group */
 .modules-center > * {
-  padding: 0 10px;
+  padding: 0 12px;
   margin: 0;
 }
 
@@ -200,5 +230,5 @@ menu > menuitem:hover { background: #f0dfaf; color: #1f1f1f; }
 .modules-center > * + * {
   border-left: none;           /* override previous rule */
   padding-left: 0;             /* override previous rule */
-  box-shadow: inset 1px 0 0 #3f3f3f;
+  box-shadow: inset 1px 0 0 @md3_outline;
 }

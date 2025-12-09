@@ -39,6 +39,7 @@ window#waybar {
   margin: 0;
   border: none;
   box-shadow: none;
+  min-height: 68px;  /* Match charging pill height (measured via GTK Inspector) */
 }
 
 #battery.charging {
@@ -47,7 +48,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 8px 16px;
-  padding: 4px 12px;
+  padding: 4px 16px;
 }
 
 #custom-dnf-updates {
@@ -64,7 +65,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 8px 16px;
-  padding: 4px 12px;
+  padding: 4px 16px;
   box-shadow: none;
   outline: none;
 }
@@ -75,7 +76,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 8px 16px;
-  padding: 4px 12px;
+  padding: 4px 16px;
 }
 
 .modules-right {
@@ -177,7 +178,7 @@ menu > menuitem:hover {
 }
 
 #custom-mako-dnd {
-  padding: 0 12px;
+  padding: 0 16px;
   border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
@@ -188,7 +189,7 @@ menu > menuitem:hover {
 }
 
 #custom-mako-clear {
-  padding: 0 12px;
+  padding: 0 16px;
   border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
@@ -229,7 +230,7 @@ menu > menuitem:hover {
 
 /* center group item spacing to match right group */
 .modules-center > * {
-  padding: 0 12px;
+  padding: 0 16px;
   margin: 0;
 }
 

@@ -22,7 +22,7 @@
 window#waybar {
   background: transparent;
   border: none;
-  font-size: 14px;                     /* MD3 Label Large for compact density */
+  font-size: 16px;                     /* Increased from 14px */
 }
 
 /* Reset default borders/outlines for all widgets */
@@ -47,7 +47,7 @@ window#waybar {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 8px 16px;
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 16px;
 }
 
@@ -64,7 +64,7 @@ window#waybar {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 8px 16px;
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 16px;
   box-shadow: none;
   outline: none;
@@ -75,7 +75,7 @@ window#waybar {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
-  margin: 8px 16px;
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 16px;
 }
 
@@ -84,7 +84,7 @@ window#waybar {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
-  margin: 8px 16px;                    /* increased breathing room */
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 8px;
 }
 
@@ -93,7 +93,7 @@ window#waybar {
   background: @md3_surface_container_high;
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation, not borders */
-  margin: 8px 16px;
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 8px;
 }
 
@@ -224,7 +224,7 @@ menu > menuitem:hover {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
-  margin: 8px 16px;
+  margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
   padding: 4px 8px;
 }
 

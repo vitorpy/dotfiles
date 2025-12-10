@@ -105,7 +105,7 @@ window#waybar {
 
 .modules-center> *,
 .modules-right > * {
-  padding: 0 12px;                   /* more space than before */
+  padding: 0;                        /* Reset wrapper padding */
   margin: 0;
 }
 
@@ -117,12 +117,18 @@ window#waybar {
 
 /* internal item spacing stays uniform + tight separators from before */
 .modules-right > * {
-  padding: 0 12px;
+  padding: 0;                        /* Reset wrapper padding */
   margin: 0;
 }
 
 .modules-right > * + * {
   box-shadow: inset 1px 0 0 @md3_outline_variant;   /* subtle MD3 separator */
+}
+
+/* Uniform padding via labels (not wrappers) */
+.modules-right label,
+.modules-center label {
+  padding: 0 12px;
 }
 
 /* center clock – more room, no separator */
@@ -147,15 +153,14 @@ button:hover {
   color: @md3_on_surface;
 }
 
-/* tray spacing */
-#tray { padding: 0 8px; }
+/* tray spacing - uses padding directly since it has icons, not labels */
+#tray { padding: 0 12px; }
 #tray > * { margin-right: 8px; }
 
 /* keyboard layout */
 #custom-kblayout { min-width: 32px; }
 
-/* power widget (custom/power usually maps to #custom-power) */
-#custom-power { padding: 0 16px; }
+/* power widget hover */
 #custom-power:hover {
   background-color: alpha(@md3_primary, 0.08);
   color: @md3_on_surface;
@@ -177,8 +182,8 @@ menu > menuitem:hover {
   color: @md3_on_surface;
 }
 
+/* mako-dnd */
 #custom-mako-dnd {
-  padding: 0 16px;
   border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
@@ -188,8 +193,8 @@ menu > menuitem:hover {
   border-radius: 8px;                  /* MD3 icon button hover */
 }
 
+/* mako-clear */
 #custom-mako-clear {
-  padding: 0 16px;
   border-left: 1px solid @md3_outline_variant;   /* subtle separator */
 }
 
@@ -230,7 +235,7 @@ menu > menuitem:hover {
 
 /* center group item spacing to match right group */
 .modules-center > * {
-  padding: 0 16px;
+  padding: 0;                        /* Reset wrapper padding */
   margin: 0;
 }
 

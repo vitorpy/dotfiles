@@ -10,7 +10,12 @@
       "WebFetch(domain:fonts.google.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(xxd:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:hyprpanel.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(find:*)",
+      "Bash(pkill:*)",
+      "WebFetch(domain:m3.material.io)"
     ],
     "deny": [],
     "ask": []

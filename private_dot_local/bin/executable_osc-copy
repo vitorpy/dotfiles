@@ -1,0 +1,5 @@
+#!/bin/sh
+# OSC 52 clipboard - pipe anything into this to copy to local clipboard over SSH
+# Works with terminals that support OSC 52: foot, kitty, alacritty, wezterm, iTerm2, etc.
+# For tmux: set -g allow-passthrough on
+printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')"

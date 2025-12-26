@@ -39,6 +39,7 @@ if [[ $- == *i* ]]; then
     alias grok='codex --model grok-code-fast-1 --config model_provider="xai"'
     alias grok-full='codex --model grok-4-latest --config model_provider="xai"'
     alias codex-local='codex --oss'
+    alias codex-deepseek='codex --model deepseek/deepseek-v3.2 --config model_provider="openrouter"'
 
     # VPN aliases
     alias vpn-on='sudo systemctl start openvpn-client@rejewski'

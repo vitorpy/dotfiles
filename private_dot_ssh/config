@@ -6,8 +6,12 @@ Host scherbius.vitorpy.com
   User vitorpy
   ForwardAgent yes
   SendEnv GROK_API_KEY
+  SendEnv OPENROUTER_API_KEY
+  RemoteForward /run/user/1000/waypipe-server.sock:/run/user/1000/waypipe-client.sock
 
 Host rejewski.vitorpy.com
   User vitorpy
   ForwardAgent yes
   SendEnv GROK_API_KEY
+  SendEnv OPENROUTER_API_KEY
+  RemoteForward /run/user/1000/waypipe-server.sock:/run/user/1000/waypipe-client.sock

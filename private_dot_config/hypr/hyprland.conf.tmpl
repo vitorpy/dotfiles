@@ -87,6 +87,7 @@ env = SSH_AUTH_SOCK,/home/vitorpy/.bitwarden-ssh-agent.sock
 {{- if eq .chezmoi.hostname "zygalski" }}
 # API Keys for AI models (from Bitwarden)
 env = GROK_API_KEY,{{ (bitwarden "item" "GROK_API_KEY").notes }}
+env = OPENROUTER_API_KEY,{{ (bitwarden "item" "OPENROUTER_API_KEY").notes }}
 {{- end }}
 
 #####################

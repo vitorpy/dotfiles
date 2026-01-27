@@ -10,8 +10,19 @@ export EDITOR=nvim
 
 # NVM Setup
 export NVM_DIR="$HOME/.nvm"
-# Load nvm from Arch package
-[ -f /usr/share/nvm/init-nvm.sh ] && source /usr/share/nvm/init-nvm.sh
+if [ -f /usr/share/nvm/init-nvm.sh ]; then
+    # Arch Linux
+    source /usr/share/nvm/init-nvm.sh
+elif [ -f "$HOME/.nvm/nvm.sh" ]; then
+    # MacOS/standard install
+    source "$HOME/.nvm/nvm.sh"
+elif [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
+    # MacOS Homebrew (Apple Silicon)
+    source "/opt/homebrew/opt/nvm/nvm.sh"
+elif [ -s "/usr/local/opt/nvm/nvm.sh" ]; then
+    # MacOS Homebrew (Intel)
+    source "/usr/local/opt/nvm/nvm.sh"
+fi
 
 # Lean
 [ -f "$HOME/.elan/env" ] && source "$HOME/.elan/env"
@@ -26,8 +37,10 @@ esac
 
 # Interactive shell configuration
 if [[ $- == *i* ]]; then
-    # System update alias
-    alias update="$HOME/.config/arch/update-system.sh"
+    # System update alias (Linux only)
+    if [ -f "$HOME/.config/arch/update-system.sh" ]; then
+        alias update="$HOME/.config/arch/update-system.sh"
+    fi
 
     # GNOME Control Center (works outside GNOME)
     alias gnome-settings="env XDG_CURRENT_DESKTOP=GNOME gnome-control-center"
@@ -60,8 +73,22 @@ if [[ $- == *i* ]]; then
     # Ctrl+R: command history search
     # Ctrl+T: file search
     # Alt+C: directory search
-    [ -f /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
-    [ -f /usr/share/fzf/completion.zsh ] && source /usr/share/fzf/completion.zsh
+    if [ -f /usr/share/fzf/key-bindings.zsh ]; then
+        # Arch Linux
+        source /usr/share/fzf/key-bindings.zsh
+        source /usr/share/fzf/completion.zsh
+    elif [ -f "$HOME/.fzf.zsh" ]; then
+        # Standard install
+        source "$HOME/.fzf.zsh"
+    elif [ -f /opt/homebrew/opt/fzf/shell/key-bindings.zsh ]; then
+        # MacOS Homebrew (Apple Silicon)
+        source /opt/homebrew/opt/fzf/shell/key-bindings.zsh
+        source /opt/homebrew/opt/fzf/shell/completion.zsh
+    elif [ -f /usr/local/opt/fzf/shell/key-bindings.zsh ]; then
+        # MacOS Homebrew (Intel)
+        source /usr/local/opt/fzf/shell/key-bindings.zsh
+        source /usr/local/opt/fzf/shell/completion.zsh
+    fi
 
     # Enable completion system
     autoload -Uz compinit
@@ -79,7 +106,19 @@ if [[ $- == *i* ]]; then
     zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 fi
 
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# zsh-syntax-highlighting
+if [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    # Arch Linux
+    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+elif [ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    # MacOS Homebrew (Apple Silicon)
+    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+elif [ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    # MacOS Homebrew (Intel)
+    source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
 
 # opencode
-export PATH=/home/vitorpy/.opencode/bin:$PATH
+if [ -d "$HOME/.opencode/bin" ]; then
+    export PATH="$HOME/.opencode/bin:$PATH"
+fi

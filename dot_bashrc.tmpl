@@ -3,6 +3,8 @@
 # Source global definitions
 if [ -f /etc/bashrc ]; then
     . /etc/bashrc
+elif [ -f /etc/bash.bashrc ]; then
+    . /etc/bash.bashrc
 fi
 
 # User specific environment
@@ -29,7 +31,19 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 # NVM Setup
 export NVM_DIR="$HOME/.nvm"
-[ -s "/usr/share/nvm/init-nvm.sh" ] && source /usr/share/nvm/init-nvm.sh 2>/dev/null
+if [ -s "/usr/share/nvm/init-nvm.sh" ]; then
+    # Arch Linux
+    source /usr/share/nvm/init-nvm.sh 2>/dev/null
+elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+    # MacOS/standard install
+    source "$HOME/.nvm/nvm.sh"
+elif [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
+    # MacOS Homebrew (Apple Silicon)
+    source "/opt/homebrew/opt/nvm/nvm.sh"
+elif [ -s "/usr/local/opt/nvm/nvm.sh" ]; then
+    # MacOS Homebrew (Intel)
+    source "/usr/local/opt/nvm/nvm.sh"
+fi
 
 # zvm (Zig Version Manager)
 export PATH="$HOME/.zvm/bin:$PATH"
@@ -41,4 +55,6 @@ export ANTHROPIC_API_KEY="{{ (bitwarden "item" "Anthropic API Key").login.passwo
 
 [[ "$TERM_PROGRAM" == "vscode" ]] && unset ARGV0
 
-alias claude="/home/vitorpy/.claude/local/claude"
+if [ -f "$HOME/.claude/local/claude" ]; then
+    alias claude="$HOME/.claude/local/claude"
+fi

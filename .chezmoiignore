@@ -1,1 +1,22 @@
 README.md
+
+# Linux-only window manager and desktop environment
+{{- if eq .chezmoi.os "darwin" }}
+.config/hypr
+.config/waybar
+.config/mako
+.config/wofi
+.config/libinput-gestures.conf
+.config/xdg-desktop-portal
+.config/systemd
+.config/private_ly
+.config/private_arch
+
+# GTK configs (use native MacOS widgets)
+.config/gtk-3.0
+.config/gtk-4.0
+.config/private_gtk-3.0
+
+# Linux-only scripts
+.local/bin/google-arts-wallpaper
+{{- end }}

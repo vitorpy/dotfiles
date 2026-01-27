@@ -80,3 +80,6 @@ if [[ $- == *i* ]]; then
 fi
 
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# opencode
+export PATH=/home/vitorpy/.opencode/bin:$PATH

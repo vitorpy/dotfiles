@@ -1,9 +1,15 @@
 [user]
 	email = vitor@vitorpy.com
 	name = Vitor Py
+{{- if eq .chezmoi.os "darwin" }}
+  signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILPTg2brF8gVoxI+uuHIzaPYJF3MCUNsACYBaQ+pe9/a
+{{- else }}
   signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd
+{{- end }}
 [gpg]
   format = ssh
+[gpg "ssh"]
+  allowedSignersFile = ~/.ssh/allowedSigners
 [commit]
 	gpgsign = true
 [alias]
@@ -15,7 +21,11 @@
 [push]
 	autoSetupRemote = true
 [core]
+{{- if eq .chezmoi.os "darwin" }}
+  sshCommand = ssh -i ~/.ssh/id_ed25519 -F /dev/null -o 'IdentitiesOnly yes'
+{{- else }}
   sshCommand = ssh -i ~/.ssh/vitorpy.pub -F /dev/null -o 'IdentitiesOnly yes'
+{{- end }}
 [includeIf "gitdir:~/poker/"]
     path = ~/.gitconfig-tito
 [diff "lockb"]
@@ -26,8 +36,8 @@
 	required = true
 	clean = git-lfs clean -- %f
 [credential "https://github.com"]
-	helper = 
+	helper =
 	helper = !/usr/bin/gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = 
+	helper =
 	helper = !/usr/bin/gh auth git-credential

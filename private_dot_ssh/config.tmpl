@@ -1,6 +1,17 @@
+{{- if eq .chezmoi.os "darwin" }}
+Host *
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+
+{{- end }}
+
+{{- if eq .chezmoi.os "linux" }}
 Host aur.archlinux.org
   IdentityFile ~/.ssh/aur
   User aur
+
+{{- end }}
 
 Host scherbius.vitorpy.com
   User vitorpy

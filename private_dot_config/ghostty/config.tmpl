@@ -43,7 +43,11 @@ font-family = DroidSansM Nerd Font Mono
 # resize-overlay-duration = 4s 200ms
 theme = Zenburn
 keybind = shift+enter=text:\x1b\r
+{{- if eq .chezmoi.os "darwin" }}
+command = /bin/zsh
+{{- else }}
 command = /usr/bin/zsh
+{{- end }}
 
 # Cursor visibility
 cursor-style = block

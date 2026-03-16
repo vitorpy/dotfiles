@@ -15,5 +15,10 @@
     "git.openRepositoryInParentFolders": "never",
     "git.autofetch": true,
     "lean4.alwaysAskBeforeInstallingLeanVersions": false,
-    "zig.zls.enabled": "on"
+    "zig.zls.enabled": "on",
+    "editor.fontSize": 16,
+    "workbench.bottomPane.experimental.fontSize": 16,
+    "workbench.sideBar.experimental.fontSize": 16,
+    "workbench.tabs.experimental.fontSize": 16,
+    "terminal.integrated.fontSize": 16
 }

@@ -35,7 +35,7 @@ monitor=eDP-1,highres,auto,1
 $terminal = ghostty
 $fileManager = nautilus
 $menu = wofi --show drun
-$browser = firefox
+$browser = google-chrome-stable
 $screenshot = grim -g "$(slurp)" - | wl-copy
 
 
@@ -47,7 +47,6 @@ $screenshot = grim -g "$(slurp)" - | wl-copy
 # Or execute your favorite apps at launch like this:
 
 exec-once = hyprctl plugin load /usr/lib/libhyprbars.so
-exec-once = hyprctl plugin load /usr/lib64/hyprland/libhyprexpo.so
 exec-once = /home/vitorpy/.cargo/bin/hyprcorners
 exec-once = waybar & hyprpaper & hypridle & mako
 exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
@@ -84,13 +83,6 @@ env = NODE_OPTIONS,--max-old-space-size=8192
 
 # Bitwarden
 env = SSH_AUTH_SOCK,/home/vitorpy/.bitwarden-ssh-agent.sock
-
-{{- if eq .chezmoi.hostname "zygalski" }}
-# API Keys for AI models (from Bitwarden)
-env = GROK_API_KEY,{{ (bitwarden "item" "GROK_API_KEY").notes }}
-env = OPENROUTER_API_KEY,{{ (bitwarden "item" "OPENROUTER_API_KEY").notes }}
-env = ARISTOTLE_API_KEY,{{ (bitwarden "item" "ARISTOTLE_API_KEY").notes }}
-{{- end }}
 
 #####################
 ### LOOK AND FEEL ###
@@ -172,15 +164,6 @@ master {
 misc {
     force_default_wallpaper = 0 # Set to 0 or 1 to disable the anime mascot wallpapers
     disable_hyprland_logo = true # If true disables the random hyprland logo / anime girl background. :(
-}
-
-plugin {
-    hyprexpo {
-        columns = 3
-        gesture_distance = 300
-        gesture_positive = false
-        gesture_fingers = 3
-    }
 }
 
 #############

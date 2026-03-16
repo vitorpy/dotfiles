@@ -1,4 +1,6 @@
 {
   "includeCoAuthoredBy": false,
-  "alwaysThinkingEnabled": true
+  "model": "opus[1m]",
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high"
 }

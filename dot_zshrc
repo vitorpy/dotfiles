@@ -122,3 +122,6 @@ fi
 if [ -d "$HOME/.opencode/bin" ]; then
     export PATH="$HOME/.opencode/bin:$PATH"
 fi
+
+# Ensure truecolor works over mosh
+export COLORTERM=truecolor

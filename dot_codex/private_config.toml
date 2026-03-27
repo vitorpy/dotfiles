@@ -1,7 +1,20 @@
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
+service_tier = "fast"
 [projects."/home/vitorpy/src/zyga"]
 trust_level = "trusted"
+
+[projects."/home/vitorpy/src/rust-onchain"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/feanor-math"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy"]
+trust_level = "trusted"
+
+[notice]
+hide_rate_limit_model_nudge = true
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"

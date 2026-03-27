@@ -18,6 +18,7 @@
     "cpu",
     "temperature",
     "custom/kblayout",
+    "custom/gmail",
     "tray",
     "custom/mako-dnd",
     "custom/mako-clear",
@@ -113,5 +114,11 @@
     "exec": "~/.config/waybar/scripts/reboot-required.sh",
     "interval": 300,
     "return-type": "json"
+  },
+  "custom/gmail": {
+    "exec": "/home/vitorpy/src/gmail-waybar/.venv/bin/gmail-waybar status",
+    "return-type": "json",
+    "interval": 300,
+    "on-click": "xdg-open https://mail.google.com"
   }
 }

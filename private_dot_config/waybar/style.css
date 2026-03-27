@@ -182,6 +182,11 @@ menu > menuitem:hover {
   color: @md3_on_surface;
 }
 
+/* gmail */
+#custom-gmail.unread {
+  color: @md3_error;
+}
+
 /* mako-dnd */
 #custom-mako-dnd {
   border-left: 1px solid @md3_outline_variant;   /* subtle separator */
@@ -220,6 +225,7 @@ menu > menuitem:hover {
 #custom-mako-dnd   { min-width: 34px; }
 #custom-mako-clear { min-width: 34px; }
 #custom-power      { min-width: 34px; }
+#custom-gmail      { min-width: 34px; }
 
 /* (optional) keep clock tight but stable */
 #clock             { min-width: 190px; }

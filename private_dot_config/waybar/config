@@ -63,7 +63,7 @@
     }
   },
   "battery#charging": {
-    "format-charging": "􀫦",
+    "format-charging": "􀫮",
     "format": "",
     "tooltip": false,
     "interval": 5

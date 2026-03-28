@@ -9,7 +9,8 @@ running_kernel=$(uname -r)
 if [ ! -d "/lib/modules/$running_kernel" ]; then
     # Running kernel modules missing - reboot required
     installed_kernels=$(ls -1 /lib/modules/ | sort -V | tail -1)
-    echo "{\"text\":\"\", \"tooltip\":\"Reboot required: kernel $running_kernel → $installed_kernels\", \"class\":\"reboot-required\"}"
+    ICON=$(printf '\U00100681')
+    echo "{\"text\":\"$ICON\", \"tooltip\":\"Reboot required: kernel $running_kernel → $installed_kernels\", \"class\":\"reboot-required\"}"
 else
     # System OK, no reboot needed - show nothing
     echo ""

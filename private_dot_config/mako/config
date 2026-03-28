@@ -1,4 +1,4 @@
-# Mako notification daemon configuration - Zenburn theme
+# Mako notification daemon configuration - Berg theme
 
 # Positioning
 anchor=top-right
@@ -11,16 +11,16 @@ height=150
 border-size=2
 border-radius=10
 
-# Colors (Zenburn)
-background-color=#3f3f3f
-text-color=#dcdccc
-border-color=#8faf9f
+# Colors (Berg)
+background-color=#282828
+text-color=#acacae
+border-color=#464646
 
 # Progress bar
-progress-color=over #8faf9f
+progress-color=over #f49f31
 
 # Font
-font=Noto Sans 11
+font=BloombergFixedUnicodeN Nerd Font Mono 11
 
 # Timeout (milliseconds)
 default-timeout=5000
@@ -40,7 +40,8 @@ invisible=1
 
 # Urgency overrides
 [urgency=low]
-border-color=#7f9f7f
+border-color=#202020
 
 [urgency=critical]
-border-color=#cc9393
+border-color=#f49f31
+text-color=#d7d7d7

@@ -21,13 +21,15 @@ fi
 # Total updates
 total_updates=$((official_updates + aur_updates))
 
+ICON=$(printf '\U00100079')
+
 if [ "$total_updates" -gt 0 ]; then
     if [ "$aur_updates" -gt 0 ]; then
         tooltip="$official_updates official, $aur_updates AUR updates"
     else
         tooltip="$official_updates updates available"
     fi
-    echo "{\"text\":\"\\uf090 $total_updates\", \"tooltip\":\"$tooltip\", \"class\":\"updates-available\"}"
+    echo "{\"text\":\"$ICON $total_updates\", \"tooltip\":\"$tooltip\", \"class\":\"updates-available\"}"
 else
     echo "{\"text\":\"\", \"tooltip\":\"System up to date\", \"class\":\"up-to-date\"}"
 fi

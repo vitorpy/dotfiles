@@ -1,32 +1,40 @@
-/* Zenburn theme for wofi */
+/* Berg theme for wofi */
 
 window {
     margin: 0px;
-    border: 2px solid #8faf9f;
-    background-color: #3f3f3f;
+    border: 2px solid #5dc453;
+    background-color: #000000;
     border-radius: 10px;
+    font-family: "Avenir Next M for BBG", sans-serif;
+    font-size: 14px;
 }
 
 #input {
     margin: 5px;
     padding: 8px;
-    border: none;
+    border: 1px solid #464646;
     border-radius: 5px;
-    color: #dcdccc;
-    background-color: #2b2b2b;
+    color: #d7d7d7;
+    background-color: #202020;
+    font-family: inherit;
     font-size: 14px;
+}
+
+#input:focus {
+    border-color: #f49f31;
+    outline: none;
 }
 
 #inner-box {
     margin: 5px;
     border: none;
-    background-color: #3f3f3f;
+    background-color: #000000;
 }
 
 #outer-box {
     margin: 5px;
     border: none;
-    background-color: #3f3f3f;
+    background-color: #000000;
 }
 
 #scroll {
@@ -37,20 +45,25 @@ window {
 #text {
     margin: 5px;
     border: none;
-    color: #dcdccc;
+    color: #d7d7d7;
 }
 
-#entry:selected {
-    background-color: #5f7f5f;
+#entry {
     border-radius: 5px;
 }
 
+#entry:selected {
+    background-color: #282828;
+    border-radius: 5px;
+    border: 1px solid #f49f31;
+}
+
 #entry:selected #text {
-    color: #ffffff;
+    color: #f49f31;
     font-weight: bold;
 }
 
 #entry:hover {
-    background-color: #506070;
+    background-color: #202020;
     border-radius: 5px;
 }

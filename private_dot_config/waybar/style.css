@@ -1,22 +1,22 @@
-/* MD3 Dark Theme Palette (Pragmatic - keeping warm accent) */
-@define-color md3_surface #1D1B20;
-@define-color md3_surface_container #25232A;
-@define-color md3_surface_container_high #2B292F;
-@define-color md3_on_surface #E6E1E5;
-@define-color md3_on_surface_variant #CAC4D0;
-@define-color md3_outline #938F99;
-@define-color md3_outline_variant #49454F;
-@define-color md3_primary #f0dfaf;
-@define-color md3_on_primary #1D1B20;
-@define-color md3_secondary #9ece9e;
-@define-color md3_secondary_container #3a4a3a;
-@define-color md3_error #F2B8B5;
-@define-color md3_on_error #1D1B20;
+/* Berg — Bloomberg Terminal inspired palette */
+@define-color md3_surface #000000;
+@define-color md3_surface_container #202020;
+@define-color md3_surface_container_high #282828;
+@define-color md3_on_surface #d7d7d7;
+@define-color md3_on_surface_variant #acacae;
+@define-color md3_outline #646667;
+@define-color md3_outline_variant #464646;
+@define-color md3_primary #f49f31;
+@define-color md3_on_primary #000000;
+@define-color md3_secondary #5dc453;
+@define-color md3_secondary_container #1B4001;
+@define-color md3_error #d54135;
+@define-color md3_on_error #000000;
 
 /* Global look + font */
 * {
-  font-family: "Roboto", "Material Symbols Outlined", sans-serif;
-  font-weight: 500;                    /* MD3 Label Medium weight */
+  font-family: "Avenir Next M for BBG", "Material Symbols Outlined", sans-serif;
+  font-weight: 500;                    /* Medium weight */
 }
 
 window#waybar {

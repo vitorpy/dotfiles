@@ -1,0 +1,30 @@
+# Bloomberg — based on the Berg VSCode theme palette
+# Dark Bloomberg Terminal aesthetic: black canvas, amber foreground
+
+background           = #000000
+foreground           = #f49f31
+cursor-color         = #4dc7f9
+selection-background = #353f40
+selection-foreground = #291f10
+
+# Normal colors (0-7)
+# black, red, green, yellow, blue, magenta, cyan, white
+palette = 0=#000000
+palette = 1=#d54135
+palette = 2=#5dc453
+palette = 3=#FEE334
+palette = 4=#569CD6
+palette = 5=#8C6EAF
+palette = 6=#4dc7f9
+palette = 7=#acacae
+
+# Bright colors (8-15)
+# bright black, red, green, yellow, blue, magenta, cyan, white
+palette = 8=#464646
+palette = 9=#ff6b5b
+palette = 10=#60C487
+palette = 11=#f49f31
+palette = 12=#6D96D0
+palette = 13=#da9bff
+palette = 14=#ABD3E0
+palette = 15=#d7d7d7

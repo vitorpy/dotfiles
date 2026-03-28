@@ -1,9 +1,9 @@
 {
-    "workbench.colorTheme": "Zenburn",
+    "workbench.colorTheme": "Berg Theme",
     "extensions.experimental.affinity": {
         "asvetliakov.vscode-neovim": 1
     },
-    "editor.fontFamily": "'FiraCode Nerd Font', monospace",
+    "editor.fontFamily": "'BloombergFixedUnicodeN Nerd Font Mono', monospace",
     "editor.fontLigatures": true,
     "terminal.integrated.defaultProfile.linux": "zsh",
     "terminal.integrated.profiles.linux": {
@@ -20,5 +20,6 @@
     "workbench.bottomPane.experimental.fontSize": 16,
     "workbench.sideBar.experimental.fontSize": 16,
     "workbench.tabs.experimental.fontSize": 16,
-    "terminal.integrated.fontSize": 16
+    "terminal.integrated.fontSize": 16,
+    "lldb.suppressUpdateNotifications": true
 }

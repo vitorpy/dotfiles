@@ -1,8 +1,7 @@
 return {
-  "phha/zenburn.nvim",
+  "vitorpy/nvim-berg",
   priority = 1000,
   config = function()
-    require("zenburn").setup()
-    vim.cmd.colorscheme("zenburn")
+    vim.cmd.colorscheme("berg")
   end,
 }

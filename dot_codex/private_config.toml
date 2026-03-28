@@ -1,6 +1,5 @@
 model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-service_tier = "fast"
+model_reasoning_effort = "high"
 [projects."/home/vitorpy/src/zyga"]
 trust_level = "trusted"
 
@@ -13,8 +12,14 @@ trust_level = "trusted"
 [projects."/home/vitorpy"]
 trust_level = "trusted"
 
+[projects."/home/vitorpy/src/gmail-eml-importer"]
+trust_level = "trusted"
+
 [notice]
 hide_rate_limit_model_nudge = true
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
+
+[features]
+prevent_idle_sleep = true

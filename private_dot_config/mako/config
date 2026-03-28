@@ -20,7 +20,7 @@ border-color=#464646
 progress-color=over #f49f31
 
 # Font
-font=BloombergFixedUnicodeN Nerd Font Mono 11
+font=Avenir Next M for BBG 11
 
 # Timeout (milliseconds)
 default-timeout=5000

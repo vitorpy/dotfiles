@@ -54,7 +54,6 @@ partition_path() {
 
 cleanup() {
   set +e
-  umount "$MOUNT_ROOT/run/host/usr/share/secureboot" 2>/dev/null || true
   umount "$MOUNT_ROOT/run/host/var/lib/sbctl" 2>/dev/null || true
   umount "$MOUNT_ROOT/boot" 2>/dev/null || true
   umount "$MOUNT_ROOT/.snapshots" 2>/dev/null || true
@@ -259,8 +258,7 @@ title   Arch Linux
 efi     /EFI/Linux/arch-linux.efi
 EOF
 
-mkdir -p /usr/share/secureboot /var/lib/sbctl
-cp -a /run/host/usr/share/secureboot/. /usr/share/secureboot/ 2>/dev/null || true
+mkdir -p /var/lib/sbctl
 cp -a /run/host/var/lib/sbctl/. /var/lib/sbctl/ 2>/dev/null || true
 
 sbctl sign -s /boot/EFI/systemd/systemd-bootx64.efi
@@ -288,9 +286,11 @@ sed -i "s|__KERNEL_CMDLINE__|$KERNEL_CMDLINE|g" "$MOUNT_ROOT/root/post-install.s
 chmod +x "$MOUNT_ROOT/root/post-install.sh"
 
 echo "==> Entering chroot for final configuration..."
-mkdir -p "$MOUNT_ROOT/run/host/usr/share/secureboot"
+if [[ ! -f /var/lib/sbctl/keys/db/db.key ]]; then
+  echo "ERROR: Host sbctl keys not found at /var/lib/sbctl/keys/db/db.key" >&2
+  exit 1
+fi
 mkdir -p "$MOUNT_ROOT/run/host/var/lib/sbctl"
-mount --bind /usr/share/secureboot "$MOUNT_ROOT/run/host/usr/share/secureboot"
 mount --bind /var/lib/sbctl "$MOUNT_ROOT/run/host/var/lib/sbctl"
 arch-chroot "$MOUNT_ROOT" /root/post-install.sh
 rm -f "$MOUNT_ROOT/root/post-install.sh"

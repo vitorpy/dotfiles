@@ -153,6 +153,7 @@ btrfs subvolume create "$MOUNT_ROOT/@"
 btrfs subvolume create "$MOUNT_ROOT/@home"
 btrfs subvolume create "$MOUNT_ROOT/@snapshots"
 btrfs subvolume create "$MOUNT_ROOT/@var_log"
+btrfs subvolume list "$MOUNT_ROOT"
 umount "$MOUNT_ROOT"
 
 mount -o subvol=@,compress=zstd,noatime "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT"
@@ -223,12 +224,11 @@ passwd
 echo "Set password for $USERNAME:"
 passwd "$USERNAME"
 
-cat > /etc/mkinitcpio.conf <<EOF
-MODULES=()
-BINARIES=()
-FILES=()
-HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)
-EOF
+if grep -q '^HOOKS=' /etc/mkinitcpio.conf; then
+  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+else
+  printf '\nHOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)\n' >> /etc/mkinitcpio.conf
+fi
 
 cat > /etc/kernel/cmdline <<EOF
 ${KERNEL_CMDLINE} cryptdevice=UUID=${LUKS_UUID}:${ROOT_MAPPER_NAME} root=/dev/mapper/${ROOT_MAPPER_NAME} rootflags=subvol=@ rw

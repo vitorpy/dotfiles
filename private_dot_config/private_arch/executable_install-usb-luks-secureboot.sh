@@ -54,15 +54,14 @@ partition_path() {
 
 cleanup() {
   set +e
-  if mountpoint -q "$MOUNT_ROOT/boot"; then
-    umount "$MOUNT_ROOT/boot"
-  fi
-  if mountpoint -q "$MOUNT_ROOT"; then
-    umount -R "$MOUNT_ROOT"
-  fi
-  if cryptsetup status "$ROOT_MAPPER_NAME" >/dev/null 2>&1; then
-    cryptsetup close "$ROOT_MAPPER_NAME"
-  fi
+  umount "$MOUNT_ROOT/run/host/usr/share/secureboot" 2>/dev/null || true
+  umount "$MOUNT_ROOT/run/host/var/lib/sbctl" 2>/dev/null || true
+  umount "$MOUNT_ROOT/boot" 2>/dev/null || true
+  umount "$MOUNT_ROOT/.snapshots" 2>/dev/null || true
+  umount "$MOUNT_ROOT/home" 2>/dev/null || true
+  umount "$MOUNT_ROOT/var/log" 2>/dev/null || true
+  umount -R "$MOUNT_ROOT" 2>/dev/null || true
+  cryptsetup close "$ROOT_MAPPER_NAME" 2>/dev/null || true
 }
 
 trap cleanup EXIT
@@ -260,8 +259,10 @@ title   Arch Linux
 efi     /EFI/Linux/arch-linux.efi
 EOF
 
-sbctl create-keys
-sbctl enroll-keys -m
+mkdir -p /usr/share/secureboot /var/lib/sbctl
+cp -a /run/host/usr/share/secureboot/. /usr/share/secureboot/ 2>/dev/null || true
+cp -a /run/host/var/lib/sbctl/. /var/lib/sbctl/ 2>/dev/null || true
+
 sbctl sign -s /boot/EFI/systemd/systemd-bootx64.efi
 sbctl sign -s /boot/EFI/Linux/arch-linux.efi
 mkdir -p /boot/EFI/BOOT
@@ -287,6 +288,10 @@ sed -i "s|__KERNEL_CMDLINE__|$KERNEL_CMDLINE|g" "$MOUNT_ROOT/root/post-install.s
 chmod +x "$MOUNT_ROOT/root/post-install.sh"
 
 echo "==> Entering chroot for final configuration..."
+mkdir -p "$MOUNT_ROOT/run/host/usr/share/secureboot"
+mkdir -p "$MOUNT_ROOT/run/host/var/lib/sbctl"
+mount --bind /usr/share/secureboot "$MOUNT_ROOT/run/host/usr/share/secureboot"
+mount --bind /var/lib/sbctl "$MOUNT_ROOT/run/host/var/lib/sbctl"
 arch-chroot "$MOUNT_ROOT" /root/post-install.sh
 rm -f "$MOUNT_ROOT/root/post-install.sh"
 

@@ -98,22 +98,6 @@ title   Arch Linux
 efi     /EFI/Linux/arch-linux.efi
 EOF
 
-for host_key_path in \
-  /run/host/var/lib/sbctl/GUID \
-  /run/host/var/lib/sbctl/keys/PK/PK.key \
-  /run/host/var/lib/sbctl/keys/PK/PK.pem \
-  /run/host/var/lib/sbctl/keys/KEK/KEK.key \
-  /run/host/var/lib/sbctl/keys/KEK/KEK.pem \
-  /run/host/var/lib/sbctl/keys/db/db.key \
-  /run/host/var/lib/sbctl/keys/db/db.pem; do
-  require_file "$host_key_path"
-done
-
-mkdir -p /var/lib/sbctl/keys
-cp /run/host/var/lib/sbctl/GUID /var/lib/sbctl/GUID
-cp -a /run/host/var/lib/sbctl/keys/. /var/lib/sbctl/keys/
-rm -f /var/lib/sbctl/files.json /var/lib/sbctl/bundles.json
-
 for key_path in \
   /var/lib/sbctl/GUID \
   /var/lib/sbctl/keys/PK/PK.key \

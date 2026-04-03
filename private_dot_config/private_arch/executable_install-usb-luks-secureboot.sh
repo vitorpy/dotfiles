@@ -78,7 +78,6 @@ partition_path() {
 
 cleanup() {
   set +e
-  umount "$MOUNT_ROOT/run/host/var/lib/sbctl" 2>/dev/null || true
   umount "$MOUNT_ROOT/boot" 2>/dev/null || true
   umount "$MOUNT_ROOT/.snapshots" 2>/dev/null || true
   umount "$MOUNT_ROOT/home" 2>/dev/null || true
@@ -199,6 +198,10 @@ echo "==> Generating fstab..."
 genfstab -U "$MOUNT_ROOT" >> "$MOUNT_ROOT/etc/fstab"
 
 LUKS_UUID="$(blkid -s UUID -o value "$CRYPT_PART")"
+mkdir -p "$MOUNT_ROOT/var/lib/sbctl/keys"
+cp /var/lib/sbctl/GUID "$MOUNT_ROOT/var/lib/sbctl/GUID"
+cp -a /var/lib/sbctl/keys/. "$MOUNT_ROOT/var/lib/sbctl/keys/"
+rm -f "$MOUNT_ROOT/var/lib/sbctl/files.json" "$MOUNT_ROOT/var/lib/sbctl/bundles.json"
 cp "$BOOTSTRAP_SYSTEM_SOURCE" "$MOUNT_ROOT/root/bootstrap-system.sh"
 chmod +x "$MOUNT_ROOT/root/bootstrap-system.sh"
 
@@ -216,8 +219,6 @@ for host_key_path in \
     exit 1
   fi
 done
-mkdir -p "$MOUNT_ROOT/run/host/var/lib/sbctl"
-mount --bind /var/lib/sbctl "$MOUNT_ROOT/run/host/var/lib/sbctl"
 arch-chroot "$MOUNT_ROOT" /usr/bin/env \
   USERNAME="$USERNAME" \
   HOSTNAME_VALUE="$HOSTNAME_VALUE" \

@@ -15,13 +15,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOTSTRAP_SYSTEM_SOURCE="$SCRIPT_DIR/bootstrap-system.sh"
+BOOTSTRAP_MIGRATE_HOME_SOURCE="$SCRIPT_DIR/bootstrap-migrate-home.sh"
 
 if [[ ! -f "$BOOTSTRAP_SYSTEM_SOURCE" ]]; then
   BOOTSTRAP_SYSTEM_SOURCE="$SCRIPT_DIR/executable_bootstrap-system.sh"
 fi
 
+if [[ ! -f "$BOOTSTRAP_MIGRATE_HOME_SOURCE" ]]; then
+  BOOTSTRAP_MIGRATE_HOME_SOURCE="$SCRIPT_DIR/executable_bootstrap-migrate-home.sh"
+fi
+
 if [[ ! -f "$BOOTSTRAP_SYSTEM_SOURCE" ]]; then
   echo "ERROR: bootstrap-system.sh not found next to $0" >&2
+  exit 1
+fi
+
+if [[ ! -f "$BOOTSTRAP_MIGRATE_HOME_SOURCE" ]]; then
+  echo "ERROR: bootstrap-migrate-home.sh not found next to $0" >&2
   exit 1
 fi
 
@@ -40,6 +50,8 @@ MICROCODE_PKG="${MICROCODE_PKG:-intel-ucode}"
 EXTRA_PACKAGES="${EXTRA_PACKAGES:-}"
 KERNEL_CMDLINE_DEFAULT="quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0 video=2256x1504"
 KERNEL_CMDLINE="${KERNEL_CMDLINE:-$KERNEL_CMDLINE_DEFAULT}"
+HOME_MIGRATION_MODE="${HOME_MIGRATION_MODE:-ask}"
+HOME_MIGRATION_SOURCE="${HOME_MIGRATION_SOURCE:-/home/$USERNAME}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -86,7 +98,7 @@ require_root() {
 
 require_root
 
-for cmd in lsblk sgdisk parted cryptsetup mkfs.fat mkfs.btrfs btrfs pacstrap genfstab arch-chroot bootctl sbctl blkid; do
+for cmd in lsblk sgdisk parted cryptsetup mkfs.fat mkfs.btrfs btrfs pacstrap genfstab arch-chroot bootctl sbctl blkid rsync; do
   require_cmd "$cmd"
 done
 
@@ -116,6 +128,7 @@ About to erase and install Arch Linux on:
   Keymap          $KEYMAP_VALUE
   Root FS         $ROOT_FS_TYPE
   Kernel          $KERNEL_PKG
+  Home migrate    $HOME_MIGRATION_MODE ($HOME_MIGRATION_SOURCE)
 EOF
 
 lsblk -o NAME,SIZE,MODEL,TYPE,FSTYPE,MOUNTPOINTS "$TARGET_DISK"
@@ -127,7 +140,7 @@ if ! confirm "Continue? This will destroy all data on $TARGET_DISK."; then
 fi
 
 echo "==> Installing required host packages..."
-pacman -Syu --needed --noconfirm arch-install-scripts dosfstools btrfs-progs cryptsetup mkinitcpio efibootmgr sbctl "$MICROCODE_PKG"
+pacman -Syu --needed --noconfirm arch-install-scripts dosfstools btrfs-progs cryptsetup mkinitcpio efibootmgr sbctl rsync "$MICROCODE_PKG"
 
 if [[ -n "$EXTRA_PACKAGES" ]]; then
   pacman -S --needed --noconfirm $EXTRA_PACKAGES
@@ -217,6 +230,37 @@ arch-chroot "$MOUNT_ROOT" /usr/bin/env \
   KERNEL_CMDLINE="$KERNEL_CMDLINE" \
   /root/bootstrap-system.sh
 rm -f "$MOUNT_ROOT/root/bootstrap-system.sh"
+
+should_migrate_home=false
+case "$HOME_MIGRATION_MODE" in
+  always)
+    should_migrate_home=true
+    ;;
+  ask)
+    if [[ -d "$HOME_MIGRATION_SOURCE" ]]; then
+      echo
+      if confirm "Copy $HOME_MIGRATION_SOURCE into the target home for $USERNAME?"; then
+        should_migrate_home=true
+      fi
+    else
+      echo "==> Skipping home migration; source does not exist: $HOME_MIGRATION_SOURCE"
+    fi
+    ;;
+  never)
+    ;;
+  *)
+    echo "ERROR: Unsupported HOME_MIGRATION_MODE: $HOME_MIGRATION_MODE (use ask, always, or never)" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$should_migrate_home" == true ]]; then
+  if [[ ! -d "$HOME_MIGRATION_SOURCE" ]]; then
+    echo "ERROR: HOME_MIGRATION_SOURCE does not exist: $HOME_MIGRATION_SOURCE" >&2
+    exit 1
+  fi
+  "$BOOTSTRAP_MIGRATE_HOME_SOURCE" "$HOME_MIGRATION_SOURCE" "$MOUNT_ROOT/home/$USERNAME" "$USERNAME"
+fi
 
 echo
 echo "==> Install completed successfully."

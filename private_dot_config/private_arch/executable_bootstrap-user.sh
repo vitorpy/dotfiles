@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+HOME_MIGRATION_MARKER="$HOME/.local/state/arch-home-migration"
+MIGRATED_HOME=false
+
+if [[ -f "$HOME_MIGRATION_MARKER" ]]; then
+  MIGRATED_HOME=true
+fi
+
 echo "==> Arch Linux User Bootstrap"
 echo
 
@@ -20,15 +27,26 @@ if [[ -z "$BW_SESSION" ]]; then
 fi
 
 echo "==> Applying dotfiles..."
-chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+if [[ -d "$HOME/.local/share/chezmoi/.git" ]]; then
+  chezmoi apply
+else
+  chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+fi
 
-echo "==> Restoring SSH and GPG keys from Bitwarden..."
-"$HOME/.config/arch/restore-keys-from-bitwarden.sh"
+if [[ "$MIGRATED_HOME" == true ]]; then
+  echo "==> Home migration detected; skipping Bitwarden key restore."
+else
+  echo "==> Restoring SSH and GPG keys from Bitwarden..."
+  "$HOME/.config/arch/restore-keys-from-bitwarden.sh"
+fi
 
 echo "==> Adding SSH keys to ssh-agent..."
 eval "$(ssh-agent -s)"
-ssh-add "$HOME/.ssh/github"
-ssh-add "$HOME/.ssh/id_ed25519"
+for key_path in "$HOME/.ssh/github" "$HOME/.ssh/id_ed25519"; do
+  if [[ -f "$key_path" ]]; then
+    ssh-add "$key_path"
+  fi
+done
 
 echo "==> Switching chezmoi remote to SSH..."
 cd "$(chezmoi source-path)"

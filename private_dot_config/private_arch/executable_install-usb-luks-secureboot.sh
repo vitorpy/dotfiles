@@ -13,6 +13,18 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOOTSTRAP_SYSTEM_SOURCE="$SCRIPT_DIR/bootstrap-system.sh"
+
+if [[ ! -f "$BOOTSTRAP_SYSTEM_SOURCE" ]]; then
+  BOOTSTRAP_SYSTEM_SOURCE="$SCRIPT_DIR/executable_bootstrap-system.sh"
+fi
+
+if [[ ! -f "$BOOTSTRAP_SYSTEM_SOURCE" ]]; then
+  echo "ERROR: bootstrap-system.sh not found next to $0" >&2
+  exit 1
+fi
+
 TARGET_DISK="${TARGET_DISK:-}"
 USERNAME="${USERNAME:-vitor}"
 HOSTNAME_VALUE="${HOSTNAME:-zygalski}"
@@ -174,132 +186,8 @@ echo "==> Generating fstab..."
 genfstab -U "$MOUNT_ROOT" >> "$MOUNT_ROOT/etc/fstab"
 
 LUKS_UUID="$(blkid -s UUID -o value "$CRYPT_PART")"
-
-cat > "$MOUNT_ROOT/root/post-install.sh" <<'EOS'
-#!/bin/bash
-set -euo pipefail
-
-USERNAME="__USERNAME__"
-HOSTNAME_VALUE="__HOSTNAME__"
-TIMEZONE_VALUE="__TIMEZONE__"
-LOCALE_VALUE="__LOCALE__"
-KEYMAP_VALUE="__KEYMAP__"
-ROOT_MAPPER_NAME="__ROOT_MAPPER_NAME__"
-LUKS_UUID="__LUKS_UUID__"
-KERNEL_PKG="__KERNEL_PKG__"
-MICROCODE_PKG="__MICROCODE_PKG__"
-KERNEL_CMDLINE="__KERNEL_CMDLINE__"
-
-ln -sf "/usr/share/zoneinfo/$TIMEZONE_VALUE" /etc/localtime
-hwclock --systohc
-
-sed -i "s/^#${LOCALE_VALUE} ${LOCALE_VALUE#*.}/${LOCALE_VALUE} ${LOCALE_VALUE#*.}/" /etc/locale.gen || true
-if ! grep -q "^${LOCALE_VALUE} " /etc/locale.gen; then
-  echo "${LOCALE_VALUE} ${LOCALE_VALUE#*.}" >> /etc/locale.gen
-fi
-locale-gen
-printf 'LANG=%s\n' "$LOCALE_VALUE" > /etc/locale.conf
-printf 'KEYMAP=%s\n' "$KEYMAP_VALUE" > /etc/vconsole.conf
-printf '%s\n' "$HOSTNAME_VALUE" > /etc/hostname
-cat > /etc/hosts <<EOF
-127.0.0.1 localhost
-::1       localhost
-127.0.1.1 ${HOSTNAME_VALUE}.localdomain ${HOSTNAME_VALUE}
-EOF
-
-systemctl enable NetworkManager
-systemctl enable sshd
-
-if ! id -u "$USERNAME" >/dev/null 2>&1; then
-  useradd -m -G wheel -s /usr/bin/fish "$USERNAME"
-fi
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-sed -i 's/^#%wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-
-echo "Set root password:"
-passwd
-
-echo "Set password for $USERNAME:"
-passwd "$USERNAME"
-
-if grep -q '^HOOKS=' /etc/mkinitcpio.conf; then
-  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-else
-  printf '\nHOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)\n' >> /etc/mkinitcpio.conf
-fi
-
-cat > /etc/kernel/cmdline <<EOF
-${KERNEL_CMDLINE} cryptdevice=UUID=${LUKS_UUID}:${ROOT_MAPPER_NAME} root=/dev/mapper/${ROOT_MAPPER_NAME} rootflags=subvol=@ rw
-EOF
-
-mkdir -p /boot/EFI/Linux
-cat > "/etc/mkinitcpio.d/${KERNEL_PKG}.preset" <<EOF
-ALL_config="/etc/mkinitcpio.conf"
-ALL_kver="/boot/vmlinuz-${KERNEL_PKG}"
-
-PRESETS=('default')
-
-default_uki="/boot/EFI/Linux/arch-linux.efi"
-default_options="--cmdline /etc/kernel/cmdline"
-EOF
-
-mkinitcpio -P
-
-bootctl install
-mkdir -p /boot/loader /boot/loader/entries
-cat > /boot/loader/loader.conf <<EOF
-default arch
-timeout 3
-console-mode max
-editor no
-EOF
-cat > /boot/loader/entries/arch.conf <<EOF
-title   Arch Linux
-efi     /EFI/Linux/arch-linux.efi
-EOF
-
-mkdir -p /var/lib/sbctl/keys
-cp /run/host/var/lib/sbctl/GUID /var/lib/sbctl/GUID
-cp -a /run/host/var/lib/sbctl/keys/. /var/lib/sbctl/keys/
-rm -f /var/lib/sbctl/files.json /var/lib/sbctl/bundles.json
-
-for key_path in \
-  /var/lib/sbctl/GUID \
-  /var/lib/sbctl/keys/PK/PK.key \
-  /var/lib/sbctl/keys/PK/PK.pem \
-  /var/lib/sbctl/keys/KEK/KEK.key \
-  /var/lib/sbctl/keys/KEK/KEK.pem \
-  /var/lib/sbctl/keys/db/db.key \
-  /var/lib/sbctl/keys/db/db.pem; do
-  if [[ ! -f "$key_path" ]]; then
-    echo "ERROR: Expected sbctl key material missing: $key_path" >&2
-    exit 1
-  fi
-done
-
-sbctl sign -s /boot/EFI/systemd/systemd-bootx64.efi
-sbctl sign -s /boot/EFI/Linux/arch-linux.efi
-mkdir -p /boot/EFI/BOOT
-cp /boot/EFI/systemd/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI
-sbctl sign -s /boot/EFI/BOOT/BOOTX64.EFI
-sbctl verify
-
-echo
-echo "Post-install complete."
-echo "After shutdown, swap the disks and enable Secure Boot in firmware if needed."
-EOS
-
-sed -i "s|__USERNAME__|$USERNAME|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__HOSTNAME__|$HOSTNAME_VALUE|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__TIMEZONE__|$TIMEZONE_VALUE|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__LOCALE__|$LOCALE_VALUE|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__KEYMAP__|$KEYMAP_VALUE|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__ROOT_MAPPER_NAME__|$ROOT_MAPPER_NAME|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__LUKS_UUID__|$LUKS_UUID|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__KERNEL_PKG__|$KERNEL_PKG|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__MICROCODE_PKG__|$MICROCODE_PKG|g" "$MOUNT_ROOT/root/post-install.sh"
-sed -i "s|__KERNEL_CMDLINE__|$KERNEL_CMDLINE|g" "$MOUNT_ROOT/root/post-install.sh"
-chmod +x "$MOUNT_ROOT/root/post-install.sh"
+cp "$BOOTSTRAP_SYSTEM_SOURCE" "$MOUNT_ROOT/root/bootstrap-system.sh"
+chmod +x "$MOUNT_ROOT/root/bootstrap-system.sh"
 
 echo "==> Entering chroot for final configuration..."
 for host_key_path in \
@@ -317,8 +205,18 @@ for host_key_path in \
 done
 mkdir -p "$MOUNT_ROOT/run/host/var/lib/sbctl"
 mount --bind /var/lib/sbctl "$MOUNT_ROOT/run/host/var/lib/sbctl"
-arch-chroot "$MOUNT_ROOT" /root/post-install.sh
-rm -f "$MOUNT_ROOT/root/post-install.sh"
+arch-chroot "$MOUNT_ROOT" /usr/bin/env \
+  USERNAME="$USERNAME" \
+  HOSTNAME_VALUE="$HOSTNAME_VALUE" \
+  TIMEZONE_VALUE="$TIMEZONE_VALUE" \
+  LOCALE_VALUE="$LOCALE_VALUE" \
+  KEYMAP_VALUE="$KEYMAP_VALUE" \
+  ROOT_MAPPER_NAME="$ROOT_MAPPER_NAME" \
+  LUKS_UUID="$LUKS_UUID" \
+  KERNEL_PKG="$KERNEL_PKG" \
+  KERNEL_CMDLINE="$KERNEL_CMDLINE" \
+  /root/bootstrap-system.sh
+rm -f "$MOUNT_ROOT/root/bootstrap-system.sh"
 
 echo
 echo "==> Install completed successfully."

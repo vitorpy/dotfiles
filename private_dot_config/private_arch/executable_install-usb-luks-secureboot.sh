@@ -138,7 +138,7 @@ echo "==> Creating filesystems..."
 mkfs.fat -F32 "$ESP_PART"
 case "$ROOT_FS_TYPE" in
   btrfs)
-    mkfs.btrfs -f "/dev/mapper/$ROOT_MAPPER_NAME"
+    mkfs.btrfs -f -O ^block-group-tree "/dev/mapper/$ROOT_MAPPER_NAME"
     ;;
   *)
     echo "ERROR: Unsupported ROOT_FS_TYPE: $ROOT_FS_TYPE" >&2

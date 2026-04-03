@@ -258,8 +258,24 @@ title   Arch Linux
 efi     /EFI/Linux/arch-linux.efi
 EOF
 
-mkdir -p /var/lib/sbctl
-cp -a /run/host/var/lib/sbctl/. /var/lib/sbctl/ 2>/dev/null || true
+mkdir -p /var/lib/sbctl/keys
+cp /run/host/var/lib/sbctl/GUID /var/lib/sbctl/GUID
+cp -a /run/host/var/lib/sbctl/keys/. /var/lib/sbctl/keys/
+rm -f /var/lib/sbctl/files.json /var/lib/sbctl/bundles.json
+
+for key_path in \
+  /var/lib/sbctl/GUID \
+  /var/lib/sbctl/keys/PK/PK.key \
+  /var/lib/sbctl/keys/PK/PK.pem \
+  /var/lib/sbctl/keys/KEK/KEK.key \
+  /var/lib/sbctl/keys/KEK/KEK.pem \
+  /var/lib/sbctl/keys/db/db.key \
+  /var/lib/sbctl/keys/db/db.pem; do
+  if [[ ! -f "$key_path" ]]; then
+    echo "ERROR: Expected sbctl key material missing: $key_path" >&2
+    exit 1
+  fi
+done
 
 sbctl sign -s /boot/EFI/systemd/systemd-bootx64.efi
 sbctl sign -s /boot/EFI/Linux/arch-linux.efi
@@ -286,10 +302,19 @@ sed -i "s|__KERNEL_CMDLINE__|$KERNEL_CMDLINE|g" "$MOUNT_ROOT/root/post-install.s
 chmod +x "$MOUNT_ROOT/root/post-install.sh"
 
 echo "==> Entering chroot for final configuration..."
-if [[ ! -f /var/lib/sbctl/keys/db/db.key ]]; then
-  echo "ERROR: Host sbctl keys not found at /var/lib/sbctl/keys/db/db.key" >&2
-  exit 1
-fi
+for host_key_path in \
+  /var/lib/sbctl/GUID \
+  /var/lib/sbctl/keys/PK/PK.key \
+  /var/lib/sbctl/keys/PK/PK.pem \
+  /var/lib/sbctl/keys/KEK/KEK.key \
+  /var/lib/sbctl/keys/KEK/KEK.pem \
+  /var/lib/sbctl/keys/db/db.key \
+  /var/lib/sbctl/keys/db/db.pem; do
+  if [[ ! -f "$host_key_path" ]]; then
+    echo "ERROR: Host sbctl key material missing: $host_key_path" >&2
+    exit 1
+  fi
+done
 mkdir -p "$MOUNT_ROOT/run/host/var/lib/sbctl"
 mount --bind /var/lib/sbctl "$MOUNT_ROOT/run/host/var/lib/sbctl"
 arch-chroot "$MOUNT_ROOT" /root/post-install.sh

@@ -20,7 +20,7 @@ TIMEZONE_VALUE="${TIMEZONE:-Europe/Warsaw}"
 LOCALE_VALUE="${LOCALE:-en_US.UTF-8}"
 KEYMAP_VALUE="${KEYMAP:-us}"
 ROOT_MAPPER_NAME="${ROOT_MAPPER_NAME:-cryptroot}"
-ROOT_FS_TYPE="${ROOT_FS_TYPE:-ext4}"
+ROOT_FS_TYPE="${ROOT_FS_TYPE:-btrfs}"
 ESP_SIZE_MIB="${ESP_SIZE_MIB:-1025}"
 MOUNT_ROOT="${MOUNT_ROOT:-/mnt}"
 KERNEL_PKG="${KERNEL_PKG:-linux}"
@@ -76,7 +76,7 @@ require_root() {
 
 require_root
 
-for cmd in lsblk sgdisk parted cryptsetup mkfs.fat mkfs.ext4 pacstrap genfstab arch-chroot bootctl sbctl blkid; do
+for cmd in lsblk sgdisk parted cryptsetup mkfs.fat mkfs.btrfs btrfs pacstrap genfstab arch-chroot bootctl sbctl blkid; do
   require_cmd "$cmd"
 done
 
@@ -117,7 +117,7 @@ if ! confirm "Continue? This will destroy all data on $TARGET_DISK."; then
 fi
 
 echo "==> Installing required host packages..."
-pacman -Syu --needed --noconfirm arch-install-scripts dosfstools e2fsprogs cryptsetup mkinitcpio efibootmgr sbctl "$MICROCODE_PKG"
+pacman -Syu --needed --noconfirm arch-install-scripts dosfstools btrfs-progs cryptsetup mkinitcpio efibootmgr sbctl "$MICROCODE_PKG"
 
 if [[ -n "$EXTRA_PACKAGES" ]]; then
   pacman -S --needed --noconfirm $EXTRA_PACKAGES
@@ -137,8 +137,8 @@ cryptsetup open "$CRYPT_PART" "$ROOT_MAPPER_NAME"
 echo "==> Creating filesystems..."
 mkfs.fat -F32 "$ESP_PART"
 case "$ROOT_FS_TYPE" in
-  ext4)
-    mkfs.ext4 "/dev/mapper/$ROOT_MAPPER_NAME"
+  btrfs)
+    mkfs.btrfs -f "/dev/mapper/$ROOT_MAPPER_NAME"
     ;;
   *)
     echo "ERROR: Unsupported ROOT_FS_TYPE: $ROOT_FS_TYPE" >&2
@@ -149,13 +149,24 @@ esac
 echo "==> Mounting target system..."
 mkdir -p "$MOUNT_ROOT"
 mount "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT"
+btrfs subvolume create "$MOUNT_ROOT/@"
+btrfs subvolume create "$MOUNT_ROOT/@home"
+btrfs subvolume create "$MOUNT_ROOT/@snapshots"
+btrfs subvolume create "$MOUNT_ROOT/@var_log"
+umount "$MOUNT_ROOT"
+
+mount -o subvol=@,compress=zstd,noatime "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT"
+mkdir -p "$MOUNT_ROOT/home" "$MOUNT_ROOT/.snapshots" "$MOUNT_ROOT/var/log"
+mount -o subvol=@home,compress=zstd,noatime "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT/home"
+mount -o subvol=@snapshots,compress=zstd,noatime "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT/.snapshots"
+mount -o subvol=@var_log,compress=zstd,noatime "/dev/mapper/$ROOT_MAPPER_NAME" "$MOUNT_ROOT/var/log"
 mkdir -p "$MOUNT_ROOT/boot"
 mount "$ESP_PART" "$MOUNT_ROOT/boot"
 
 echo "==> Installing base system..."
 pacstrap -K "$MOUNT_ROOT" \
   base base-devel "$KERNEL_PKG" linux-firmware "$MICROCODE_PKG" \
-  mkinitcpio systemd sbctl efibootmgr \
+  mkinitcpio systemd sbctl efibootmgr btrfs-progs \
   git neovim vim fish sudo networkmanager \
   pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber \
   xdg-user-dirs xdg-utils wget curl openssh rsync jq man-db man-pages
@@ -220,7 +231,7 @@ HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont bl
 EOF
 
 cat > /etc/kernel/cmdline <<EOF
-${KERNEL_CMDLINE} cryptdevice=UUID=${LUKS_UUID}:${ROOT_MAPPER_NAME} root=/dev/mapper/${ROOT_MAPPER_NAME} rw
+${KERNEL_CMDLINE} cryptdevice=UUID=${LUKS_UUID}:${ROOT_MAPPER_NAME} root=/dev/mapper/${ROOT_MAPPER_NAME} rootflags=subvol=@ rw
 EOF
 
 mkdir -p /boot/EFI/Linux

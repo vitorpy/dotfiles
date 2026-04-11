@@ -48,7 +48,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 16px;
+  padding: 5px 16px 3px 16px;
 }
 
 #custom-dnf-updates {
@@ -65,7 +65,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 16px;
+  padding: 5px 16px 3px 16px;
   box-shadow: none;
   outline: none;
 }
@@ -76,7 +76,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation */
   border-radius: 12px;
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 16px;
+  padding: 5px 16px 3px 16px;
 }
 
 .modules-right {
@@ -85,7 +85,7 @@ window#waybar {
   border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 8px;
+  padding: 5px 8px 3px 8px;
 }
 
 .modules-center {
@@ -94,7 +94,7 @@ window#waybar {
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation, not borders */
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 8px;
+  padding: 5px 8px 3px 8px;
 }
 
 /* uniform internal spacing for every module */
@@ -236,7 +236,7 @@ menu > menuitem:hover {
   border: none;                        /* MD3: tonal elevation, not borders */
   border-radius: 12px;
   margin: 7px 16px;                    /* Reduced from 8px to compensate for 16px font */
-  padding: 4px 8px;
+  padding: 5px 8px 3px 8px;
 }
 
 /* center group item spacing to match right group */

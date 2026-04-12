@@ -97,7 +97,7 @@ export BW_SESSION="$(bw unlock --raw)"
 From `~/.config/arch/ansible`:
 
 ```bash
-sudo ansible-playbook -e ansible_become=false site.yml
+ansible-playbook site.yml
 ```
 
 Or use the wrapper:
@@ -106,10 +106,13 @@ Or use the wrapper:
 ~/.config/arch/apply-ansible.sh
 ```
 
-On this machine, `sudo` may authenticate via fingerprint. If that fingerprint flow does not yield a reusable non-interactive sudo ticket, Ansible still needs a real sudo password via `-K`.
-On this machine, it is more reliable to run the playbook itself with `sudo` and disable Ansible's localhost `become`.
+If `sudo` authenticates via fingerprint, make sure that `sudo -n true` succeeds after `sudo -v`. On this machine that is handled with a sudoers override using `timestamp_type=global`.
 
-The wrapper now does that automatically after refreshing `sudo`, but it refuses to run if any declared AUR packages are missing, because bootstrapping missing AUR packages still needs a better dedicated path.
+If your sudo setup still cannot provide a reusable non-interactive ticket, run:
+
+```bash
+ansible-playbook -K site.yml
+```
 
 ## Boot Role
 

@@ -13,20 +13,12 @@ fi
 echo "==> Refreshing sudo credentials..."
 sudo -v
 
-MISSING_AUR="$(bash -lc '
-declared_aur=$(awk '\''/^arch_pacman_packages_[a-z_]+:$/ {mode="pacman"; next} /^arch_aur_packages_[a-z_]+:$/ {mode="aur"; next} /^[^ ]/ {mode=""} mode=="aur" && /^  - / {print substr($0,5)}'\'' "'"$PLAYBOOK_DIR"'/group_vars/all.yml" | sort -u)
-for pkg in $declared_aur; do
-  pacman -Q "$pkg" >/dev/null 2>&1 || echo "$pkg"
-done
-')"
-
-if [[ -n "$MISSING_AUR" ]]; then
-  echo "ERROR: Missing declared AUR packages detected:" >&2
-  printf '  - %s\n' $MISSING_AUR >&2
-  echo "This wrapper runs ansible itself as root to avoid localhost sudo/become issues." >&2
-  echo "That is safe for package pruning, but not for bootstrapping missing AUR packages." >&2
-  echo "Resolve the missing AUR packages first or refactor the AUR install path." >&2
+if ! sudo -n true >/dev/null 2>&1; then
+  echo "ERROR: sudo credentials are not reusable non-interactively." >&2
+  echo "Ansible localhost become needs a reusable sudo ticket." >&2
+  echo "If you use fingerprint sudo, ensure 'sudo -n true' succeeds after 'sudo -v'." >&2
+  echo "Otherwise run 'ansible-playbook -K site.yml' directly from $PLAYBOOK_DIR." >&2
   exit 1
 fi
 
-exec sudo ansible-playbook -e ansible_become=false "$PLAYBOOK_DIR/site.yml" "$@"
+exec ansible-playbook "$PLAYBOOK_DIR/site.yml" "$@"

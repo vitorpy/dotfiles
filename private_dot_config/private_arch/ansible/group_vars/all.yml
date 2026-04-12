@@ -37,10 +37,10 @@ arch_x11_keymap_variant: ",intl"
 arch_x11_keymap_options: grp:alt_shift_toggle
 
 arch_pacman_packages_base:
+  - ansible
   - fish
   - starship
   - neovim
-  - vim
   - git
   - chezmoi
   - sudo
@@ -69,21 +69,19 @@ arch_pacman_packages_base:
   - pacman-contrib
   - fwupd
 
-arch_pacman_packages_browsers:
-  - firefox
-  - chromium
-
 arch_pacman_packages_hyprland:
   - hyprland
   - waybar
   - hyprpaper
   - hypridle
   - hyprlock
+  - hyprsunset
   - xdg-desktop-portal-hyprland
   - xdg-desktop-portal-gtk
   - wofi
   - grim
   - slurp
+  - mako
   - brightnessctl
   - playerctl
   - network-manager-applet
@@ -93,7 +91,6 @@ arch_pacman_packages_hyprland:
 arch_pacman_packages_gnome:
   - gnome-online-accounts
   - gvfs-goa
-  - gvfs-google
   - gvfs-dnssd
   - gnome-control-center
   - gnome-tweaks
@@ -111,38 +108,29 @@ arch_pacman_packages_gnome:
 arch_pacman_packages_multimedia:
   - ffmpeg
   - libva-utils
-  - libva-mesa-driver
   - mesa
   - vulkan-radeon
   - vulkan-tools
 
-arch_pacman_packages_sway:
-  - sway
-  - swayidle
-  - swaybg
-  - xdg-desktop-portal-wlr
-  - mako
-
 arch_pacman_packages_development:
+  - ansible-lint
   - rustup
   - nvm
   - go
   - subversion
-  - podman
-  - podman-compose
   - llvm
   - clang
   - gdb
   - symengine
-  - sagemath
-  - jupyterlab
-  - jupyter-notebook
+  - tmux
+  - jujutsu
+  - openvpn
+  - wireguard-tools
 
 arch_pacman_packages_communication:
   - telegram-desktop
   - discord
   - signal-desktop
-  - calibre
 
 arch_pacman_packages_theming:
   - kvantum-qt5
@@ -166,7 +154,6 @@ arch_pacman_packages_utilities:
   - net-tools
   - mkcert
   - monero
-  - mosh
   - unzip
   - direnv
   - uv
@@ -174,25 +161,25 @@ arch_pacman_packages_utilities:
   - bc
   - veracrypt
   - xmlstarlet
-  - pandoc
+
+arch_aur_packages_browsers:
+  - google-chrome
 
 arch_aur_packages_hyprland:
-  - hyprland-plugin-hyprbars
-
-arch_aur_packages_sway:
-  - swaylock-fprintd-git
   - libinput-gestures
 
 arch_aur_packages_development:
   - zvm
-  - gnucobol
   - vscodium-bin
-  - claude-code
   - openai-codex
-  - gemini-cli-bin
+  - aws-cli-bin
+  - grpcurl-bin
+  - juliaup-bin
+  - vsce
 
 arch_aur_packages_communication:
   - slack-desktop
+  - zoom
 
 arch_aur_packages_theming:
   - yaru-gtk-theme
@@ -200,5 +187,13 @@ arch_aur_packages_theming:
   - adwaita-qt5
 
 arch_aur_packages_utilities:
-  - jan-appimage
-  - framework-tool-tui
+  - deezer
+  - eternalterminal-client
+  - losslesscut-bin
+  - mkp224o
+  - psftools
+  - yay-bin
+
+arch_pacman_packages_shells:
+  - zsh
+  - zsh-syntax-highlighting

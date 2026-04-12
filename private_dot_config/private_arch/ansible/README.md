@@ -56,6 +56,5 @@ This role manages `/etc/kernel/cmdline`, mkinitcpio hooks, UKI preset, `systemd-
 ## Open Gaps
 
 - Password prompting is intentionally left out.
-- Home migration stays in shell for now.
 - Bitwarden restore remains a separate explicit step.
 - AUR management still depends on `yay`, which this playbook bootstraps if missing.

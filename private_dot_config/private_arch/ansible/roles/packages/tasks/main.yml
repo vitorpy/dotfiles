@@ -5,6 +5,11 @@
     state: present
   when: arch_pacman_packages | length > 0
 
+- name: Compute declared package set
+  ansible.builtin.set_fact:
+    packages_declared_all: "{{ (arch_pacman_packages + arch_aur_packages + arch_package_prune_exclude) | unique }}"
+  when: arch_package_prune_explicit | bool
+
 - name: Install yay build prerequisites
   ansible.builtin.package:
     name:
@@ -19,6 +24,26 @@
   register: packages_yay_binary
   when: arch_aur_packages | length > 0
 
+- name: Check installed AUR package targets
+  ansible.builtin.command:
+    cmd: "pacman -Q {{ item }}"
+  loop: "{{ arch_aur_packages }}"
+  register: packages_aur_query
+  failed_when: false
+  changed_when: false
+  when: arch_aur_packages | length > 0
+
+- name: Compute missing AUR packages
+  ansible.builtin.set_fact:
+    packages_missing_aur: >-
+      {{
+        packages_aur_query.results
+        | rejectattr('rc', 'equalto', 0)
+        | map(attribute='item')
+        | list
+      }}
+  when: arch_aur_packages | length > 0
+
 - name: Clone yay build directory
   ansible.builtin.git:
     repo: https://aur.archlinux.org/yay.git
@@ -29,6 +54,7 @@
   when:
     - arch_aur_packages | length > 0
     - not packages_yay_binary.stat.exists
+    - packages_missing_aur | length > 0
 
 - name: Build and install yay
   ansible.builtin.command:
@@ -38,11 +64,45 @@
   when:
     - arch_aur_packages | length > 0
     - not packages_yay_binary.stat.exists
+    - packages_missing_aur | length > 0
   changed_when: true
 
 - name: Install AUR packages
   ansible.builtin.command:
-    cmd: "yay -S --needed --noconfirm {{ arch_aur_packages | join(' ') }}"
+    cmd: "yay -S --needed --noconfirm {{ packages_missing_aur | join(' ') }}"
   become: false
-  when: arch_aur_packages | length > 0
+  when:
+    - arch_aur_packages | length > 0
+    - packages_missing_aur | length > 0
+  changed_when: true
+
+- name: Query explicitly installed native packages
+  ansible.builtin.command: pacman -Qqen
+  register: packages_native_explicit_query
+  changed_when: false
+  when: arch_package_prune_explicit | bool
+
+- name: Query explicitly installed foreign packages
+  ansible.builtin.command: pacman -Qqem
+  register: packages_foreign_explicit_query
+  changed_when: false
+  failed_when: false
+  when: arch_package_prune_explicit | bool
+
+- name: Compute undeclared explicit native packages
+  ansible.builtin.set_fact:
+    packages_extra_native: "{{ packages_native_explicit_query.stdout_lines | difference(packages_declared_all) }}"
+  when: arch_package_prune_explicit | bool
+
+- name: Compute undeclared explicit foreign packages
+  ansible.builtin.set_fact:
+    packages_extra_foreign: "{{ packages_foreign_explicit_query.stdout_lines | default([]) | difference(packages_declared_all) }}"
+  when: arch_package_prune_explicit | bool
+
+- name: Remove undeclared explicit packages
+  ansible.builtin.command:
+    cmd: "pacman -Rns --noconfirm {{ (packages_extra_native + packages_extra_foreign) | unique | join(' ') }}"
+  when:
+    - arch_package_prune_explicit | bool
+    - (packages_extra_native + packages_extra_foreign) | length > 0
   changed_when: true

@@ -18,6 +18,8 @@ arch_manage_sudoers: true
 
 arch_pacman_packages: []
 arch_aur_packages: []
+arch_package_prune_explicit: false
+arch_package_prune_exclude: []
 
 arch_boot_enabled: false
 arch_kernel_pkg: linux
@@ -197,3 +199,120 @@ arch_aur_packages_utilities:
 arch_pacman_packages_shells:
   - zsh
   - zsh-syntax-highlighting
+
+arch_pacman_packages_machine_extras:
+  - aarch64-linux-gnu-gcc
+  - amd-ucode
+  - android-udev
+  - arch-install-scripts
+  - base
+  - base-devel
+  - bind
+  - blueman
+  - bluez-utils
+  - btrfs-progs
+  - calibre
+  - cpio
+  - davfs2
+  - dosfstools
+  - efibootmgr
+  - exfatprogs
+  - fontforge
+  - git-lfs
+  - glm
+  - gnuplot
+  - gptfdisk
+  - gst-plugin-pipewire
+  - hugo
+  - icoutils
+  - innoextract
+  - intel-ucode
+  - iotop
+  - iw
+  - iwd
+  - kpat
+  - libfido2
+  - libpulse
+  - linux
+  - lynx
+  - mariadb-clients
+  - mariadb-libs
+  - mtr
+  - musl
+  - neomutt
+  - ollama-rocm
+  - openmotif
+  - openresolv
+  - patchelf
+  - powertop
+  - python-tomli
+  - radeontop
+  - rocm-ml-sdk
+  - sbctl
+  - socat
+  - sof-firmware
+  - solaar
+  - sqlcipher
+  - strace
+  - swaks
+  - texlive-basic
+  - texlive-bibtexextra
+  - texlive-binextra
+  - texlive-context
+  - texlive-fontsextra
+  - texlive-fontsrecommended
+  - texlive-fontutils
+  - texlive-formatsextra
+  - texlive-games
+  - texlive-humanities
+  - texlive-langarabic
+  - texlive-langchinese
+  - texlive-langcjk
+  - texlive-langcyrillic
+  - texlive-langczechslovak
+  - texlive-langenglish
+  - texlive-langeuropean
+  - texlive-langfrench
+  - texlive-langgerman
+  - texlive-langgreek
+  - texlive-langitalian
+  - texlive-langjapanese
+  - texlive-langkorean
+  - texlive-langother
+  - texlive-langpolish
+  - texlive-langportuguese
+  - texlive-langspanish
+  - texlive-latex
+  - texlive-latexextra
+  - texlive-latexrecommended
+  - texlive-luatex
+  - texlive-mathscience
+  - texlive-metapost
+  - texlive-music
+  - texlive-pictures
+  - texlive-plaingeneric
+  - texlive-pstricks
+  - texlive-publishers
+  - texlive-xetex
+  - tpm2-tools
+  - transmission-gtk
+  - tree-sitter-cli
+  - ttf-material-symbols-variable
+  - usbutils
+  - vlc-plugin-aribb25
+  - vlc-plugin-ass
+  - vlc-plugin-ffmpeg
+  - vlc-plugin-freetype
+  - vlc-plugin-gstreamer
+  - vlc-plugin-mad
+  - vlc-plugin-matroska
+  - vlc-plugin-mpeg2
+  - vlc-plugin-musepack
+  - vlc-plugin-srt
+  - vlc-plugin-x264
+  - vlc-plugin-x265
+  - wabt
+  - waypipe
+  - weechat
+  - xdg-desktop-portal-wlr
+  - zram-generator

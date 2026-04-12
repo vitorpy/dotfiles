@@ -1,174 +1,149 @@
 # Arch Linux Installation Guide
 
-Using archinstall with the provided configuration file.
+This guide reflects the current setup model:
 
-## Quick Install
+- install a working Arch base system using your preferred installer
+- apply dotfiles with `chezmoi`
+- configure system-wide state with the Ansible playbook in `~/.config/arch/ansible`
 
-1. **Boot Arch ISO** (from USB or VM)
+There is no longer a managed `archinstall` JSON profile in this repo.
 
-2. **Connect to internet** (if using WiFi):
-   ```bash
-   iwctl
-   station wlan0 connect "Your-Network-Name"
-   exit
-   ```
+## Recommended Install Target
 
-3. **Download the config**:
-   ```bash
-   curl -O https://raw.githubusercontent.com/vitorpy/dotfiles/main/.config/arch/archinstall-config.json
-   ```
+The post-install playbook assumes:
 
-   Or if you have the file on USB:
-   ```bash
-   # Mount USB and copy the file
-   mount /dev/sdX1 /mnt
-   cp /mnt/archinstall-config.json .
-   ```
+- Arch Linux
+- a normal user account already exists
+- `sudo` works for that user
+- networking works after first boot
 
-4. **Run archinstall**:
-   ```bash
-   archinstall --config archinstall-config.json
-   ```
+The playbook will then handle:
 
-5. **Follow prompts** for:
-   - Disk selection and partitioning
-   - User creation (username and password)
-   - Root password
+- hostname, timezone, locale, and `/etc/hosts`
+- package installation from `pacman` and AUR
+- core services like `NetworkManager` and `sshd`
+- desktop/session setup such as keyboard defaults and `ly`
+- optional bootloader and Secure Boot state if you enable that role explicitly
 
-6. **After installation completes**, reboot:
-   ```bash
-   reboot
-   ```
+## Base Install
 
-7. **Post-install setup**:
-   ```bash
-   # Login as your user
-   # Run the bootstrap script
-   curl -sSL https://vitorpy.com/bootstrap.sh | bash
+Use either:
 
-   # Install hyprcorners
-   cargo install hyprcorners
+1. `archinstall`
+2. the manual Arch install process
 
-   # Reboot to start Hyprland with ly
-   sudo reboot
-   ```
+The repo no longer dictates disk layout through a checked-in installer profile, so pick the install method that matches the machine.
 
-## Configuration Details
+### Minimum Requirements During Install
 
-### Hostname
-- **zygalski**
+Make sure the installed system includes at least:
 
-### Timezone
-- **Europe/Warsaw**
+- `base`
+- `linux`
+- `linux-firmware`
+- `networkmanager`
+- `sudo`
+- `git`
 
-### Locale
-- **en_US.UTF-8**
-- Keyboard: US
+Also ensure:
 
-### Bootloader
-- **systemd-boot** (modern, simple UEFI bootloader)
+- your user is created during install
+- that user is in `wheel`
+- `sudo` is usable after first boot
 
-### Kernel
-- **linux** (latest stable kernel)
+## First Boot
 
-### Network
-- **NetworkManager** (enabled at boot)
+After rebooting into the installed system:
 
-### Audio
-- **PipeWire** (with ALSA, PulseAudio, and JACK support)
-
-### Services Enabled
-- NetworkManager (networking)
-- sshd (SSH server)
-
-### Pre-installed Packages
-Essential packages for the bootstrap script to work:
-- base, base-devel, linux-firmware
-- git, neovim, fish
-- curl, wget, jq, openssh, rsync
-- NetworkManager
-- PipeWire audio stack
-
-## Disk Partitioning
-
-The configuration is **fully automated** for replacing Fedora on `/dev/nvme0n1`.
-
-### What It Does
-
-The archinstall config will:
-1. **Keep** the existing EFI partition (600M) - **NO FORMATTING**
-2. **Delete** existing partitions 2 and 3 (old /boot and Fedora root)
-3. **Create** new root partition using all remaining space (~464G)
-4. **Enable** zram swap (configured via `"swap": true`)
-
-### Resulting Layout
-```
-/dev/nvme0n1p1  600M   EFI (existing)  /boot      [KEPT - not wiped]
-/dev/nvme0n1p2  ~464G  ext4 (new)      /          [FORMATTED]
-[zram0]         ~8G    zram            [swap]     [IN-MEMORY]
-```
-
-### IMPORTANT: Different Disk?
-
-If your disk is **NOT** `/dev/nvme0n1`, edit the config before running:
+1. connect to the network if needed
+2. install the bootstrap tools if they are not already present:
 
 ```bash
-# Check your disk name
-lsblk
-
-# Edit the config to change device
-nvim archinstall-config.json
-# Change "device": "/dev/nvme0n1" to your disk (e.g., /dev/sda)
+sudo pacman -Syu --needed ansible chezmoi bitwarden-cli git jq
 ```
 
-## Customization
-
-Before running archinstall, you can edit the JSON:
+3. run the bootstrap entrypoint:
 
 ```bash
-nvim archinstall-config.json
+curl -sSL https://vitorpy.com/bootstrap.sh | bash
 ```
 
-### Common Changes:
-- **Hostname**: Change `"hostname": "zygalski"`
-- **Timezone**: Change `"timezone": "Europe/Warsaw"`
-- **Mirrors**: Add your country's mirrors for faster downloads
-- **Swap size**: Adjust in disk configuration
+That script now:
 
-## After Installation
+- configures Bitwarden
+- applies dotfiles with `chezmoi`
+- restores SSH and GPG keys from Bitwarden
+- runs `~/.config/arch/apply-ansible.sh`
 
-Once archinstall finishes and you reboot:
+## Manual Alternative
 
-1. Login with your user
-2. Run the bootstrap script (see above)
-3. All your dotfiles, packages, and configurations will be applied
-4. SSH and GPG keys restored from Bitwarden
-5. Ready to use!
+If you do not want to use the bootstrap wrapper, the equivalent flow is:
+
+```bash
+chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+~/.config/arch/apply-ansible.sh
+```
+
+If you also want keys restored from Bitwarden:
+
+```bash
+bw config server https://vault.bitwarden.eu
+export BW_SESSION="$(bw unlock --raw)"
+~/.config/arch/restore-keys-from-bitwarden.sh
+```
+
+## Running the Playbook Directly
+
+From `~/.config/arch/ansible`:
+
+```bash
+ansible-playbook -K site.yml
+```
+
+Or use the wrapper:
+
+```bash
+~/.config/arch/apply-ansible.sh
+```
+
+## Boot Role
+
+The playbook includes an optional `boot` role, but it is disabled by default.
+
+Enable it only after setting machine-specific variables such as:
+
+- `arch_boot_enabled: true`
+- `arch_luks_uuid`
+- optionally `arch_manage_secure_boot: true`
+
+Those values live in the Ansible vars, not in a separate installer script.
 
 ## Troubleshooting
 
-### WiFi not working after install
+### No network after first boot
+
 ```bash
+nmcli device status
 nmcli device wifi list
 nmcli device wifi connect "SSID" password "password"
 ```
 
-### Can't connect to internet during install
-```bash
-# Check connection
-ping archlinux.org
+### `ansible-playbook` not found
 
-# If using WiFi, use iwctl
-iwctl
-station wlan0 connect "Your-Network"
+```bash
+sudo pacman -S ansible
 ```
 
-### archinstall command not found
-Update the live system:
+### Apply only the current `arch` subtree from chezmoi
+
 ```bash
-pacman -Sy archinstall
+chezmoi apply ~/.config/arch
 ```
 
-## Manual Installation
+## Ongoing Use
 
-If you prefer manual installation without archinstall, follow the [Arch Installation Guide](https://wiki.archlinux.org/title/Installation_guide), then run the bootstrap script after first boot.
+For ongoing machine configuration changes:
+
+1. edit the Ansible vars or roles under `~/.config/arch/ansible`
+2. re-apply with `~/.config/arch/apply-ansible.sh`
+3. re-add and commit through the `chezmoi` source repo

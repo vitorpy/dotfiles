@@ -1,18 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-HOME_MIGRATION_MARKER="$HOME/.local/state/arch-home-migration"
-MIGRATED_HOME=false
-
-if [[ -f "$HOME_MIGRATION_MARKER" ]]; then
-  MIGRATED_HOME=true
-fi
-
 echo "==> Arch Linux User Bootstrap"
 echo
 
 echo "==> Installing bootstrap tools..."
-sudo pacman -Syu --needed --noconfirm chezmoi bitwarden-cli git jq
+sudo pacman -Syu --needed --noconfirm ansible chezmoi bitwarden-cli git jq
 
 echo "==> Configuring Bitwarden..."
 bw config server https://vault.bitwarden.eu
@@ -33,12 +26,8 @@ else
   chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
 fi
 
-if [[ "$MIGRATED_HOME" == true ]]; then
-  echo "==> Home migration detected; skipping Bitwarden key restore."
-else
-  echo "==> Restoring SSH and GPG keys from Bitwarden..."
-  "$HOME/.config/arch/restore-keys-from-bitwarden.sh"
-fi
+echo "==> Restoring SSH and GPG keys from Bitwarden..."
+"$HOME/.config/arch/restore-keys-from-bitwarden.sh"
 
 echo "==> Adding SSH keys to ssh-agent..."
 eval "$(ssh-agent -s)"
@@ -52,22 +41,11 @@ echo "==> Switching chezmoi remote to SSH..."
 cd "$(chezmoi source-path)"
 git remote set-url origin git@tangled.sh:vitorpy.com/dotfiles
 
-echo "==> Installing user/session packages..."
-"$HOME/.config/arch/install-packages.sh"
-
-echo "==> Installing ly configuration..."
-"$HOME/.config/arch/install-ly-config.sh"
-
-echo "==> Configuring keyboard layout..."
-"$HOME/.config/arch/configure-keyboard.sh"
-
-echo "==> Enabling ly display manager..."
-sudo systemctl enable ly.service
-sudo systemctl disable getty@tty2.service
+echo "==> Applying system configuration with Ansible..."
+"$HOME/.config/arch/apply-ansible.sh"
 
 echo
 echo "==> User bootstrap complete!"
-echo "Silent boot was already configured by the installer."
 echo "Next steps:"
 echo "  1. Install hyprcorners: cargo install hyprcorners"
 echo "  2. Reboot to start Hyprland with ly display manager"

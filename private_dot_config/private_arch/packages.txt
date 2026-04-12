@@ -1,5 +1,5 @@
 # Arch Linux Package List
-# Format: package-name | source (pacman/aur/flatpak)
+# Format: package-name | source (pacman/aur)
 
 # Core system
 firefox | pacman
@@ -96,7 +96,6 @@ openai-codex | aur
 gemini-cli-bin | aur
 podman | pacman
 podman-compose | pacman
-podman-docker | pacman
 llvm | pacman
 clang | pacman
 gdb | pacman
@@ -110,7 +109,6 @@ slack-desktop | aur
 telegram-desktop | pacman
 discord | pacman
 signal-desktop | pacman
-com.tutanota.Tutanota | flatpak
 calibre | pacman
 
 # Theming & Fonts

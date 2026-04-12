@@ -58,9 +58,6 @@ echo "==> Installing user/session packages..."
 echo "==> Installing ly configuration..."
 "$HOME/.config/arch/install-ly-config.sh"
 
-echo "==> Setting up Docker..."
-"$HOME/.config/arch/setup-docker.sh"
-
 echo "==> Configuring keyboard layout..."
 "$HOME/.config/arch/configure-keyboard.sh"
 

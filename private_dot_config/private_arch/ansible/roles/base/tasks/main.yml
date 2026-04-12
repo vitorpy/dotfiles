@@ -1,0 +1,56 @@
+---
+- name: Point /etc/localtime at the selected timezone
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ arch_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: true
+  notify: Sync hardware clock
+
+- name: Ensure locale is enabled in locale.gen
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: "^#?{{ arch_locale | regex_escape() }} "
+    line: "{{ arch_locale }} {{ arch_locale.split('.')[-1] }}"
+  notify: Regenerate locales
+
+- name: Write locale.conf
+  ansible.builtin.copy:
+    dest: /etc/locale.conf
+    content: "LANG={{ arch_locale }}\n"
+    mode: "0644"
+
+- name: Write vconsole.conf
+  ansible.builtin.copy:
+    dest: /etc/vconsole.conf
+    content: "KEYMAP={{ arch_console_keymap }}\n"
+    mode: "0644"
+
+- name: Write hostname
+  ansible.builtin.copy:
+    dest: /etc/hostname
+    content: "{{ arch_hostname }}\n"
+    mode: "0644"
+
+- name: Render /etc/hosts
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    mode: "0644"
+
+- name: Ensure primary user exists
+  ansible.builtin.user:
+    name: "{{ arch_primary_user }}"
+    groups: wheel
+    append: true
+    shell: "{{ arch_primary_user_shell }}"
+    create_home: true
+  when: arch_manage_user | bool
+
+- name: Manage wheel sudoers drop-in
+  ansible.builtin.template:
+    src: sudoers-wheel.j2
+    dest: /etc/sudoers.d/10-wheel
+    mode: "0440"
+    validate: /usr/bin/visudo -cf %s
+  when: arch_manage_sudoers | bool

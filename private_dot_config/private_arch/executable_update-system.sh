@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprehensive system update script for Arch Linux
-# Updates official repos, AUR, and Flatpak packages
+# Updates official repos, AUR, and firmware
 
 set -e
 
@@ -55,24 +55,6 @@ else
     aur_count=0
 fi
 
-# Flatpak
-echo -e "${YELLOW}Flatpak packages:${NC}"
-if command -v flatpak &>/dev/null; then
-    flatpak=$(flatpak remote-ls --updates 2>/dev/null || true)
-    flatpak_count=$(echo "$flatpak" | grep -v '^$' | wc -l)
-    if [ "$flatpak_count" -gt 0 ]; then
-        echo "$flatpak"
-        echo ""
-    else
-        echo "  No updates available"
-        echo ""
-    fi
-else
-    echo "  Flatpak not installed, skipping"
-    echo ""
-    flatpak_count=0
-fi
-
 # Firmware
 echo -e "${YELLOW}Firmware updates:${NC}"
 if command -v fwupdmgr &>/dev/null; then
@@ -94,10 +76,10 @@ else
 fi
 
 # Summary
-total=$((official_count + aur_count + flatpak_count + firmware_count))
+total=$((official_count + aur_count + firmware_count))
 echo "────────────────────────────────────────────────────────────"
 echo -e "${GREEN}Total updates available: $total${NC}"
-echo "  Official: $official_count | AUR: $aur_count | Flatpak: $flatpak_count | Firmware: $firmware_count"
+echo "  Official: $official_count | AUR: $aur_count | Firmware: $firmware_count"
 echo "────────────────────────────────────────────────────────────"
 echo ""
 
@@ -128,13 +110,6 @@ fi
 if [ "$aur_count" -gt 0 ]; then
     echo -e "${BLUE}==> Updating AUR packages...${NC}"
     yay -Sua
-    echo ""
-fi
-
-# Update Flatpak
-if [ "$flatpak_count" -gt 0 ]; then
-    echo -e "${BLUE}==> Updating Flatpak packages...${NC}"
-    flatpak update -y
     echo ""
 fi
 

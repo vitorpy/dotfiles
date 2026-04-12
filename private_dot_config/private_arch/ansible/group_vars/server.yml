@@ -1,0 +1,24 @@
+---
+arch_desktop_enabled: false
+arch_ly_enabled: false
+
+arch_pacman_packages:
+  - fish
+  - starship
+  - neovim
+  - git
+  - chezmoi
+  - bitwarden-cli
+  - openssh
+  - ripgrep
+  - fzf
+  - zoxide
+  - fastfetch
+  - mosh
+  - direnv
+  - tree
+  - bc
+  - jq
+  - rsync
+
+arch_aur_packages: []

@@ -1,0 +1,23 @@
+---
+- name: Configure Arch hosts
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Require Arch Linux
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Archlinux"
+        fail_msg: "This playbook currently targets Arch Linux hosts only."
+
+  roles:
+    - role: base
+    - role: packages
+    - role: services
+    - role: desktop
+      when: arch_desktop_enabled | bool
+    - role: ly
+      when: arch_ly_enabled | bool
+    - role: boot
+      when: arch_boot_enabled | bool

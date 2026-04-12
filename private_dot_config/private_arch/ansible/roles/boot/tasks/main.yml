@@ -1,0 +1,120 @@
+---
+- name: Require LUKS UUID when boot role is enabled
+  ansible.builtin.assert:
+    that:
+      - arch_luks_uuid | length > 0
+    fail_msg: "Set arch_luks_uuid before enabling the boot role."
+
+- name: Ensure kernel config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/kernel
+    - /boot/EFI/Linux
+    - /boot/loader
+    - /boot/loader/entries
+    - /boot/EFI/BOOT
+
+- name: Manage mkinitcpio hooks
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^HOOKS="
+    line: "{{ arch_mkinitcpio_hooks }}"
+
+- name: Write kernel cmdline
+  ansible.builtin.copy:
+    dest: /etc/kernel/cmdline
+    mode: "0644"
+    content: >-
+      {{ arch_kernel_cmdline }} cryptdevice=UUID={{ arch_luks_uuid }}:{{ arch_root_mapper_name }}
+      root=/dev/mapper/{{ arch_root_mapper_name }} rootflags=subvol=@ rw
+
+- name: Write mkinitcpio preset
+  ansible.builtin.copy:
+    dest: "/etc/mkinitcpio.d/{{ arch_kernel_pkg }}.preset"
+    mode: "0644"
+    content: |
+      ALL_config="/etc/mkinitcpio.conf"
+      ALL_kver="/boot/vmlinuz-{{ arch_kernel_pkg }}"
+
+      PRESETS=('default')
+
+      default_uki="/boot/EFI/Linux/arch-linux.efi"
+      default_options="--cmdline /etc/kernel/cmdline"
+
+- name: Regenerate initramfs and UKI
+  ansible.builtin.command: mkinitcpio -P
+  changed_when: true
+
+- name: Install systemd-boot
+  ansible.builtin.command: bootctl install
+  changed_when: true
+
+- name: Write systemd-boot loader.conf
+  ansible.builtin.copy:
+    dest: /boot/loader/loader.conf
+    mode: "0644"
+    content: |
+      default arch
+      timeout 3
+      console-mode max
+      editor no
+
+- name: Write systemd-boot entry
+  ansible.builtin.copy:
+    dest: /boot/loader/entries/arch.conf
+    mode: "0644"
+    content: |
+      title   Arch Linux
+      efi     /EFI/Linux/arch-linux.efi
+
+- name: Check Secure Boot key material
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /var/lib/sbctl/GUID
+    - /var/lib/sbctl/keys/PK/PK.key
+    - /var/lib/sbctl/keys/PK/PK.pem
+    - /var/lib/sbctl/keys/KEK/KEK.key
+    - /var/lib/sbctl/keys/KEK/KEK.pem
+    - /var/lib/sbctl/keys/db/db.key
+    - /var/lib/sbctl/keys/db/db.pem
+  register: boot_sbctl_key_files
+  when: arch_manage_secure_boot | bool
+
+- name: Require Secure Boot key material
+  ansible.builtin.assert:
+    that:
+      - (boot_sbctl_key_files.results | map(attribute='stat.exists') | min)
+    fail_msg: "Secure Boot signing requested, but sbctl key material is missing."
+  when: arch_manage_secure_boot | bool
+
+- name: Sign boot artifacts with sbctl
+  ansible.builtin.command:
+    cmd: "sbctl sign -s {{ item }}"
+  loop:
+    - /boot/EFI/systemd/systemd-bootx64.efi
+    - /boot/EFI/Linux/arch-linux.efi
+  when: arch_manage_secure_boot | bool
+  changed_when: true
+
+- name: Copy fallback bootloader path
+  ansible.builtin.copy:
+    src: /boot/EFI/systemd/systemd-bootx64.efi
+    dest: /boot/EFI/BOOT/BOOTX64.EFI
+    remote_src: true
+    mode: "0644"
+  when: arch_manage_secure_boot | bool
+
+- name: Sign fallback bootloader path
+  ansible.builtin.command:
+    cmd: sbctl sign -s /boot/EFI/BOOT/BOOTX64.EFI
+  when: arch_manage_secure_boot | bool
+  changed_when: true
+
+- name: Verify sbctl signatures
+  ansible.builtin.command: sbctl verify
+  when: arch_manage_secure_boot | bool
+  changed_when: false

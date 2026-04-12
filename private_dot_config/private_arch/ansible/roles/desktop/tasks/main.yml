@@ -1,0 +1,10 @@
+---
+- name: Configure X11 keyboard layout
+  ansible.builtin.command:
+    cmd: >-
+      localectl set-x11-keymap
+      {{ arch_x11_keymap_layouts }}
+      {{ arch_x11_keymap_model }}
+      {{ arch_x11_keymap_variant }}
+      {{ arch_x11_keymap_options }}
+  changed_when: true

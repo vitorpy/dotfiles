@@ -17,7 +17,6 @@ fi
 # Parse package list and install
 pacman_packages=()
 aur_packages=()
-flatpak_packages=()
 
 while IFS='|' read -r package source; do
     # Skip comments and empty lines
@@ -35,9 +34,6 @@ while IFS='|' read -r package source; do
         aur)
             aur_packages+=("$package")
             ;;
-        flatpak)
-            flatpak_packages+=("$package")
-            ;;
     esac
 done < "$PACKAGES_FILE"
 
@@ -51,19 +47,6 @@ fi
 if [ ${#aur_packages[@]} -gt 0 ]; then
     echo "==> Installing AUR packages: ${aur_packages[*]}"
     yay -S --needed --noconfirm "${aur_packages[@]}"
-fi
-
-# Install flatpak packages
-if [ ${#flatpak_packages[@]} -gt 0 ]; then
-    if ! command -v flatpak &> /dev/null; then
-        echo "==> Installing flatpak..."
-        sudo pacman -S --needed --noconfirm flatpak
-    fi
-
-    echo "==> Installing flatpak packages: ${flatpak_packages[*]}"
-    for pkg in "${flatpak_packages[@]}"; do
-        flatpak install -y flathub "$pkg"
-    done
 fi
 
 echo "==> All packages installed successfully!"

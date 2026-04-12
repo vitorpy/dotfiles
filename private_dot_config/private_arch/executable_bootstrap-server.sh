@@ -71,7 +71,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     [[ "$skip_this_section" == true ]] && continue
 
     # Parse package line: "package-name | source"
-    if [[ "$line" =~ ^([^|]+)\|[[:space:]]*(pacman|aur|flatpak) ]]; then
+    if [[ "$line" =~ ^([^|]+)\|[[:space:]]*(pacman|aur) ]]; then
         package="${BASH_REMATCH[1]}"
         source="${BASH_REMATCH[2]}"
 
@@ -88,12 +88,6 @@ while IFS= read -r line || [ -n "$line" ]; do
             fi
         done
         [[ "$skip" == true ]] && continue
-
-        # Skip flatpak packages on servers
-        if [[ "$source" == "flatpak" ]]; then
-            echo -e "${YELLOW}Skipping flatpak: $package${NC}"
-            continue
-        fi
 
         # Add to appropriate array
         if [[ "$source" == "pacman" ]]; then

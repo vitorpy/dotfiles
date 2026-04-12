@@ -1,0 +1,48 @@
+---
+- name: Install pacman packages
+  ansible.builtin.package:
+    name: "{{ arch_pacman_packages | unique }}"
+    state: present
+  when: arch_pacman_packages | length > 0
+
+- name: Install yay build prerequisites
+  ansible.builtin.package:
+    name:
+      - base-devel
+      - git
+    state: present
+  when: arch_aur_packages | length > 0
+
+- name: Check whether yay is installed
+  ansible.builtin.stat:
+    path: /usr/bin/yay
+  register: packages_yay_binary
+  when: arch_aur_packages | length > 0
+
+- name: Clone yay build directory
+  ansible.builtin.git:
+    repo: https://aur.archlinux.org/yay.git
+    dest: /tmp/yay
+    version: master
+    force: true
+  become: false
+  when:
+    - arch_aur_packages | length > 0
+    - not packages_yay_binary.stat.exists
+
+- name: Build and install yay
+  ansible.builtin.command:
+    cmd: makepkg -si --noconfirm
+    chdir: /tmp/yay
+  become: false
+  when:
+    - arch_aur_packages | length > 0
+    - not packages_yay_binary.stat.exists
+  changed_when: true
+
+- name: Install AUR packages
+  ansible.builtin.command:
+    cmd: "yay -S --needed --noconfirm {{ arch_aur_packages | join(' ') }}"
+  become: false
+  when: arch_aur_packages | length > 0
+  changed_when: true

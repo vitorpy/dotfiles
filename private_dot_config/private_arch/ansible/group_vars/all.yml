@@ -5,6 +5,8 @@ arch_locale: en_US.UTF-8
 arch_console_keymap: us
 arch_primary_user: vitorpy
 arch_primary_user_shell: /usr/bin/fish
+arch_primary_user_home: "/home/{{ arch_primary_user }}"
+arch_ly_service_name: ly@tty2.service
 
 arch_system_services:
   - NetworkManager
@@ -126,6 +128,7 @@ arch_pacman_packages_development:
   - symengine
   - tmux
   - jujutsu
+  - openai-codex
   - openvpn
   - wireguard-tools
 
@@ -173,7 +176,6 @@ arch_aur_packages_hyprland:
 arch_aur_packages_development:
   - zvm
   - vscodium-bin
-  - openai-codex
   - aws-cli-bin
   - grpcurl-bin
   - juliaup-bin
@@ -200,105 +202,64 @@ arch_pacman_packages_shells:
   - zsh
   - zsh-syntax-highlighting
 
-arch_pacman_packages_machine_extras:
-  - aarch64-linux-gnu-gcc
+arch_pacman_packages_system_extras:
   - amd-ucode
   - android-udev
   - arch-install-scripts
   - base
   - base-devel
-  - bind
-  - blueman
-  - bluez-utils
   - btrfs-progs
-  - calibre
   - cpio
-  - davfs2
   - dosfstools
   - efibootmgr
   - exfatprogs
-  - fontforge
-  - git-lfs
-  - glm
-  - gnuplot
   - gptfdisk
-  - gst-plugin-pipewire
+  - intel-ucode
+  - libfido2
+  - linux
+  - openresolv
+  - sbctl
+  - sof-firmware
+  - tpm2-tools
+  - usbutils
+  - zram-generator
+
+arch_pacman_packages_cli_extras:
+  - bind
+  - davfs2
+  - git-lfs
+  - gnuplot
   - hugo
   - icoutils
   - innoextract
-  - intel-ucode
   - iotop
   - iw
   - iwd
-  - kpat
-  - libfido2
-  - libpulse
-  - linux
   - lynx
-  - mariadb-clients
-  - mariadb-libs
   - mtr
-  - musl
   - neomutt
-  - ollama-rocm
-  - openmotif
-  - openresolv
   - patchelf
   - powertop
   - python-tomli
-  - radeontop
-  - rocm-ml-sdk
-  - sbctl
   - socat
-  - sof-firmware
-  - solaar
-  - sqlcipher
   - strace
   - swaks
-  - texlive-basic
-  - texlive-bibtexextra
-  - texlive-binextra
-  - texlive-context
-  - texlive-fontsextra
-  - texlive-fontsrecommended
-  - texlive-fontutils
-  - texlive-formatsextra
-  - texlive-games
-  - texlive-humanities
-  - texlive-langarabic
-  - texlive-langchinese
-  - texlive-langcjk
-  - texlive-langcyrillic
-  - texlive-langczechslovak
-  - texlive-langenglish
-  - texlive-langeuropean
-  - texlive-langfrench
-  - texlive-langgerman
-  - texlive-langgreek
-  - texlive-langitalian
-  - texlive-langjapanese
-  - texlive-langkorean
-  - texlive-langother
-  - texlive-langpolish
-  - texlive-langportuguese
-  - texlive-langspanish
-  - texlive-latex
-  - texlive-latexextra
-  - texlive-latexrecommended
-  - texlive-luatex
-  - texlive-mathscience
-  - texlive-metapost
-  - texlive-music
-  - texlive-pictures
-  - texlive-plaingeneric
-  - texlive-pstricks
-  - texlive-publishers
-  - texlive-xetex
-  - tpm2-tools
-  - transmission-gtk
   - tree-sitter-cli
+  - wabt
+  - waypipe
+
+arch_pacman_packages_desktop_extras:
+  - blueman
+  - bluez-utils
+  - calibre
+  - fontforge
+  - gst-plugin-pipewire
+  - kpat
+  - libpulse
+  - radeontop
+  - solaar
+  - transmission-gtk
   - ttf-material-symbols-variable
-  - usbutils
   - vlc-plugin-aribb25
   - vlc-plugin-ass
   - vlc-plugin-ffmpeg
@@ -311,8 +272,14 @@ arch_pacman_packages_machine_extras:
   - vlc-plugin-srt
   - vlc-plugin-x264
   - vlc-plugin-x265
-  - wabt
-  - waypipe
-  - weechat
-  - xdg-desktop-portal-wlr
-  - zram-generator
+
+arch_pacman_packages_dev_extras:
+  - aarch64-linux-gnu-gcc
+  - glm
+  - mariadb-clients
+  - mariadb-libs
+  - musl
+  - ollama-rocm
+  - openmotif
+  - rocm-ml-sdk
+  - sqlcipher

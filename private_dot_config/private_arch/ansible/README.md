@@ -29,10 +29,12 @@ The old destructive LUKS/bootstrap installer has been removed from this tree.
 From `~/.config/arch/ansible`:
 
 ```bash
-ansible-playbook -K site.yml
+sudo ansible-playbook -e ansible_become=false site.yml
 ```
 
 `localhost` is the default workstation target via the included inventory.
+
+On this machine, running the playbook itself with `sudo` is more reliable than relying on Ansible's localhost `become`, especially when `sudo` uses fingerprint authentication.
 
 ## Profiles
 
@@ -58,3 +60,4 @@ This role manages `/etc/kernel/cmdline`, mkinitcpio hooks, UKI preset, `systemd-
 - Password prompting is intentionally left out.
 - Bitwarden restore remains a separate explicit step.
 - AUR management still depends on `yay`, which this playbook bootstraps if missing.
+- The root-run wrapper assumes all declared AUR packages are already installed; bootstrapping new AUR packages still needs a better dedicated path.

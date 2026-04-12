@@ -1,17 +1,17 @@
 ---
 - name: Check for managed ly config.ini
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/ly/config.ini"
+    path: "{{ arch_primary_user_home }}/.config/ly/config.ini"
   register: ly_config
 
 - name: Check for managed ly setup.sh
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/ly/setup.sh"
+    path: "{{ arch_primary_user_home }}/.config/ly/setup.sh"
   register: ly_setup
 
 - name: Install ly config.ini
   ansible.builtin.copy:
-    src: "{{ ansible_env.HOME }}/.config/ly/config.ini"
+    src: "{{ arch_primary_user_home }}/.config/ly/config.ini"
     dest: /etc/ly/config.ini
     remote_src: true
     mode: "0644"
@@ -19,7 +19,7 @@
 
 - name: Install ly setup.sh
   ansible.builtin.copy:
-    src: "{{ ansible_env.HOME }}/.config/ly/setup.sh"
+    src: "{{ arch_primary_user_home }}/.config/ly/setup.sh"
     dest: /etc/ly/setup.sh
     remote_src: true
     mode: "0755"
@@ -27,6 +27,6 @@
 
 - name: Enable ly display manager
   ansible.builtin.systemd:
-    name: ly.service
+    name: "{{ arch_ly_service_name }}"
     enabled: true
     state: started

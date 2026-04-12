@@ -8,7 +8,7 @@
     - name: Require Arch Linux
       ansible.builtin.assert:
         that:
-          - ansible_distribution == "Archlinux"
+          - ansible_facts["distribution"] == "Archlinux"
         fail_msg: "This playbook currently targets Arch Linux hosts only."
 
   roles:

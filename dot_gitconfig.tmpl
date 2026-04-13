@@ -20,12 +20,6 @@
 	excludesFile = ~/.gitignore
 [push]
 	autoSetupRemote = true
-[core]
-{{- if eq .chezmoi.os "darwin" }}
-  sshCommand = ssh -i ~/.ssh/id_ed25519 -F /dev/null -o 'IdentitiesOnly yes'
-{{- else }}
-  sshCommand = ssh -i ~/.ssh/vitorpy.pub -F /dev/null -o 'IdentitiesOnly yes'
-{{- end }}
 [includeIf "gitdir:~/poker/"]
     path = ~/.gitconfig-tito
 [diff "lockb"]

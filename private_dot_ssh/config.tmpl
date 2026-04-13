@@ -7,6 +7,10 @@ Host *
 {{- end }}
 
 {{- if eq .chezmoi.os "linux" }}
+Host github.com
+  IdentityFile ~/.ssh/vitorpy
+  IdentitiesOnly yes
+
 Host aur.archlinux.org
   IdentityFile ~/.ssh/aur
   User aur

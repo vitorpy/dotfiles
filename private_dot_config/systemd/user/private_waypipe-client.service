@@ -1,8 +1,12 @@
 [Unit]
 Description=Runs waypipe on startup to support SSH forwarding
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 ExecStart=/usr/bin/waypipe --socket %t/%N.sock client
+Slice=session.slice
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

@@ -57,15 +57,13 @@ EOF
 
 echo "Metadata saved to ${CURRENT_META}"
 
-# Update hyprpaper
-if command -v hyprctl &> /dev/null; then
-    echo "Updating hyprpaper..."
-    hyprctl hyprpaper unload all 2>/dev/null || true
-    hyprctl hyprpaper preload "${CURRENT_IMAGE}"
-    hyprctl hyprpaper wallpaper ",${CURRENT_IMAGE}"
+# Update hyprpaper via the user service
+if command -v systemctl >/dev/null 2>&1; then
+    echo "Restarting hyprpaper.service..."
+    systemctl --user restart hyprpaper.service
     echo "Wallpaper updated successfully!"
 else
-    echo "hyprctl not found - wallpaper downloaded but not applied"
+    echo "systemctl not found - wallpaper downloaded but not applied"
     echo "Image saved to: ${CURRENT_IMAGE}"
 fi
 

@@ -199,20 +199,12 @@ arch_pacman_packages_system_extras:
 
 arch_pacman_packages_cli_extras:
   - bind
-  - davfs2
   - git-lfs
-  - gnuplot
   - hugo
-  - icoutils
-  - innoextract
   - iotop
   - iw
   - iwd
-  - mtr
-  - neomutt
-  - patchelf
   - powertop
-  - python-tomli
   - socat
   - strace
   - waypipe

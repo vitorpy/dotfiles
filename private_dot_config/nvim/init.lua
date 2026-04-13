@@ -28,8 +28,8 @@ vim.opt.shiftwidth = 2
 vim.opt.expandtab = true
 vim.opt.termguicolors = true
 
--- Use Fish shell
-vim.opt.shell = "/usr/bin/fish"
+-- Use the current login shell for :! and terminal-backed commands
+vim.opt.shell = "/usr/bin/zsh"
 
 -- Enable word wrap for markdown files
 vim.api.nvim_create_autocmd("FileType", {

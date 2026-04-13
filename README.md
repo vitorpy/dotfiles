@@ -54,7 +54,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://tangled.sh/vitorpy.
 - **Hyprlock** - Screen locker
 
 ### Shell & Terminal
-- **Fish shell** (`~/.config/fish/`) - Shell configuration with custom functions
+- **Zsh** (`~/.zshrc`) - Interactive shell configuration
 - **Starship** (`~/.config/starship.toml`) - Cross-shell prompt
 - **Ghostty** (`~/.config/ghostty/config`) - Terminal emulator
 
@@ -119,7 +119,7 @@ Test restore without affecting your system:
 ### Edit configurations
 ```bash
 chezmoi edit ~/.config/hypr/hyprland.conf
-chezmoi edit ~/.config/fish/config.fish
+chezmoi edit ~/.zshrc
 chezmoi edit ~/.config/nvim/init.lua
 ```
 
@@ -163,7 +163,7 @@ Chezmoi is configured to use `nvim` as the default editor. Configuration file is
 ## Security Notes
 
 - SSH and GPG keys are stored in Bitwarden, not in the dotfiles repo
-- API keys are loaded from Bitwarden via `~/.config/fish/secrets.fish`
+- Secrets are restored separately from Bitwarden and kept out of the repository
 - Never commit secrets directly to the repository
 - The dotfiles repository is public - keep it clean!
 

@@ -3,7 +3,6 @@ arch_desktop_enabled: false
 arch_ly_enabled: false
 
 arch_pacman_packages:
-  - fish
   - starship
   - neovim
   - git

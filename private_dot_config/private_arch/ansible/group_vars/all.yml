@@ -4,7 +4,7 @@ arch_timezone: Europe/Warsaw
 arch_locale: en_US.UTF-8
 arch_console_keymap: us
 arch_primary_user: vitorpy
-arch_primary_user_shell: /usr/bin/fish
+arch_primary_user_shell: /usr/bin/zsh
 arch_primary_user_home: "/home/{{ arch_primary_user }}"
 arch_ly_service_name: ly@tty2.service
 
@@ -75,6 +75,7 @@ arch_pacman_packages_base:
 
 arch_pacman_packages_hyprland:
   - hyprland
+  - uwsm
   - waybar
   - hyprpaper
   - hypridle

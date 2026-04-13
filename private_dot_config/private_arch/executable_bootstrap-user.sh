@@ -46,6 +46,4 @@ echo "==> Applying system configuration with Ansible..."
 
 echo
 echo "==> User bootstrap complete!"
-echo "Next steps:"
-echo "  1. Install hyprcorners: cargo install hyprcorners"
-echo "  2. Reboot to start Hyprland with ly display manager"
+echo "Next step: reboot to start Hyprland with ly display manager"

@@ -42,7 +42,6 @@ arch_x11_keymap_options: grp:alt_shift_toggle
 
 arch_pacman_packages_base:
   - ansible
-  - fish
   - starship
   - neovim
   - git
@@ -75,6 +74,7 @@ arch_pacman_packages_base:
 arch_pacman_packages_hyprland:
   - hyprland
   - uwsm
+  - hyprpolkitagent
   - waybar
   - hyprpaper
   - hypridle
@@ -105,13 +105,10 @@ arch_pacman_packages_development:
   - rustup
   - nvm
   - go
-  - subversion
   - llvm
   - clang
   - gdb
-  - symengine
   - tmux
-  - jujutsu
   - openai-codex
   - openvpn
   - wireguard-tools
@@ -141,15 +138,12 @@ arch_pacman_packages_utilities:
   - github-cli
   - ripgrep
   - net-tools
-  - mkcert
-  - monero
   - unzip
   - direnv
   - uv
   - tree
   - bc
   - veracrypt
-  - xmlstarlet
 
 arch_aur_packages_browsers:
   - google-chrome
@@ -161,8 +155,6 @@ arch_aur_packages_development:
   - zvm
   - vscodium-bin
   - aws-cli-bin
-  - grpcurl-bin
-  - juliaup-bin
   - vsce
 
 arch_aur_packages_communication:
@@ -177,9 +169,6 @@ arch_aur_packages_theming:
 arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
-  - losslesscut-bin
-  - mkp224o
-  - psftools
   - yay-bin
 
 arch_pacman_packages_shells:
@@ -219,7 +208,6 @@ arch_pacman_packages_cli_extras:
   - iotop
   - iw
   - iwd
-  - lynx
   - mtr
   - neomutt
   - patchelf
@@ -227,9 +215,6 @@ arch_pacman_packages_cli_extras:
   - python-tomli
   - socat
   - strace
-  - swaks
-  - tree-sitter-cli
-  - wabt
   - waypipe
 
 arch_pacman_packages_desktop_extras:
@@ -261,12 +246,5 @@ arch_pacman_packages_desktop_extras:
   - vlc-plugin-x265
 
 arch_pacman_packages_dev_extras:
-  - aarch64-linux-gnu-gcc
-  - glm
-  - mariadb-clients
-  - mariadb-libs
-  - musl
   - ollama-rocm
-  - openmotif
   - rocm-ml-sdk
-  - sqlcipher

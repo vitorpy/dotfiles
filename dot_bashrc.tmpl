@@ -35,14 +35,8 @@ if [ -s "/usr/share/nvm/init-nvm.sh" ]; then
     # Arch Linux
     source /usr/share/nvm/init-nvm.sh 2>/dev/null
 elif [ -s "$HOME/.nvm/nvm.sh" ]; then
-    # MacOS/standard install
+    # Standard install
     source "$HOME/.nvm/nvm.sh"
-elif [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
-    # MacOS Homebrew (Apple Silicon)
-    source "/opt/homebrew/opt/nvm/nvm.sh"
-elif [ -s "/usr/local/opt/nvm/nvm.sh" ]; then
-    # MacOS Homebrew (Intel)
-    source "/usr/local/opt/nvm/nvm.sh"
 fi
 
 # zvm (Zig Version Manager)

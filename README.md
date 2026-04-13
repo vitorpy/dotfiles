@@ -8,15 +8,8 @@ Managed with [chezmoi](https://www.chezmoi.io/).
 
 **Step 1: Install Arch Linux**
 
-Use the provided archinstall configuration for automated installation:
-
-```bash
-# On Arch ISO
-curl -O https://raw.githubusercontent.com/vitorpy/dotfiles/main/.config/arch/archinstall-config.json
-archinstall --config archinstall-config.json
-```
-
-See [`ARCHINSTALL-GUIDE.md`](.config/arch/ARCHINSTALL-GUIDE.md) for detailed installation instructions.
+Do a normal Arch install first. Then follow the post-install steps in
+[`ARCHINSTALL-GUIDE.md`](.config/arch/ARCHINSTALL-GUIDE.md).
 
 **Step 2: Bootstrap Your System**
 
@@ -27,19 +20,15 @@ curl -sSL https://vitorpy.com/bootstrap.sh | bash
 ```
 
 This single command will:
-- Install chezmoi, bitwarden-cli, git, and jq
+- Install chezmoi, bitwarden-cli, git, jq, and ansible
 - Configure Bitwarden for EU server
 - Clone dotfiles via HTTPS (no SSH key needed)
 - Restore SSH and GPG keys from Bitwarden
 - Switch to SSH remote
-- Install all packages from the package list
-- Enable ly display manager
+- Apply the Arch system configuration with Ansible
+- Enable `ly` display manager
 
-After the bootstrap completes:
-```bash
-cargo install hyprcorners  # Install hyprcorners plugin
-sudo reboot                # Reboot to start Hyprland
-```
+After the bootstrap completes, reboot to start Hyprland.
 
 ### Manual Installation
 
@@ -81,23 +70,24 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://tangled.sh/vitorpy.
 - **GTK/Qt** - Dark theme configuration (Yaru)
 - **Fonts** (`~/.local/share/fonts/`) - CaskaydiaMono Nerd Fonts collection
 
-### Arch Linux Package Management
-- **Package List** (`~/.config/arch/packages.txt`) - Declarative package list
-- **Install Script** (`~/.config/arch/install-packages.sh`) - Automated installer
+### Arch Linux System Management
+- **Ansible Playbook** (`~/.config/arch/ansible/`) - Declarative system configuration
+- **Apply Script** (`~/.config/arch/apply-ansible.sh`) - Wrapper for the local Ansible run
 
 ## Arch Linux Scripts
 
-### Package Management
+### System Reconciliation
 
-Install all packages from the package list:
+Apply the declarative Arch system configuration:
 ```bash
-~/.config/arch/install-packages.sh
+~/.config/arch/apply-ansible.sh
 ```
 
-The package list supports three sources:
-- `pacman` - Official Arch repositories
-- `aur` - Arch User Repository (via yay)
-- `flatpak` - Flatpak applications
+Or run the playbook directly:
+```bash
+cd ~/.config/arch/ansible
+ansible-playbook site.yml
+```
 
 ### Bitwarden Backup & Restore
 
@@ -200,7 +190,6 @@ Chezmoi is configured to use `nvim` as the default editor. Configuration file is
 3. **Bootstrap** (on fresh Arch):
    ```bash
    curl -sSL https://vitorpy.com/bootstrap.sh | bash
-   cargo install hyprcorners
    sudo reboot
    ```
 

@@ -14,14 +14,8 @@ if [ -f /usr/share/nvm/init-nvm.sh ]; then
     # Arch Linux
     source /usr/share/nvm/init-nvm.sh
 elif [ -f "$HOME/.nvm/nvm.sh" ]; then
-    # MacOS/standard install
+    # Standard install
     source "$HOME/.nvm/nvm.sh"
-elif [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
-    # MacOS Homebrew (Apple Silicon)
-    source "/opt/homebrew/opt/nvm/nvm.sh"
-elif [ -s "/usr/local/opt/nvm/nvm.sh" ]; then
-    # MacOS Homebrew (Intel)
-    source "/usr/local/opt/nvm/nvm.sh"
 fi
 
 # Lean
@@ -41,9 +35,6 @@ if [[ $- == *i* ]]; then
     if [ -f "$HOME/.config/arch/update-system.sh" ]; then
         alias update="$HOME/.config/arch/update-system.sh"
     fi
-
-    # GNOME Control Center (works outside GNOME)
-    alias gnome-settings="env XDG_CURRENT_DESKTOP=GNOME gnome-control-center"
 
     # Command aliases
     alias cat='bat'
@@ -80,14 +71,6 @@ if [[ $- == *i* ]]; then
     elif [ -f "$HOME/.fzf.zsh" ]; then
         # Standard install
         source "$HOME/.fzf.zsh"
-    elif [ -f /opt/homebrew/opt/fzf/shell/key-bindings.zsh ]; then
-        # MacOS Homebrew (Apple Silicon)
-        source /opt/homebrew/opt/fzf/shell/key-bindings.zsh
-        source /opt/homebrew/opt/fzf/shell/completion.zsh
-    elif [ -f /usr/local/opt/fzf/shell/key-bindings.zsh ]; then
-        # MacOS Homebrew (Intel)
-        source /usr/local/opt/fzf/shell/key-bindings.zsh
-        source /usr/local/opt/fzf/shell/completion.zsh
     fi
 
     # Enable completion system
@@ -110,12 +93,6 @@ fi
 if [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
     # Arch Linux
     source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-elif [ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
-    # MacOS Homebrew (Apple Silicon)
-    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-elif [ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
-    # MacOS Homebrew (Intel)
-    source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 fi
 
 # opencode

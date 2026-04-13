@@ -53,7 +53,7 @@ exec-once = /home/vitorpy/.cargo/bin/hyprcorners
 exec-once = waybar & hyprpaper & hypridle & mako
 exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec-once = dbus-update-activation-environment --all
-exec-once = fish -c "bass eval (gnome-keyring-daemon --start --components=secrets,ssh,pkcs11)"
+exec-once = /bin/sh -lc 'eval "$(gnome-keyring-daemon --start --components=secrets,ssh,pkcs11)"'
 exec-once = nm-applet
 exec-once = bitwarden-desktop
 exec-once = hyprsunset

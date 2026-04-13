@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLAYBOOK_DIR="$SCRIPT_DIR/ansible"
+INVENTORY_FILE="$PLAYBOOK_DIR/inventory/hosts.yml"
 
 if ! command -v ansible-playbook >/dev/null 2>&1; then
   echo "ERROR: ansible-playbook is not installed." >&2
@@ -21,4 +22,5 @@ if ! sudo -n true >/dev/null 2>&1; then
   exit 1
 fi
 
-exec ansible-playbook "$PLAYBOOK_DIR/site.yml" "$@"
+cd "$PLAYBOOK_DIR"
+exec ansible-playbook -i "$INVENTORY_FILE" site.yml "$@"

@@ -69,7 +69,6 @@ arch_pacman_packages_base:
   - ly
   - gnome-keyring
   - fprintd
-  - polkit-gnome
   - pacman-contrib
   - fwupd
 
@@ -91,24 +90,7 @@ arch_pacman_packages_hyprland:
   - playerctl
   - network-manager-applet
   - ghostty
-  - nautilus
-
-arch_pacman_packages_gnome:
-  - gnome-online-accounts
-  - gvfs-goa
-  - gvfs-dnssd
-  - gnome-control-center
-  - gnome-tweaks
-  - gnome-calendar
-  - gnome-weather
-  - gnome-clocks
-  - gnome-characters
-  - gnome-calculator
-  - gnome-disk-utility
-  - file-roller
-  - evince
-  - loupe
-  - vlc
+  - caja
 
 arch_pacman_packages_multimedia:
   - ffmpeg
@@ -116,6 +98,7 @@ arch_pacman_packages_multimedia:
   - mesa
   - vulkan-radeon
   - vulkan-tools
+  - vlc
 
 arch_pacman_packages_development:
   - ansible-lint
@@ -250,6 +233,9 @@ arch_pacman_packages_cli_extras:
   - waypipe
 
 arch_pacman_packages_desktop_extras:
+  - engrampa
+  - atril
+  - eom
   - blueman
   - bluez-utils
   - calibre

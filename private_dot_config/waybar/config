@@ -73,8 +73,7 @@
   "custom/clock": {
     "exec": "~/.config/waybar/scripts/smart-clock.sh",
     "interval": 30,
-    "format": "{}",
-    "on-click": "gnome-calendar"
+    "format": "{}"
   },
   "custom/kblayout": {
     "exec": "~/.config/waybar/scripts/kblayout-auto.sh",

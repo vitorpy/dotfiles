@@ -49,14 +49,9 @@ $screenshot = grim -g "$(slurp)" - | wl-copy
 # Or execute your favorite apps at launch like this:
 
 exec-once = hyprctl plugin load /usr/lib/libhyprbars.so
-exec-once = /home/vitorpy/.cargo/bin/hyprcorners
-exec-once = waybar & hyprpaper & hypridle & mako
-exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
-exec-once = dbus-update-activation-environment --all
-exec-once = /bin/sh -lc 'eval "$(gnome-keyring-daemon --start --components=secrets,ssh,pkcs11)"'
-exec-once = nm-applet
-exec-once = bitwarden-desktop
-exec-once = hyprsunset
+exec-once = uwsm app -- nm-applet
+exec-once = uwsm app -- bitwarden-desktop
+exec-once = uwsm app -- hyprsunset
 
 #############################
 ### ENVIRONMENT VARIABLES ###

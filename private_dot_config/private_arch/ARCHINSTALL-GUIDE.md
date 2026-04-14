@@ -80,7 +80,7 @@ That script now:
 If you do not want to use the bootstrap wrapper, the equivalent flow is:
 
 ```bash
-chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+chezmoi init --apply https://github.com/vitorpy/dotfiles.git
 ~/.config/arch/apply-ansible.sh
 ```
 

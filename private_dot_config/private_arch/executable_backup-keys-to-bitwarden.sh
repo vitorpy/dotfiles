@@ -18,15 +18,23 @@ echo "==> Backing up SSH and GPG keys to Bitwarden..."
 # Backup SSH keys
 echo "==> Backing up SSH keys..."
 
-# SSH key: github
-if [ -f "$HOME/.ssh/github" ]; then
+# SSH key: GitHub primary identity
+if [ -f "$HOME/.ssh/vitorpy" ]; then
+    GITHUB_KEY=$(cat "$HOME/.ssh/vitorpy")
+    GITHUB_PUB=$(cat "$HOME/.ssh/vitorpy.pub")
+elif [ -f "$HOME/.ssh/github" ]; then
     GITHUB_KEY=$(cat "$HOME/.ssh/github")
     GITHUB_PUB=$(cat "$HOME/.ssh/github.pub")
+else
+    GITHUB_KEY=""
+    GITHUB_PUB=""
+fi
 
-    bw get item "SSH Key - github" --session "$BW_SESSION" &>/dev/null && \
-        echo "  - SSH Key 'github' already exists in Bitwarden, skipping" || \
+if [ -n "$GITHUB_KEY" ]; then
+    bw get item "SSH Key - vitorpy" --session "$BW_SESSION" &>/dev/null && \
+        echo "  - SSH Key 'vitorpy' already exists in Bitwarden, skipping" || \
         (jq -n \
-          --arg name "SSH Key - github" \
+          --arg name "SSH Key - vitorpy" \
           --arg notes "Private Key:
 $GITHUB_KEY
 
@@ -41,7 +49,7 @@ $GITHUB_PUB" \
             secureNote: {
               type: 0
             }
-          }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up SSH key: github")
+          }' | bw encode | bw create item --session "$BW_SESSION" > /dev/null && echo "  ✓ Backed up SSH key: vitorpy")
 fi
 
 # SSH key: id_ed25519

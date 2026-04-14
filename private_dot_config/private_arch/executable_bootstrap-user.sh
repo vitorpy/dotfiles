@@ -23,7 +23,7 @@ echo "==> Applying dotfiles..."
 if [[ -d "$HOME/.local/share/chezmoi/.git" ]]; then
   chezmoi apply
 else
-  chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+  chezmoi init --apply https://github.com/vitorpy/dotfiles.git
 fi
 
 echo "==> Restoring SSH and GPG keys from Bitwarden..."
@@ -31,15 +31,15 @@ echo "==> Restoring SSH and GPG keys from Bitwarden..."
 
 echo "==> Adding SSH keys to ssh-agent..."
 eval "$(ssh-agent -s)"
-for key_path in "$HOME/.ssh/github" "$HOME/.ssh/id_ed25519"; do
+for key_path in "$HOME/.ssh/vitorpy" "$HOME/.ssh/id_ed25519"; do
   if [[ -f "$key_path" ]]; then
     ssh-add "$key_path"
   fi
 done
 
-echo "==> Switching chezmoi remote to SSH..."
+echo "==> Switching chezmoi remote to GitHub SSH..."
 cd "$(chezmoi source-path)"
-git remote set-url origin git@tangled.sh:vitorpy.com/dotfiles
+git remote set-url origin git@github.com:vitorpy/dotfiles.git
 
 echo "==> Applying system configuration with Ansible..."
 "$HOME/.config/arch/apply-ansible.sh"

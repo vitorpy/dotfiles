@@ -6,6 +6,11 @@
     "editor.fontFamily": "'BloombergFixedUnicodeN Nerd Font Mono', monospace",
     "editor.fontLigatures": true,
     "terminal.integrated.defaultProfile.linux": "zsh",
+    "terminal.integrated.profiles.linux": {
+        "fish": {
+            "path": "/usr/bin/fish"
+        }
+    },
     "workbench.secondarySideBar.defaultVisibility": "hidden",
     "git.openRepositoryInParentFolders": "never",
     "git.autofetch": true,
@@ -17,5 +22,6 @@
     "workbench.sideBar.experimental.fontSize": 16,
     "workbench.tabs.experimental.fontSize": 16,
     "terminal.integrated.fontSize": 16,
-    "lldb.suppressUpdateNotifications": true
+    "lldb.suppressUpdateNotifications": true,
+    "remote.autoForwardPortsSource": "hybrid"
 }

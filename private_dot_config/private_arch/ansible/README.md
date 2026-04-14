@@ -1,6 +1,6 @@
 # Arch Ansible Bootstrap
 
-This directory is the first pass of migrating the system-wide Arch bootstrap flow to Ansible.
+This directory is the source of truth for system-wide Arch host configuration on this machine.
 
 ## Scope
 

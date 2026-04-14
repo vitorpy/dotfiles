@@ -40,7 +40,7 @@ restore_ssh_key() {
 
     if [ -z "$notes" ] || [ "$notes" == "null" ]; then
         echo "    WARNING: $item_name not found in Bitwarden, skipping"
-        return
+        return 1
     fi
 
     # Extract private key (between "Private Key:" and "Public Key:")
@@ -69,8 +69,12 @@ restore_ssh_key() {
     echo "    ✓ Restored public key: $SSH_DIR/$key_file.pub"
 }
 
-# Restore SSH keys
-restore_ssh_key "SSH Key - github" "github"
+# Restore SSH keys.
+# Prefer the current GitHub identity name, but fall back to the legacy
+# Bitwarden item so fresh restores still work without a vault migration.
+if ! restore_ssh_key "SSH Key - vitorpy" "vitorpy"; then
+    restore_ssh_key "SSH Key - github" "vitorpy"
+fi
 restore_ssh_key "SSH Key - id_ed25519" "id_ed25519"
 
 # Restore GPG keys
@@ -127,6 +131,6 @@ else
     echo "GPG keys imported to GPG keyring"
     echo ""
     echo "To add SSH keys to ssh-agent, run:"
-    echo "  ssh-add ~/.ssh/github"
+    echo "  ssh-add ~/.ssh/vitorpy"
     echo "  ssh-add ~/.ssh/id_ed25519"
 fi

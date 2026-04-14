@@ -1,0 +1,60 @@
+---
+- name: Ensure sshd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+  when: arch_ssh_hardening_enabled | bool
+
+- name: Install sshd hardening drop-in
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    mode: "0644"
+    validate: /usr/bin/sshd -t -f %s
+  when: arch_ssh_hardening_enabled | bool
+  notify: Restart sshd
+
+- name: Find systemd-boot entry files
+  ansible.builtin.find:
+    paths: /boot/loader/entries
+    patterns: "*.conf"
+    file_type: file
+  register: security_boot_entry_files
+  when:
+    - arch_apparmor_enabled | bool or arch_lockdown_enabled | bool
+
+- name: Enable AppArmor boot parameters in systemd-boot entries
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^(options\s+(?!.*\bapparmor=1\b).*)$'
+    line: '\1 {{ arch_apparmor_boot_parameters }}'
+    backrefs: true
+  loop: "{{ security_boot_entry_files.files }}"
+  when: arch_apparmor_enabled | bool
+
+- name: Enable kernel lockdown mode in systemd-boot entries
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^(options\s+(?!.*\blockdown=).*)$'
+    line: '\1 lockdown={{ arch_lockdown_mode }}'
+    backrefs: true
+  loop: "{{ security_boot_entry_files.files }}"
+  when: arch_lockdown_enabled | bool
+
+- name: Install nftables ruleset
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0644"
+    validate: /usr/bin/nft -c -f %s
+  when: arch_firewall_enabled | bool
+  notify: Reload nftables
+
+- name: Install sysctl hardening drop-in
+  ansible.builtin.template:
+    src: 60-security-hardening.conf.j2
+    dest: /etc/sysctl.d/60-security-hardening.conf
+    mode: "0644"
+  when: arch_sysctl_hardening_enabled | bool
+  notify: Apply sysctl hardening

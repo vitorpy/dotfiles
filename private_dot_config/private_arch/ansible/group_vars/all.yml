@@ -11,12 +11,34 @@ arch_ly_service_name: ly@tty2.service
 arch_system_services:
   - NetworkManager
   - sshd
+  - nftables
+  - apparmor
 
 arch_desktop_enabled: false
 arch_ly_enabled: false
 
 arch_manage_user: true
 arch_manage_sudoers: true
+
+arch_security_enabled: true
+arch_firewall_enabled: true
+arch_firewall_allowed_tcp_ports:
+  - 22
+arch_firewall_allowed_udp_ports: []
+arch_ssh_hardening_enabled: true
+arch_ssh_password_auth_enabled: false
+arch_ssh_kbd_interactive_enabled: false
+arch_ssh_pubkey_auth_enabled: true
+arch_ssh_root_login: "no"
+arch_ssh_x11_forwarding_enabled: false
+arch_ssh_allow_agent_forwarding_enabled: true
+arch_ssh_allow_tcp_forwarding_enabled: true
+arch_sysctl_hardening_enabled: true
+arch_apparmor_enabled: true
+arch_apparmor_boot_parameters: >-
+  apparmor=1 security=apparmor lsm=landlock,lockdown,yama,integrity,apparmor,bpf
+arch_lockdown_enabled: true
+arch_lockdown_mode: integrity
 
 arch_pacman_packages: []
 arch_aur_packages: []
@@ -70,6 +92,8 @@ arch_pacman_packages_base:
   - fprintd
   - pacman-contrib
   - fwupd
+  - nftables
+  - apparmor
 
 arch_pacman_packages_hyprland:
   - hyprland

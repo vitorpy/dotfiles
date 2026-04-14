@@ -10,6 +10,7 @@ This playbook is intended for **post-install host configuration**:
 - primary user and wheel sudoers drop-in
 - pacman and AUR packages
 - system services
+- SSH, firewall, and sysctl hardening
 - X11 keyboard defaults
 - `ly` deployment from `~/.config/ly`
 - optional bootloader and mkinitcpio management
@@ -35,6 +36,16 @@ ansible-playbook site.yml
 `localhost` is the default workstation target via the included inventory.
 
 On this machine, `sudo` may authenticate via fingerprint. For localhost `become` to work reliably, `sudo -n true` must succeed after `sudo -v`. If needed, configure sudo with `timestamp_type=global` or fall back to `ansible-playbook -K site.yml`.
+
+This playbook also manages a basic security baseline:
+
+- `sshd` hardening drop-in
+- `nftables` firewall
+- sysctl hardening
+- optional AppArmor enablement via systemd-boot entry parameters
+- optional kernel lockdown mode via systemd-boot entry parameters
+
+If AppArmor or kernel lockdown boot parameters change, reboot after applying the playbook.
 
 ## Profiles
 

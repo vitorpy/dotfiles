@@ -1,0 +1,8 @@
+# Managed by Ansible.
+PasswordAuthentication {{ 'yes' if arch_ssh_password_auth_enabled | bool else 'no' }}
+KbdInteractiveAuthentication {{ 'yes' if arch_ssh_kbd_interactive_enabled | bool else 'no' }}
+PubkeyAuthentication {{ 'yes' if arch_ssh_pubkey_auth_enabled | bool else 'no' }}
+PermitRootLogin {{ arch_ssh_root_login }}
+X11Forwarding {{ 'yes' if arch_ssh_x11_forwarding_enabled | bool else 'no' }}
+AllowAgentForwarding {{ 'yes' if arch_ssh_allow_agent_forwarding_enabled | bool else 'no' }}
+AllowTcpForwarding {{ 'yes' if arch_ssh_allow_tcp_forwarding_enabled | bool else 'no' }}

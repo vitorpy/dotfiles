@@ -33,6 +33,15 @@
   loop: "{{ security_boot_entry_files.files }}"
   when: arch_apparmor_enabled | bool
 
+- name: Replace existing kernel lockdown mode in systemd-boot entries
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^(options\s+.*)\s+lockdown=\S+\s*$'
+    line: '\1 lockdown={{ arch_lockdown_mode }}'
+    backrefs: true
+  loop: "{{ security_boot_entry_files.files }}"
+  when: arch_lockdown_enabled | bool
+
 - name: Enable kernel lockdown mode in systemd-boot entries
   ansible.builtin.lineinfile:
     path: "{{ item.path }}"

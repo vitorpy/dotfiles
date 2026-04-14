@@ -38,7 +38,7 @@ arch_apparmor_enabled: true
 arch_apparmor_boot_parameters: >-
   apparmor=1 security=apparmor lsm=landlock,lockdown,yama,integrity,apparmor,bpf
 arch_lockdown_enabled: true
-arch_lockdown_mode: integrity
+arch_lockdown_mode: confidentiality
 
 arch_pacman_packages: []
 arch_aur_packages: []

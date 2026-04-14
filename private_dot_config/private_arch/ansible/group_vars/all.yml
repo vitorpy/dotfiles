@@ -187,10 +187,7 @@ arch_aur_packages_communication:
   - slack-desktop
   - zoom
 
-arch_aur_packages_theming:
-  - yaru-gtk-theme
-  - yaru-icon-theme
-  - adwaita-qt5
+arch_aur_packages_theming: []
 
 arch_aur_packages_utilities:
   - deezer

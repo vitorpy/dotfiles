@@ -29,7 +29,7 @@ ignore-timeout=0
 # Icons
 icons=1
 max-icon-size=48
-icon-path=/usr/share/icons/Yaru
+icon-path=/usr/share/icons/Adwaita
 
 # Grouping
 group-by=app-name

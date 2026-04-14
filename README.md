@@ -35,13 +35,13 @@ After the bootstrap completes, reboot to start Hyprland.
 On a new machine with chezmoi already installed:
 
 ```bash
-chezmoi init --apply https://tangled.sh/vitorpy.com/dotfiles
+chezmoi init --apply https://github.com/vitorpy/dotfiles.git
 ```
 
 Or install chezmoi and apply in one command:
 
 ```bash
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://tangled.sh/vitorpy.com/dotfiles
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/dotfiles.git
 ```
 
 ## Managed Configurations
@@ -67,7 +67,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://tangled.sh/vitorpy.
 - **Git** (`~/.gitconfig`) - Git configuration
 
 ### Theming
-- **GTK/Qt** - Dark theme configuration (Yaru)
+- **GTK/Qt** - Dark theme configuration (Adwaita + Kvantum)
 - **Fonts** (`~/.local/share/fonts/`) - CaskaydiaMono Nerd Fonts collection
 
 ### Arch Linux System Management
@@ -143,7 +143,7 @@ chezmoi update
 chezmoi add ~/.config/newconfig
 ```
 
-### Push changes to Tangled
+### Push changes to GitHub
 ```bash
 chezmoi cd
 git add .

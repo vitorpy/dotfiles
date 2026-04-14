@@ -1,0 +1,7 @@
+export MOZ_ENABLE_WAYLAND=1
+export GTK_THEME=Adwaita:dark
+unset QT_QPA_PLATFORMTHEME
+export QT_STYLE_OVERRIDE=kvantum
+export XCURSOR_THEME=Adwaita
+export NODE_OPTIONS=--max-old-space-size=8192
+export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"

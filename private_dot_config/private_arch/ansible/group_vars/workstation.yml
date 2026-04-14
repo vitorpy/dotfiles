@@ -2,6 +2,8 @@
 arch_desktop_enabled: true
 arch_ly_enabled: true
 arch_package_prune_explicit: true
+arch_ssh_allow_agent_forwarding_enabled: false
+arch_ssh_allow_tcp_forwarding_enabled: false
 
 arch_pacman_packages: "{{ arch_pacman_packages_base + arch_pacman_packages_hyprland + arch_pacman_packages_multimedia + arch_pacman_packages_development + arch_pacman_packages_communication + arch_pacman_packages_theming + arch_pacman_packages_utilities + arch_pacman_packages_shells + arch_pacman_packages_system_extras + arch_pacman_packages_cli_extras + arch_pacman_packages_desktop_extras + arch_pacman_packages_dev_extras }}"
 

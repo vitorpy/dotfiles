@@ -13,6 +13,7 @@ arch_system_services:
   - sshd
   - nftables
   - apparmor
+  - auditd
 
 arch_desktop_enabled: false
 arch_ly_enabled: false
@@ -94,6 +95,7 @@ arch_pacman_packages_base:
   - fwupd
   - nftables
   - apparmor
+  - audit
 
 arch_pacman_packages_hyprland:
   - hyprland

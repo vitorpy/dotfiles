@@ -4,7 +4,13 @@
     name: "{{ item }}"
     enabled: true
     state: started
-  loop: "{{ arch_system_services }}"
+  loop: "{{ arch_system_services | difference(['nftables']) }}"
+
+- name: Enable nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+  when: "'nftables' in arch_system_services"
 
 - name: Disable getty on tty2 when using ly
   ansible.builtin.systemd:

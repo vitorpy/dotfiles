@@ -22,9 +22,16 @@ arch_ly_enabled: false
 
 arch_manage_user: true
 arch_manage_sudoers: true
+arch_manage_hosts: true
+
+arch_hosts_entries:
+  - "127.0.0.1 localhost"
+  - "::1 localhost"
+  - "127.0.1.1 {{ arch_hostname }}.localdomain {{ arch_hostname }}"
 
 arch_security_enabled: true
 arch_firewall_enabled: true
+arch_firewall_disable_ufw: false
 arch_firewall_allowed_tcp_ports:
   - 22
 arch_firewall_allowed_udp_ports: []
@@ -42,6 +49,7 @@ arch_apparmor_boot_parameters: >-
   apparmor=1 security=apparmor lsm=landlock,lockdown,yama,integrity,apparmor,bpf
 arch_lockdown_enabled: true
 arch_lockdown_mode: confidentiality
+arch_manage_grub_kernel_parameters: false
 
 arch_pacman_packages: []
 arch_aur_packages: []

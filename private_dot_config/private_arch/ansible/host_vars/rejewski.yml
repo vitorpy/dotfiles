@@ -1,0 +1,16 @@
+---
+arch_hostname: rejewski
+arch_timezone: Europe/Berlin
+arch_console_keymap: de-latin1-nodeadkeys
+arch_manage_grub_kernel_parameters: true
+
+arch_hosts_entries:
+  - "127.0.0.1 localhost.localdomain localhost"
+  - "136.243.134.187 rejewski.vitorpy.com rejewski"
+  - "::1 ip6-localhost ip6-loopback"
+  - "fe00::0 ip6-localnet"
+  - "ff00::0 ip6-mcastprefix"
+  - "ff02::1 ip6-allnodes"
+  - "ff02::2 ip6-allrouters"
+  - "ff02::3 ip6-allhosts"
+  - "2a01:4f8:212:3662::2 rejewski.vitorpy.com rejewski"

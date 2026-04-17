@@ -12,3 +12,7 @@
 - name: Apply sysctl hardening
   ansible.builtin.command: sysctl --system
   changed_when: true
+
+- name: Regenerate grub config
+  ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+  changed_when: true

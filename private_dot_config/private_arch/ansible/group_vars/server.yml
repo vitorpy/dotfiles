@@ -3,6 +3,7 @@ arch_desktop_enabled: false
 arch_ly_enabled: false
 
 arch_system_services: "{{ arch_system_services_base | difference(['NetworkManager']) + ['cronie'] }}"
+arch_firewall_disable_ufw: true
 
 arch_pacman_packages: "{{ arch_pacman_packages_server_base + arch_pacman_packages_server_utilities + arch_pacman_packages_server_devbox }}"
 

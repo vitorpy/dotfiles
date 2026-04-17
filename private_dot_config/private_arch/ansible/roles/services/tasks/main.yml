@@ -1,16 +1,23 @@
 ---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
 - name: Enable and start core services
   ansible.builtin.systemd:
     name: "{{ item }}"
     enabled: true
     state: started
   loop: "{{ arch_system_services | difference(['nftables']) }}"
+  when:
+    - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
 
 - name: Enable nftables service
   ansible.builtin.systemd:
     name: nftables
     enabled: true
-  when: "'nftables' in arch_system_services"
+  when:
+    - "'nftables' in arch_system_services"
+    - not ansible_check_mode or 'nftables.service' in ansible_facts.services
 
 - name: Disable getty on tty2 when using ly
   ansible.builtin.systemd:

@@ -24,6 +24,14 @@
   when:
     - arch_apparmor_enabled | bool or arch_lockdown_enabled | bool
 
+- name: Check for GRUB defaults file
+  ansible.builtin.stat:
+    path: /etc/default/grub
+  register: security_grub_defaults
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - arch_apparmor_enabled | bool or arch_lockdown_enabled | bool
+
 - name: Enable AppArmor boot parameters in systemd-boot entries
   ansible.builtin.lineinfile:
     path: "{{ item.path }}"
@@ -51,6 +59,42 @@
   loop: "{{ security_boot_entry_files.files }}"
   when: arch_lockdown_enabled | bool
 
+- name: Enable AppArmor boot parameters in GRUB defaults
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="(?!.*\bapparmor=1\b)[^"]*)"$'
+    line: '\1 {{ arch_apparmor_boot_parameters }}"'
+    backrefs: true
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - arch_apparmor_enabled | bool
+    - security_grub_defaults.stat.exists
+  notify: Regenerate grub config
+
+- name: Replace existing kernel lockdown mode in GRUB defaults
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT=".*)\s+lockdown=\S+([^"]*")$'
+    line: '\1 lockdown={{ arch_lockdown_mode }}\2'
+    backrefs: true
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - arch_lockdown_enabled | bool
+    - security_grub_defaults.stat.exists
+  notify: Regenerate grub config
+
+- name: Enable kernel lockdown mode in GRUB defaults
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT="(?!.*\blockdown=)[^"]*)"$'
+    line: '\1 lockdown={{ arch_lockdown_mode }}"'
+    backrefs: true
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - arch_lockdown_enabled | bool
+    - security_grub_defaults.stat.exists
+  notify: Regenerate grub config
+
 - name: Install nftables ruleset
   ansible.builtin.template:
     src: nftables.conf.j2
@@ -59,6 +103,19 @@
     validate: /usr/bin/nft -c -f %s
   when: arch_firewall_enabled | bool
   notify: Reload nftables
+
+- name: Gather service facts for firewall migration
+  ansible.builtin.service_facts:
+  when: arch_firewall_disable_ufw | bool
+
+- name: Disable legacy ufw firewall service
+  ansible.builtin.systemd:
+    name: ufw
+    enabled: false
+    state: stopped
+  when:
+    - arch_firewall_disable_ufw | bool
+    - "'ufw.service' in ansible_facts.services"
 
 - name: Install sysctl hardening drop-in
   ansible.builtin.template:

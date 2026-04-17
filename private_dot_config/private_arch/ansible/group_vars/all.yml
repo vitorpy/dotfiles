@@ -8,12 +8,14 @@ arch_primary_user_shell: /usr/bin/zsh
 arch_primary_user_home: "/home/{{ arch_primary_user }}"
 arch_ly_service_name: ly@tty2.service
 
-arch_system_services:
+arch_system_services_base:
   - NetworkManager
   - sshd
   - nftables
   - apparmor
   - auditd
+
+arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
 arch_ly_enabled: false
@@ -197,6 +199,59 @@ arch_aur_packages_utilities:
 arch_pacman_packages_shells:
   - zsh
   - zsh-syntax-highlighting
+
+arch_pacman_packages_server_base:
+  - ansible
+  - starship
+  - neovim
+  - git
+  - chezmoi
+  - sudo
+  - openssh
+  - wget
+  - curl
+  - jq
+  - rsync
+  - man-db
+  - man-pages
+  - pacman-contrib
+  - bitwarden-cli
+  - nftables
+  - apparmor
+  - audit
+  - grub
+  - mdadm
+  - zsh
+  - zsh-syntax-highlighting
+
+arch_pacman_packages_server_utilities:
+  - ripgrep
+  - fzf
+  - zoxide
+  - fastfetch
+  - mosh
+  - direnv
+  - tree
+  - bc
+  - bat
+  - less
+  - lsd
+  - net-tools
+  - unzip
+
+arch_pacman_packages_server_devbox:
+  - rustup
+  - go
+  - clang
+  - nvm
+  - openai-codex
+  - tmux
+  - strace
+  - uv
+  - waypipe
+  - podman
+  - podman-compose
+  - cronie
 
 arch_pacman_packages_system_extras:
   - amd-ucode

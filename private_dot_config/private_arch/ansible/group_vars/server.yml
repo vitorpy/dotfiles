@@ -2,22 +2,8 @@
 arch_desktop_enabled: false
 arch_ly_enabled: false
 
-arch_pacman_packages:
-  - starship
-  - neovim
-  - git
-  - chezmoi
-  - bitwarden-cli
-  - openssh
-  - ripgrep
-  - fzf
-  - zoxide
-  - fastfetch
-  - mosh
-  - direnv
-  - tree
-  - bc
-  - jq
-  - rsync
+arch_system_services: "{{ arch_system_services_base | difference(['NetworkManager']) + ['cronie'] }}"
+
+arch_pacman_packages: "{{ arch_pacman_packages_server_base + arch_pacman_packages_server_utilities + arch_pacman_packages_server_devbox }}"
 
 arch_aur_packages: []

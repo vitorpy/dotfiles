@@ -264,6 +264,9 @@ arch_pacman_packages_server_devbox:
   - podman-compose
   - cronie
 
+arch_pacman_packages_web:
+  - nginx
+
 arch_pacman_packages_system_extras:
   - amd-ucode
   - android-udev

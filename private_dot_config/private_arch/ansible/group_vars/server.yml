@@ -2,12 +2,16 @@
 arch_desktop_enabled: false
 arch_ly_enabled: false
 
-arch_system_services: "{{ arch_system_services_base | difference(['NetworkManager']) + ['cronie', 'et'] }}"
-arch_firewall_disable_ufw: true
-arch_firewall_allowed_tcp_ports:
+arch_server_system_services: "{{ arch_system_services_base | difference(['NetworkManager']) }}"
+arch_server_firewall_allowed_tcp_ports:
   - 22
-  - 2022
+arch_server_pacman_packages: "{{ arch_pacman_packages_server_base + arch_pacman_packages_server_utilities }}"
+arch_server_aur_packages: []
 
-arch_pacman_packages: "{{ arch_pacman_packages_server_base + arch_pacman_packages_server_utilities + arch_pacman_packages_server_devbox }}"
+arch_system_services: "{{ arch_server_system_services }}"
+arch_firewall_disable_ufw: true
+arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports }}"
 
-arch_aur_packages: "{{ arch_aur_packages_server }}"
+arch_pacman_packages: "{{ arch_server_pacman_packages }}"
+
+arch_aur_packages: "{{ arch_server_aur_packages }}"

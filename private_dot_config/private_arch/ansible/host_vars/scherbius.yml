@@ -1,0 +1,20 @@
+---
+arch_hostname: scherbius
+arch_timezone: Europe/Berlin
+arch_console_keymap: de-latin1-nodeadkeys
+arch_manage_grub_kernel_parameters: true
+
+arch_hosts_entries:
+  - "127.0.0.1 localhost.localdomain localhost"
+  - "65.109.48.183 scherbius.vitorpy.com scherbius"
+  - "::1 ip6-localhost ip6-loopback"
+  - "fe00::0 ip6-localnet"
+  - "ff00::0 ip6-mcastprefix"
+  - "ff02::1 ip6-allnodes"
+  - "ff02::2 ip6-allrouters"
+  - "ff02::3 ip6-allhosts"
+  - "2a01:4f9:5a:2618::2 scherbius.vitorpy.com scherbius"
+
+arch_host_firewall_allowed_tcp_ports_extra:
+  - 4000
+  - 8081

@@ -1,0 +1,21 @@
+---
+arch_web_system_services_extra:
+  - nginx
+
+arch_web_firewall_allowed_tcp_ports_extra:
+  - 80
+  - 443
+
+arch_system_services: "{{ arch_server_system_services + arch_devbox_system_services_extra + arch_web_system_services_extra }}"
+arch_firewall_allowed_tcp_ports: >-
+  {{
+    (
+      arch_server_firewall_allowed_tcp_ports
+      + arch_devbox_firewall_allowed_tcp_ports_extra
+      + arch_web_firewall_allowed_tcp_ports_extra
+      + (arch_host_firewall_allowed_tcp_ports_extra | default([]))
+    ) | unique
+  }}
+
+arch_pacman_packages: "{{ arch_server_pacman_packages + arch_pacman_packages_server_devbox + arch_pacman_packages_web }}"
+arch_aur_packages: "{{ arch_server_aur_packages + arch_aur_packages_server }}"

@@ -204,6 +204,9 @@ arch_aur_packages_utilities:
   - eternalterminal-client
   - yay-bin
 
+arch_aur_packages_server:
+  - eternalterminal-server
+
 arch_pacman_packages_shells:
   - zsh
   - zsh-syntax-highlighting

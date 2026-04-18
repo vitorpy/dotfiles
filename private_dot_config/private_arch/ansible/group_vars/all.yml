@@ -266,6 +266,7 @@ arch_pacman_packages_server_devbox:
 
 arch_pacman_packages_web:
   - nginx
+  - certbot
 
 arch_pacman_packages_system_extras:
   - amd-ucode

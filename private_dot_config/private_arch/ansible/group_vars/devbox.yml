@@ -6,8 +6,8 @@ arch_devbox_system_services_extra:
 arch_devbox_firewall_allowed_tcp_ports_extra:
   - 2022
 
-arch_system_services: "{{ arch_server_system_services + arch_devbox_system_services_extra }}"
-arch_firewall_allowed_tcp_ports: "{{ (arch_server_firewall_allowed_tcp_ports + arch_devbox_firewall_allowed_tcp_ports_extra) | unique }}"
+arch_system_services: "{{ (arch_server_system_services + arch_devbox_system_services_extra + (arch_host_system_services_extra | default([]))) | unique }}"
+arch_firewall_allowed_tcp_ports: "{{ (arch_server_firewall_allowed_tcp_ports + arch_devbox_firewall_allowed_tcp_ports_extra + (arch_host_firewall_allowed_tcp_ports_extra | default([]))) | unique }}"
 
-arch_pacman_packages: "{{ arch_server_pacman_packages + arch_pacman_packages_server_devbox }}"
-arch_aur_packages: "{{ arch_server_aur_packages + arch_aur_packages_server }}"
+arch_pacman_packages: "{{ (arch_server_pacman_packages + arch_pacman_packages_server_devbox + (arch_host_pacman_packages_extra | default([]))) | unique }}"
+arch_aur_packages: "{{ (arch_server_aur_packages + arch_aur_packages_server + (arch_host_aur_packages_extra | default([]))) | unique }}"

@@ -1,0 +1,207 @@
+---
+- name: Require reverse proxy settings
+  ansible.builtin.assert:
+    that:
+      - arch_web_proxy_server_name is string
+      - arch_web_proxy_server_name | length > 0
+      - arch_web_proxy_upstream_host is string
+      - arch_web_proxy_upstream_host | length > 0
+      - arch_web_proxy_upstream_port | int > 0
+      - arch_web_proxy_acme_email is string
+      - arch_web_proxy_acme_email | length > 0
+    fail_msg: "Set arch_web_proxy_server_name, arch_web_proxy_upstream_host, arch_web_proxy_upstream_port, and arch_web_proxy_acme_email for the web role."
+
+- name: Ensure ACME webroot directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/lib/letsencrypt
+    - /var/lib/letsencrypt/.well-known
+    - /var/lib/letsencrypt/.well-known/acme-challenge
+
+- name: Ensure nginx config directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure nginx loads conf.d snippets
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*include /etc/nginx/conf\.d/\*\.conf;$'
+    line: '    include /etc/nginx/conf.d/*.conf;'
+    insertafter: '^\s*#gzip  on;$'
+
+- name: Resolve OpenClaw CLI path
+  ansible.builtin.set_fact:
+    web_openclaw_cli_path: "{{ arch_openclaw_cli_path | default(arch_primary_user_home + '/.nvm/versions/node/v24.10.0/bin/openclaw') }}"
+
+- name: Resolve allowed Control UI origins
+  ansible.builtin.set_fact:
+    web_openclaw_allowed_origins: "{{ arch_web_proxy_control_ui_allowed_origins | default(['https://' + arch_web_proxy_server_name]) }}"
+
+- name: Read primary user uid
+  ansible.builtin.command: "id -u {{ arch_primary_user }}"
+  register: web_primary_user_uid
+  changed_when: false
+
+- name: Read current OpenClaw gateway bind mode
+  ansible.builtin.command: "{{ web_openclaw_cli_path }} config get gateway.bind"
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    HOME: "{{ arch_primary_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ web_primary_user_uid.stdout | trim }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ web_primary_user_uid.stdout | trim }}/bus"
+  register: web_openclaw_bind_mode
+  changed_when: false
+
+- name: Keep OpenClaw bound to loopback behind nginx
+  ansible.builtin.command: "{{ web_openclaw_cli_path }} config set gateway.bind loopback"
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    HOME: "{{ arch_primary_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ web_primary_user_uid.stdout | trim }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ web_primary_user_uid.stdout | trim }}/bus"
+  when: web_openclaw_bind_mode.stdout | trim != "loopback"
+  changed_when: true
+
+- name: Read current OpenClaw allowed Control UI origins
+  ansible.builtin.command: "{{ web_openclaw_cli_path }} config get gateway.controlUi.allowedOrigins"
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    HOME: "{{ arch_primary_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ web_primary_user_uid.stdout | trim }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ web_primary_user_uid.stdout | trim }}/bus"
+  register: web_openclaw_allowed_origins_current
+  changed_when: false
+  failed_when: false
+
+- name: Allow the reverse proxy origin for OpenClaw Control UI
+  ansible.builtin.command:
+    argv:
+      - "{{ web_openclaw_cli_path }}"
+      - config
+      - set
+      - gateway.controlUi.allowedOrigins
+      - "{{ web_openclaw_allowed_origins | to_json }}"
+      - --strict-json
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    HOME: "{{ arch_primary_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ web_primary_user_uid.stdout | trim }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ web_primary_user_uid.stdout | trim }}/bus"
+  when: >-
+    web_openclaw_allowed_origins_current.rc != 0
+    or (web_openclaw_allowed_origins_current.stdout | trim) != (web_openclaw_allowed_origins | to_json)
+  changed_when: true
+
+- name: Restart OpenClaw gateway user service after bind change
+  ansible.builtin.command: systemctl --user restart openclaw-gateway.service
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    HOME: "{{ arch_primary_user_home }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ web_primary_user_uid.stdout | trim }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ web_primary_user_uid.stdout | trim }}/bus"
+  when: >-
+    web_openclaw_bind_mode.stdout | trim != "loopback"
+    or (
+      web_openclaw_allowed_origins_current.rc != 0
+      or (web_openclaw_allowed_origins_current.stdout | trim) != (web_openclaw_allowed_origins | to_json)
+    )
+  changed_when: true
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ arch_web_proxy_server_name }}/fullchain.pem"
+  register: web_proxy_certificate
+
+- name: Render nginx OpenClaw reverse proxy config
+  ansible.builtin.template:
+    src: nginx-openclaw.conf.j2
+    dest: /etc/nginx/conf.d/openclaw.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    arch_web_proxy_tls_ready: "{{ web_proxy_certificate.stat.exists }}"
+
+- name: Start nginx with the current reverse proxy config
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Apply pending firewall and web server handler changes before ACME validation
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Obtain Let's Encrypt certificate for the OpenClaw proxy
+  ansible.builtin.command: >-
+    certbot certonly
+    --non-interactive
+    --agree-tos
+    --email {{ arch_web_proxy_acme_email }}
+    --webroot
+    --webroot-path /var/lib/letsencrypt
+    --domain {{ arch_web_proxy_server_name }}
+    --keep-until-expiring
+  register: web_proxy_certbot_issue
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - not web_proxy_certificate.stat.exists
+
+- name: Re-check certificate after issuance
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ arch_web_proxy_server_name }}/fullchain.pem"
+  register: web_proxy_certificate_after_issue
+
+- name: Render nginx OpenClaw reverse proxy config with TLS enabled
+  ansible.builtin.template:
+    src: nginx-openclaw.conf.j2
+    dest: /etc/nginx/conf.d/openclaw.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    arch_web_proxy_tls_ready: "{{ web_proxy_certificate_after_issue.stat.exists }}"
+  notify: Reload nginx
+
+- name: Install certbot renewal service
+  ansible.builtin.template:
+    src: openclaw-certbot-renew.service.j2
+    dest: /etc/systemd/system/openclaw-certbot-renew.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install certbot renewal timer
+  ansible.builtin.template:
+    src: openclaw-certbot-renew.timer.j2
+    dest: /etc/systemd/system/openclaw-certbot-renew.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable certbot renewal timer
+  ansible.builtin.systemd:
+    name: openclaw-certbot-renew.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Apply pending nginx reloads
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode

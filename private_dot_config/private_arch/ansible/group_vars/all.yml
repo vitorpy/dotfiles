@@ -53,6 +53,7 @@ arch_manage_grub_kernel_parameters: false
 
 arch_pacman_packages: []
 arch_aur_packages: []
+arch_extra_mounts: []
 arch_package_prune_explicit: false
 arch_package_prune_exclude: []
 
@@ -146,6 +147,7 @@ arch_pacman_packages_development:
   - gdb
   - tmux
   - openai-codex
+  - terraform
   - openvpn
   - wireguard-tools
 
@@ -263,6 +265,7 @@ arch_pacman_packages_server_devbox:
   - podman
   - podman-compose
   - cronie
+  - archiso
 
 arch_pacman_packages_web:
   - nginx

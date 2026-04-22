@@ -1,0 +1,10 @@
+---
+arch_hostname: mediaserver
+arch_timezone: Europe/Warsaw
+
+arch_extra_mounts:
+  - enabled: false           # set true after replacing CHANGEME with the real UUID
+    src: "UUID=CHANGEME"     # run: sudo blkid /dev/sda1
+    path: /mnt/media
+    fstype: ext4             # adjust if the drive is exfat/ntfs/etc.
+    opts: defaults,nofail,x-systemd.device-timeout=10

@@ -34,6 +34,26 @@ Use either:
 
 The repo no longer dictates disk layout through a checked-in installer profile, so pick the install method that matches the machine.
 
+### Mediaserver Unattended ISO
+
+The mediaserver has a separate, destructive ArchISO profile under:
+
+```bash
+~/.config/arch/archiso
+```
+
+Build it with:
+
+```bash
+~/.config/arch/archiso/build.sh
+```
+
+The generated ISO boots into an unattended installer that wipes the first NVMe disk, installs a minimal SSH-capable Arch system, creates the `vitorpy` user, and enables `NetworkManager` plus `sshd` for first-boot access.
+
+Do not write this ISO to a USB drive until you have confirmed the target block device with `lsblk`. The installer itself is intentionally destructive once booted.
+
+After the first boot, converge the host with the `media_servers` Ansible group. The `/mnt/media` mount is present in host vars but disabled until the real media disk UUID replaces `UUID=CHANGEME`.
+
 ### Minimum Requirements During Install
 
 Make sure the installed system includes at least:

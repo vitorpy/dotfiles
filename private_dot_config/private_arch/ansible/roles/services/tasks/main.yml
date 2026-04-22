@@ -25,3 +25,21 @@
     enabled: false
     state: stopped
   when: arch_ly_enabled | bool
+
+- name: Ensure extra mount points exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ arch_extra_mounts }}"
+  when: item.enabled | default(true) | bool
+
+- name: Configure extra mounts
+  ansible.builtin.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.opts | default('defaults,nofail') }}"
+    state: "{{ item.state | default('mounted') }}"
+  loop: "{{ arch_extra_mounts }}"
+  when: item.enabled | default(true) | bool

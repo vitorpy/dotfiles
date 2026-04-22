@@ -1,0 +1,6 @@
+---
+arch_system_services: "{{ arch_server_system_services + ['NetworkManager', 'jellyfin'] }}"
+arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8096] }}"
+
+arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager'] }}"
+arch_aur_packages: "{{ arch_server_aur_packages + ['jellyfin-bin'] }}"

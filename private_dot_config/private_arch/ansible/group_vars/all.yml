@@ -133,12 +133,22 @@ arch_pacman_packages_multimedia:
   - ffmpeg
   - libva-utils
   - mesa
+  - spirv-headers
+  - volk
+  - vulkan-extra-layers
+  - vulkan-extra-tools
+  - vulkan-headers
+  - vulkan-html-docs
+  - vulkan-profiles
   - vulkan-radeon
   - vulkan-tools
+  - vulkan-utility-libraries
+  - vulkan-validation-layers
   - vlc
 
 arch_pacman_packages_development:
   - ansible-lint
+  - ccache
   - rustup
   - nvm
   - go
@@ -158,6 +168,8 @@ arch_pacman_packages_communication:
 
 arch_pacman_packages_theming:
   - kvantum-qt5
+  - mate-icon-theme
+  - mate-themes
   - terminus-font
   - noto-fonts
   - noto-fonts-cjk
@@ -175,7 +187,10 @@ arch_pacman_packages_utilities:
   - fastfetch
   - github-cli
   - ripgrep
+  - nmap
   - net-tools
+  - tailscale
+  - testdisk
   - unzip
   - direnv
   - uv
@@ -190,6 +205,7 @@ arch_aur_packages_hyprland:
   - libinput-gestures
 
 arch_aur_packages_development:
+  - claude-code
   - zvm
   - vscodium-bin
   - aws-cli-bin
@@ -204,6 +220,7 @@ arch_aur_packages_theming: []
 arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
+  - hyperion-hercules
   - yay-bin
 
 arch_aur_packages_server:
@@ -274,6 +291,7 @@ arch_pacman_packages_system_extras:
   - amd-ucode
   - android-udev
   - arch-install-scripts
+  - archiso
   - base
   - base-devel
   - btrfs-progs
@@ -333,5 +351,5 @@ arch_pacman_packages_desktop_extras:
   - vlc-plugin-x265
 
 arch_pacman_packages_dev_extras:
-  - ollama-rocm
+  - python-huggingface-hub
   - rocm-ml-sdk

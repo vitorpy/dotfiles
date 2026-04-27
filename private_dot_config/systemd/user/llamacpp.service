@@ -1,0 +1,28 @@
+[Unit]
+Description=llama.cpp HTTP server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/src/llama.cpp
+ExecStart=%h/src/llama.cpp/build-vulkan/bin/llama-server \
+ --model /home/vitorpy/models/gemma-4-26B-A4B-it-uncensored-Q4_K_M.gguf \
+ --ctx-size 32768 \
+ --parallel 1 \
+ --threads 6 \
+ --threads-batch 12 \
+ --batch-size 4096 \
+ --ubatch-size 1024 \
+ --cache-reuse 256 \
+ --mlock \
+ --n-gpu-layers 99 \
+ --jinja \
+ --chat-template-kwargs '{"enable_thinking":false}' \
+ --flash-attn on \
+ --cache-type-k q8_0 \
+ --cache-type-v q8_0
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

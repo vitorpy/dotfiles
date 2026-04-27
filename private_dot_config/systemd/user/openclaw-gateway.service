@@ -1,0 +1,28 @@
+[Unit]
+Description=OpenClaw Gateway (v2026.4.25)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+ExecStart=%h/.config/systemd/user/scripts/openclaw-gateway-on-ac.sh
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+TimeoutStartSec=30
+SuccessExitStatus=0 143
+KillMode=control-group
+Environment=HOME=/home/vitorpy
+Environment=TMPDIR=/tmp
+Environment=NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+Environment=PATH=/home/vitorpy/.nvm/versions/node/v24.10.0/bin:/home/vitorpy/.local/share/pnpm:/home/vitorpy/.nvm/current/bin:/home/vitorpy/.local/bin:/home/vitorpy/.npm-global/bin:/home/vitorpy/bin:/home/vitorpy/.volta/bin:/home/vitorpy/.asdf/shims:/home/vitorpy/.bun/bin:/home/vitorpy/.nix-profile/bin:/home/vitorpy/.local/share/fnm/aliases/default/bin:/home/vitorpy/.local/share/fnm/current/bin:/home/vitorpy/.fnm/aliases/default/bin:/home/vitorpy/.fnm/current/bin:/usr/local/bin:/usr/bin:/bin
+Environment=OPENCLAW_GATEWAY_PORT=18789
+Environment=OPENCLAW_SYSTEMD_UNIT=openclaw-gateway.service
+Environment="OPENCLAW_WINDOWS_TASK_NAME=OpenClaw Gateway"
+Environment=OPENCLAW_SERVICE_MARKER=openclaw
+Environment=OPENCLAW_SERVICE_KIND=gateway
+Environment=OPENCLAW_SERVICE_VERSION=2026.4.25
+
+[Install]
+WantedBy=default.target

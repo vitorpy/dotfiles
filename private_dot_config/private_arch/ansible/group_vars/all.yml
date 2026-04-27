@@ -157,6 +157,9 @@ arch_pacman_packages_development:
   - gdb
   - tmux
   - openai-codex
+  - podman
+  - podman-compose
+  - podman-docker
   - terraform
   - openvpn
   - wireguard-tools

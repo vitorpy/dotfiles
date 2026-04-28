@@ -1,6 +1,7 @@
 ---
 arch_desktop_enabled: false
 arch_ly_enabled: false
+arch_wheel_sudo_nopasswd: true
 
 arch_server_system_services: "{{ arch_system_services_base | difference(['NetworkManager']) }}"
 arch_server_firewall_allowed_tcp_ports:

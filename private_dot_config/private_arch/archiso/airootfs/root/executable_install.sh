@@ -58,7 +58,7 @@ printf 'mediaserver\n' > /mnt/etc/hostname
 printf '127.0.0.1 localhost\n::1 localhost\n127.0.1.1 mediaserver.localdomain mediaserver\n' \
     > /mnt/etc/hosts
 
-printf '%%wheel ALL=(ALL:ALL) ALL\n' > /mnt/etc/sudoers.d/10-wheel
+printf '%%wheel ALL=(ALL:ALL) NOPASSWD: ALL\n' > /mnt/etc/sudoers.d/10-wheel
 chmod 440 /mnt/etc/sudoers.d/10-wheel
 
 mkdir -p /mnt/boot/loader/entries

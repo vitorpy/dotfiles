@@ -1,1 +1,1 @@
-%wheel ALL=(ALL:ALL) ALL
+%wheel ALL=(ALL:ALL) {{ 'NOPASSWD: ALL' if arch_wheel_sudo_nopasswd | bool else 'ALL' }}

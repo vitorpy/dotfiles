@@ -6,6 +6,7 @@ arch_console_keymap: us
 arch_primary_user: vitorpy
 arch_primary_user_shell: /usr/bin/zsh
 arch_primary_user_home: "/home/{{ arch_primary_user }}"
+arch_primary_user_authorized_keys: []
 arch_ly_service_name: ly@tty2.service
 
 arch_system_services_base:
@@ -22,6 +23,7 @@ arch_ly_enabled: false
 
 arch_manage_user: true
 arch_manage_sudoers: true
+arch_wheel_sudo_nopasswd: false
 arch_manage_hosts: true
 
 arch_hosts_entries:

@@ -48,6 +48,47 @@
     create_home: true
   when: arch_manage_user | bool
 
+- name: Ensure primary user SSH directory exists
+  ansible.builtin.file:
+    path: "{{ arch_primary_user_home }}/.ssh"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0700"
+  when:
+    - arch_manage_user | bool
+    - arch_primary_user_authorized_keys | length > 0
+
+- name: Install primary user authorized SSH keys
+  ansible.builtin.lineinfile:
+    path: "{{ arch_primary_user_home }}/.ssh/authorized_keys"
+    line: "{{ item }}"
+    create: true
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0600"
+  loop: "{{ arch_primary_user_authorized_keys }}"
+  loop_control:
+    label: "{{ item.split()[-1] }}"
+  when:
+    - arch_manage_user | bool
+    - arch_primary_user_authorized_keys | length > 0
+
+- name: Ensure sudoers drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when: arch_manage_sudoers | bool
+
+- name: Ensure sudo is installed before managing sudoers
+  ansible.builtin.package:
+    name: sudo
+    state: present
+  when: arch_manage_sudoers | bool
+
 - name: Manage wheel sudoers drop-in
   ansible.builtin.template:
     src: sudoers-wheel.j2

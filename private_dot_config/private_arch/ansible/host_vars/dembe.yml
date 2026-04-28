@@ -1,0 +1,20 @@
+---
+arch_hostname: dembe
+arch_timezone: Europe/Berlin
+arch_console_keymap: de-latin1-nodeadkeys
+arch_manage_grub_kernel_parameters: true
+arch_primary_user_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1RGndxdztqSg0f6zvoAc3MSI3xFb9BCxQINIffAL92 Github"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAuoQDOysawWhA9yLIBl2AxN8Dbrz1uK5LYwz7qriAkX Old laptop"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJAKVxPIZpwFMNX+gH1PmuIHqrlP+vUftjmYYfZJFYxo Cybertito"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd Git"
+
+arch_hosts_entries:
+  - "127.0.0.1 localhost.localdomain localhost"
+  - "148.251.54.9 dembe.vitorpy.com dembe"
+  - "::1 ip6-localhost ip6-loopback"
+  - "fe00::0 ip6-localnet"
+  - "ff00::0 ip6-mcastprefix"
+  - "ff02::1 ip6-allnodes"
+  - "ff02::2 ip6-allrouters"
+  - "ff02::3 ip6-allhosts"

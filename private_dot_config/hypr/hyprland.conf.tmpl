@@ -49,6 +49,7 @@ $screenshot = grim -g "$(slurp)" - | wl-copy
 # Or execute your favorite apps at launch like this:
 
 exec-once = uwsm app -- nm-applet
+exec-once = uwsm app -- /opt/1Password/1password --silent
 exec-once = uwsm app -- bitwarden-desktop
 exec-once = uwsm app -- tailscale systray
 

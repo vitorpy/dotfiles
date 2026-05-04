@@ -165,6 +165,7 @@ arch_pacman_packages_development:
   - terraform
   - openvpn
   - wireguard-tools
+  - texlive-latex
 
 arch_pacman_packages_communication:
   - telegram-desktop

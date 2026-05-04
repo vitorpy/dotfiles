@@ -166,6 +166,12 @@ arch_pacman_packages_development:
   - openvpn
   - wireguard-tools
   - texlive-latex
+  - texlive-luatex
+  - texlive-latexrecommended
+  - texlive-latexextra
+  - texlive-pictures
+  - texlive-fontsrecommended
+  - texlive-fontsextra
 
 arch_pacman_packages_communication:
   - telegram-desktop

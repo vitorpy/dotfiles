@@ -224,6 +224,8 @@ arch_aur_packages_development:
   - vsce
 
 arch_aur_packages_communication:
+  - 1password
+  - 1password-cli
   - slack-desktop
   - zoom
 

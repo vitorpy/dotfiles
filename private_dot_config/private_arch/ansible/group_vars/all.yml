@@ -220,7 +220,6 @@ arch_aur_packages_hyprland:
   - libinput-gestures
 
 arch_aur_packages_development:
-  - claude-code
   - zvm
   - vscodium-bin
   - aws-cli-bin

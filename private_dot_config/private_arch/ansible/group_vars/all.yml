@@ -151,6 +151,8 @@ arch_pacman_packages_multimedia:
 arch_pacman_packages_development:
   - ansible-lint
   - ccache
+  - cargo-hack
+  - cargo-sort
   - rustup
   - nvm
   - go

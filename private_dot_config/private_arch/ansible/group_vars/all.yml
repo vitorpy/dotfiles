@@ -151,6 +151,7 @@ arch_pacman_packages_multimedia:
 arch_pacman_packages_development:
   - ansible-lint
   - ccache
+  - cargo-audit
   - cargo-hack
   - cargo-sort
   - rustup

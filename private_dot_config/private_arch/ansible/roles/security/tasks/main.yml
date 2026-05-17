@@ -104,6 +104,20 @@
   when: arch_firewall_enabled | bool
   notify: Reload nftables
 
+- name: Ensure polkit rules directory exists
+  ansible.builtin.file:
+    path: /etc/polkit-1/rules.d
+    state: directory
+    mode: "0755"
+  when: arch_fprintd_polkit_rule_enabled | bool
+
+- name: Allow local fprintd use for configured users
+  ansible.builtin.template:
+    src: 49-fprintd-local-users.rules.j2
+    dest: /etc/polkit-1/rules.d/49-fprintd-local-users.rules
+    mode: "0644"
+  when: arch_fprintd_polkit_rule_enabled | bool
+
 - name: Gather service facts for firewall migration
   ansible.builtin.service_facts:
   when: arch_firewall_disable_ufw | bool

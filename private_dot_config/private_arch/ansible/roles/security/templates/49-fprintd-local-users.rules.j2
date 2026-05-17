@@ -1,0 +1,16 @@
+// Allow configured local users to use fprintd from the Hyprland lock screen.
+//
+// fprintd authorizes Device.Claim through the enroll action, so hyprlock needs
+// both action IDs before it can verify fingerprints.
+polkit.addRule(function(action, subject) {
+    var allowedActions = [
+        "net.reactivated.fprint.device.verify",
+        "net.reactivated.fprint.device.enroll"
+    ];
+    var allowedUsers = {{ arch_fprintd_polkit_users | to_json }};
+
+    if (allowedActions.indexOf(action.id) >= 0 &&
+        allowedUsers.indexOf(subject.user) >= 0) {
+        return polkit.Result.YES;
+    }
+});

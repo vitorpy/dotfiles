@@ -348,15 +348,19 @@ arch_pacman_packages_desktop_extras:
   - engrampa
   - atril
   - eom
+  - avahi
   - blueman
   - bluez-utils
   - calibre
+  - cups
   - fontforge
   - gst-plugin-pipewire
   - kpat
   - libpulse
+  - nss-mdns
   - radeontop
   - solaar
+  - system-config-printer
   - transmission-gtk
   - ttf-material-symbols-variable
   - vlc-plugin-aribb25

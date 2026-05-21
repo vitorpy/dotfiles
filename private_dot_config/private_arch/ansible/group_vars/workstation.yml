@@ -5,6 +5,10 @@ arch_package_prune_explicit: true
 arch_ssh_allow_agent_forwarding_enabled: false
 arch_ssh_allow_tcp_forwarding_enabled: false
 arch_fprintd_polkit_rule_enabled: true
+arch_mdns_enabled: true
+arch_nsswitch_hosts_line: >-
+  hosts: mymachines mdns_minimal [NOTFOUND=return] resolve
+  [!UNAVAIL=return] files myhostname dns
 
 arch_workstation_system_services_extra:
   - cups
@@ -12,6 +16,12 @@ arch_workstation_system_services_extra:
 
 arch_system_services: >-
   {{ arch_system_services_base + arch_workstation_system_services_extra }}
+
+arch_printers:
+  - name: HP-LaserJet
+    uri: ipp://192.168.1.64/ipp/print
+    model: everywhere
+    default: true
 
 arch_pacman_packages: "{{ arch_pacman_packages_base + arch_pacman_packages_hyprland + arch_pacman_packages_multimedia + arch_pacman_packages_development + arch_pacman_packages_communication + arch_pacman_packages_theming + arch_pacman_packages_utilities + arch_pacman_packages_shells + arch_pacman_packages_system_extras + arch_pacman_packages_cli_extras + arch_pacman_packages_desktop_extras + arch_pacman_packages_dev_extras }}"
 

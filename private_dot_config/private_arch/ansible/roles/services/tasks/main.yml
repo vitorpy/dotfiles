@@ -19,6 +19,58 @@
     - "'nftables' in arch_system_services"
     - not ansible_check_mode or 'nftables.service' in ansible_facts.services
 
+- name: Enable mDNS host resolution
+  ansible.builtin.lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: "^hosts:"
+    line: "{{ arch_nsswitch_hosts_line }}"
+  when: arch_mdns_enabled | bool
+
+- name: Query CUPS printer options
+  ansible.builtin.command:
+    argv:
+      - lpoptions
+      - -p
+      - "{{ item.name }}"
+  loop: "{{ arch_printers }}"
+  register: services_printer_options
+  changed_when: false
+  failed_when: false
+  when: arch_printers | length > 0
+
+- name: Configure CUPS printers
+  ansible.builtin.command:
+    argv:
+      - lpadmin
+      - -p
+      - "{{ item.item.name }}"
+      - -v
+      - "{{ item.item.uri }}"
+      - -m
+      - "{{ item.item.model | default('everywhere') }}"
+      - -E
+  loop: "{{ services_printer_options.results | default([]) }}"
+  when:
+    - 'item.rc != 0 or item.stdout is not search("device-uri=" ~ (item.item.uri | regex_escape)) or item.stdout is not search("IPP Everywhere")'
+
+- name: Query default CUPS printer
+  ansible.builtin.command: lpstat -d
+  register: services_default_printer
+  changed_when: false
+  failed_when: false
+  when: 'arch_printers | selectattr("default", "defined") | selectattr("default") | list | length > 0'
+
+- name: Set default CUPS printer
+  ansible.builtin.command:
+    argv:
+      - lpadmin
+      - -d
+      - "{{ item.name }}"
+  loop: "{{ arch_printers }}"
+  when:
+    - 'item.default | default(false) | bool'
+    - 'services_default_printer.stdout != "system default destination: " ~ item.name'
+
 - name: Disable getty on tty2 when using ly
   ansible.builtin.systemd:
     name: getty@tty2.service

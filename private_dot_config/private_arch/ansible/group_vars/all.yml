@@ -25,6 +25,10 @@ arch_manage_user: true
 arch_manage_sudoers: true
 arch_wheel_sudo_nopasswd: false
 arch_manage_hosts: true
+arch_mdns_enabled: false
+arch_nsswitch_hosts_line: >-
+  hosts: mymachines resolve [!UNAVAIL=return] files myhostname dns
+arch_printers: []
 
 arch_hosts_entries:
   - "127.0.0.1 localhost"
@@ -352,6 +356,7 @@ arch_pacman_packages_desktop_extras:
   - blueman
   - bluez-utils
   - calibre
+  - colord
   - cups
   - fontforge
   - gst-plugin-pipewire

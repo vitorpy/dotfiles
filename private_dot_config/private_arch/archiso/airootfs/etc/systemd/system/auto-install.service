@@ -1,6 +1,7 @@
 [Unit]
 Description=Automated Arch Linux Installation
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=oneshot
@@ -8,6 +9,7 @@ ExecStart=/usr/bin/bash /root/install.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
+TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target

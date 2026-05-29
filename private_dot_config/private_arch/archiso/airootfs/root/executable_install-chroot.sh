@@ -1,33 +1,38 @@
 #!/bin/bash
 set -euo pipefail
 
-USERNAME="vitorpy"
+CONFIG=/etc/mediaserver-install.conf
 
-ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+# shellcheck source=/dev/null
+source "$CONFIG"
+
+ln -sf "/usr/share/zoneinfo/$INSTALL_TIMEZONE" /etc/localtime
 hwclock --systohc
 
 locale-gen
 
-useradd -m -G wheel -s /usr/bin/zsh "$USERNAME"
-passwd -l "$USERNAME"
+if ! id -u "$INSTALL_USERNAME" >/dev/null 2>&1; then
+    useradd -m -G wheel -s "$INSTALL_USER_SHELL" "$INSTALL_USERNAME"
+fi
+passwd -l "$INSTALL_USERNAME"
 
 cat > /etc/sudoers.d/99-vitorpy-bootstrap <<EOF
-${USERNAME} ALL=(ALL:ALL) NOPASSWD: ALL
+${INSTALL_USERNAME} ALL=(ALL:ALL) NOPASSWD: ALL
 EOF
 chmod 440 /etc/sudoers.d/99-vitorpy-bootstrap
+visudo -cf /etc/sudoers.d/10-wheel
 visudo -cf /etc/sudoers.d/99-vitorpy-bootstrap
 
-install -d -m 700 /home/"$USERNAME"/.ssh
-cat > /home/"$USERNAME"/.ssh/authorized_keys <<'KEYS'
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjbmkLFQ7T6sLQ9DaeNeW8KB42RjHBvIowNz892tJN5 vitorpy@zygalski
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJAKVxPIZpwFMNX+gH1PmuIHqrlP+vUftjmYYfZJFYxo tito
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd aur
-KEYS
-chmod 600 /home/"$USERNAME"/.ssh/authorized_keys
-chown -R "$USERNAME":"$USERNAME" /home/"$USERNAME"/.ssh
+install -d -m 700 -o "$INSTALL_USERNAME" -g "$INSTALL_USERNAME" /home/"$INSTALL_USERNAME"/.ssh
+install -m 600 -o "$INSTALL_USERNAME" -g "$INSTALL_USERNAME" /dev/null /home/"$INSTALL_USERNAME"/.ssh/authorized_keys
+for key in "${INSTALL_AUTHORIZED_KEYS[@]}"; do
+    grep -qxF "$key" /home/"$INSTALL_USERNAME"/.ssh/authorized_keys \
+        || printf '%s\n' "$key" >> /home/"$INSTALL_USERNAME"/.ssh/authorized_keys
+done
+chown "$INSTALL_USERNAME":"$INSTALL_USERNAME" /home/"$INSTALL_USERNAME"/.ssh/authorized_keys
 
 mkinitcpio -P
 
-systemctl enable NetworkManager sshd
+systemctl enable NetworkManager sshd NetworkManager-wait-online.service
 
-bootctl install
+bootctl install --esp-path=/boot

@@ -48,11 +48,25 @@ Build it with:
 ~/.config/arch/archiso/build.sh
 ```
 
-The generated ISO boots into an unattended installer that wipes the first NVMe disk, installs a minimal SSH-capable Arch system, creates the `vitorpy` user, and enables `NetworkManager` plus `sshd` for first-boot access.
+Validate the profile without building an ISO with:
+
+```bash
+~/.config/arch/archiso/build.sh --check
+```
+
+The generated ISO boots into an unattended installer that wipes the configured target disk, installs a minimal SSH-capable Arch system, creates the `vitorpy` user, enables `NetworkManager` plus `sshd`, and installs a first-boot service that applies the `mediaserver` Ansible profile locally.
+
+Installer settings live in:
+
+```bash
+~/.config/arch/archiso/airootfs/etc/mediaserver-install.conf
+```
+
+Leave `INSTALL_TARGET_DISK` empty to use the first NVMe disk, or set it to a full path such as `/dev/nvme0n1` before building the ISO.
 
 Do not write this ISO to a USB drive until you have confirmed the target block device with `lsblk`. The installer itself is intentionally destructive once booted.
 
-After the first boot, converge the host with the `media_servers` Ansible group. The `/mnt/media` mount is present in host vars but disabled until the real media disk UUID replaces `UUID=CHANGEME`.
+After the first boot, the host should converge itself with the `media_servers` Ansible group. Logs are written to `/var/log/mediaserver-firstboot.log`. The `/mnt/media` mount is present in host vars but disabled until the real media disk UUID replaces `UUID=CHANGEME`.
 
 ### Minimum Requirements During Install
 

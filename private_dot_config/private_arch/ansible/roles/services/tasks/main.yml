@@ -15,6 +15,7 @@
   ansible.builtin.systemd:
     name: nftables
     enabled: true
+    state: started
   when:
     - "'nftables' in arch_system_services"
     - not ansible_check_mode or 'nftables.service' in ansible_facts.services

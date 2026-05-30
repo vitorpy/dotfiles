@@ -1,6 +1,10 @@
 ---
-arch_system_services: "{{ arch_server_system_services + ['NetworkManager', 'jellyfin'] }}"
-arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8096] }}"
+arch_system_services: "{{ arch_server_system_services + ['NetworkManager', 'jellyfin', 'transmission'] }}"
+arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8096, 9091, 51413] }}"
+arch_firewall_allowed_udp_ports: "{{ arch_firewall_allowed_udp_ports + [51413] }}"
 
-arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg'] }}"
+arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg', 'transmission-cli'] }}"
 arch_aur_packages: "{{ arch_server_aur_packages }}"
+
+arch_transmission_enabled: true
+arch_transmission_rpc_allowed: "127.0.0.1,::1,192.168.1.*"

@@ -1,4 +1,44 @@
 ---
+- name: Ensure Transmission config directory exists
+  ansible.builtin.file:
+    path: /var/lib/transmission/.config/transmission-daemon
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+
+- name: Ensure Transmission download directory exists
+  ansible.builtin.file:
+    path: "{{ arch_transmission_download_dir }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+
+- name: Ensure Transmission service override directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/transmission.service.d
+    state: directory
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+
+- name: Configure Transmission daemon for LAN web access
+  ansible.builtin.template:
+    src: transmission-override.conf.j2
+    dest: /etc/systemd/system/transmission.service.d/10-mediaserver.conf
+    mode: "0644"
+  register: services_transmission_override
+  when: arch_transmission_enabled | bool
+
+- name: Reload systemd after Transmission override changes
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when:
+    - arch_transmission_enabled | bool
+    - services_transmission_override.changed
+
 - name: Gather service facts
   ansible.builtin.service_facts:
 

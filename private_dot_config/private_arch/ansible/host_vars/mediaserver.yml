@@ -4,7 +4,7 @@ arch_timezone: Europe/Warsaw
 
 arch_extra_mounts:
   - enabled: true
-    src: "UUID=74C0-22AC"
+    src: "LABEL=MEDIA"
     path: /mnt/media
     fstype: ext4
     opts: defaults,nofail,x-systemd.device-timeout=10

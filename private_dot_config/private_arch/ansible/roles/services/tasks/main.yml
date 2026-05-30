@@ -8,15 +8,6 @@
     mode: "0755"
   when: arch_transmission_enabled | bool
 
-- name: Ensure Transmission download directory exists
-  ansible.builtin.file:
-    path: "{{ arch_transmission_download_dir }}"
-    state: directory
-    owner: transmission
-    group: transmission
-    mode: "0755"
-  when: arch_transmission_enabled | bool
-
 - name: Ensure Transmission service override directory exists
   ansible.builtin.file:
     path: /etc/systemd/system/transmission.service.d
@@ -42,6 +33,34 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
+- name: Ensure extra mount points exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ arch_extra_mounts }}"
+  when: item.enabled | default(true) | bool
+
+- name: Configure extra mounts
+  ansible.builtin.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.opts | default('defaults,nofail') }}"
+    state: "{{ item.state | default('mounted') }}"
+  loop: "{{ arch_extra_mounts }}"
+  when: item.enabled | default(true) | bool
+
+- name: Ensure Transmission download directory exists
+  ansible.builtin.file:
+    path: "{{ arch_transmission_download_dir }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "0755"
+  register: services_transmission_download_dir
+  when: arch_transmission_enabled | bool
+
 - name: Enable and start core services
   ansible.builtin.systemd:
     name: "{{ item }}"
@@ -50,6 +69,14 @@
   loop: "{{ arch_system_services | difference(['nftables']) }}"
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
+
+- name: Restart Transmission after config changes
+  ansible.builtin.systemd:
+    name: transmission
+    state: restarted
+  when:
+    - arch_transmission_enabled | bool
+    - services_transmission_override.changed or services_transmission_download_dir.changed
 
 - name: Enable nftables service
   ansible.builtin.systemd:
@@ -118,21 +145,3 @@
     enabled: false
     state: stopped
   when: arch_ly_enabled | bool
-
-- name: Ensure extra mount points exist
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    mode: "0755"
-  loop: "{{ arch_extra_mounts }}"
-  when: item.enabled | default(true) | bool
-
-- name: Configure extra mounts
-  ansible.builtin.mount:
-    src: "{{ item.src }}"
-    path: "{{ item.path }}"
-    fstype: "{{ item.fstype }}"
-    opts: "{{ item.opts | default('defaults,nofail') }}"
-    state: "{{ item.state | default('mounted') }}"
-  loop: "{{ arch_extra_mounts }}"
-  when: item.enabled | default(true) | bool

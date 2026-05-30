@@ -6,7 +6,7 @@ arch_extra_mounts:
   - enabled: true
     src: "UUID=74C0-22AC"
     path: /mnt/media
-    fstype: vfat
-    opts: defaults,nofail,x-systemd.device-timeout=10,uid=transmission,gid=transmission,umask=0002
+    fstype: ext4
+    opts: defaults,nofail,x-systemd.device-timeout=10
 
 arch_transmission_download_dir: /mnt/media/downloads

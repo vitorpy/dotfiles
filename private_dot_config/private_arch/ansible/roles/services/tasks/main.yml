@@ -51,13 +51,30 @@
   loop: "{{ arch_extra_mounts }}"
   when: item.enabled | default(true) | bool
 
+- name: Allow Jellyfin to write shared media
+  ansible.builtin.user:
+    name: jellyfin
+    groups: transmission
+    append: true
+  register: services_jellyfin_media_group
+  when: arch_transmission_enabled | bool
+
+- name: Ensure media root is group writable
+  ansible.builtin.file:
+    path: "{{ arch_transmission_download_dir | dirname }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "2775"
+  when: arch_transmission_enabled | bool
+
 - name: Ensure Transmission download directory exists
   ansible.builtin.file:
     path: "{{ arch_transmission_download_dir }}"
     state: directory
     owner: transmission
     group: transmission
-    mode: "0755"
+    mode: "2775"
   register: services_transmission_download_dir
   when: arch_transmission_enabled | bool
 
@@ -77,6 +94,14 @@
   when:
     - arch_transmission_enabled | bool
     - services_transmission_override.changed or services_transmission_download_dir.changed
+
+- name: Restart Jellyfin after media group changes
+  ansible.builtin.systemd:
+    name: jellyfin
+    state: restarted
+  when:
+    - arch_transmission_enabled | bool
+    - services_jellyfin_media_group.changed
 
 - name: Enable nftables service
   ansible.builtin.systemd:

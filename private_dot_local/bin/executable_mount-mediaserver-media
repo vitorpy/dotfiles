@@ -1,0 +1,115 @@
+#!/bin/bash
+set -euo pipefail
+
+host="${MEDIASERVER_SSH_HOST:-vitorpy@192.168.1.94}"
+remote_path="/mnt/media"
+mountpoint="$HOME/mnt/mediaserver-media"
+mode="ro"
+action="mount"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  mount-mediaserver-media [mount|umount|status] [options]
+
+Options:
+  --rw                 Mount read/write instead of read-only.
+  --host HOST          SSH host to use. Default: vitorpy@192.168.1.94.
+  --remote PATH        Remote path to mount. Default: /mnt/media.
+  --mountpoint PATH    Local mountpoint. Default: ~/mnt/mediaserver-media.
+  -h, --help           Show this help.
+
+Examples:
+  mount-mediaserver-media
+  mount-mediaserver-media --remote /mnt/media/downloads
+  mount-mediaserver-media umount
+USAGE
+}
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+while (($#)); do
+  case "$1" in
+    mount|umount|unmount|status)
+      action="$1"
+      [[ "$action" == "unmount" ]] && action="umount"
+      shift
+      ;;
+    --rw)
+      mode="rw"
+      shift
+      ;;
+    --host)
+      [[ $# -ge 2 ]] || die "--host requires a value"
+      host="$2"
+      shift 2
+      ;;
+    --remote)
+      [[ $# -ge 2 ]] || die "--remote requires a value"
+      remote_path="$2"
+      shift 2
+      ;;
+    --mountpoint)
+      [[ $# -ge 2 ]] || die "--mountpoint requires a value"
+      mountpoint="${2/#\~/$HOME}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$action" in
+  status)
+    if mountpoint -q "$mountpoint"; then
+      findmnt "$mountpoint"
+    else
+      echo "Not mounted: $mountpoint"
+    fi
+    ;;
+  umount)
+    if ! mountpoint -q "$mountpoint"; then
+      echo "Not mounted: $mountpoint"
+      exit 0
+    fi
+
+    if command -v fusermount3 >/dev/null 2>&1; then
+      fusermount3 -u "$mountpoint"
+    elif command -v fusermount >/dev/null 2>&1; then
+      fusermount -u "$mountpoint"
+    else
+      umount "$mountpoint"
+    fi
+    ;;
+  mount)
+    command -v sshfs >/dev/null 2>&1 || die "sshfs is not installed. Run the Arch Ansible profile or install sshfs."
+
+    mkdir -p "$mountpoint"
+
+    if mountpoint -q "$mountpoint"; then
+      echo "Already mounted: $mountpoint"
+      findmnt "$mountpoint"
+      exit 0
+    fi
+
+    sshfs_opts=(
+      reconnect
+      ServerAliveInterval=15
+      ServerAliveCountMax=3
+      idmap=user
+      follow_symlinks
+      "$mode"
+    )
+
+    IFS=,
+    exec sshfs "${host}:${remote_path}" "$mountpoint" -o "${sshfs_opts[*]}"
+    ;;
+esac

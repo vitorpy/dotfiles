@@ -100,11 +100,16 @@ case "$action" in
       exit 0
     fi
 
+    local_uid="$(id -u)"
+    local_gid="$(id -g)"
+
     sshfs_opts=(
       reconnect
       ServerAliveInterval=15
       ServerAliveCountMax=3
-      idmap=user
+      idmap=none
+      uid="$local_uid"
+      gid="$local_gid"
       follow_symlinks
       "$mode"
     )

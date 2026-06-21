@@ -72,6 +72,29 @@ assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks The Battle fo
 assert_samefile "${downloads}/EwoksPack/Ewoks.srt" "${films}/Ewoks The Battle for Endor/Ewoks.srt"
 assert_not_exists "${films}/Ewoks The Battle for Endor/tracker.txt"
 
+write_metadata "${tmpdir}/manual-label-movie.json" "EwoksPack" '[]' \
+  "EwoksPack/Ewoks.mkv"
+run_sorter --metadata-json "${tmpdir}/manual-label-movie.json" --label "film:Ewoks Manual"
+assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks Manual/Ewoks.mkv"
+
+cat > "${tmpdir}/json-rpc-movie.json" <<JSON
+{
+  "id": 3,
+  "jsonrpc": "2.0",
+  "result": {
+    "torrents": [
+      {
+        "download_dir": "${downloads}",
+        "labels": [],
+        "name": "EwoksPack"
+      }
+    ]
+  }
+}
+JSON
+run_sorter --metadata-json "${tmpdir}/json-rpc-movie.json" --label "film:Ewoks Jsonrpc"
+assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks Jsonrpc/Ewoks.mkv"
+
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"
 printf subs > "${downloads}/South.Park.S01E01/South.Park.S01E01.srt"

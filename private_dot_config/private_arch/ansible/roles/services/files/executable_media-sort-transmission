@@ -166,6 +166,11 @@ def load_transmission_metadata(args: argparse.Namespace) -> dict:
 
 
 def transmission_torrent(metadata: dict) -> dict:
+    if "result" in metadata:
+        torrents = metadata.get("result", {}).get("torrents", [])
+        if not torrents:
+            raise RuntimeError("transmission-remote returned no torrent records")
+        return torrents[0]
     if "arguments" in metadata:
         torrents = metadata.get("arguments", {}).get("torrents", [])
         if not torrents:
@@ -351,7 +356,7 @@ def run_hook(args: argparse.Namespace) -> int:
     torrent = transmission_torrent(metadata)
     labels = normalize_labels(torrent.get("labels"))
     if args.label:
-        labels.append(args.label)
+        labels.extend(args.label)
 
     label = parse_label(labels)
     torrent_name, _download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)

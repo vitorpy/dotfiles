@@ -1,3 +1,3 @@
 [Service]
 ExecStart=
-ExecStart=/usr/bin/transmission-daemon --foreground --log-error --config-dir /var/lib/transmission/.config/transmission-daemon --port {{ arch_transmission_rpc_port }} --allowed "{{ arch_transmission_rpc_allowed }}" {{ '--auth' if arch_transmission_rpc_auth_required | bool else '--no-auth' }} --download-dir {{ arch_transmission_download_dir }}
+ExecStart=/usr/bin/transmission-daemon --foreground --log-error --config-dir /var/lib/transmission/.config/transmission-daemon --port {{ arch_transmission_rpc_port }} --allowed "{{ arch_transmission_rpc_allowed }}" {{ '--auth' if arch_transmission_rpc_auth_required | bool else '--no-auth' }} --download-dir {{ arch_transmission_download_dir }} --torrent-done-script {{ arch_media_sorter_path }}

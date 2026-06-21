@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+"""Transmission completion hook that hardlinks media into Jellyfin libraries."""
+
+from __future__ import annotations
+
+import argparse
+import errno
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+VIDEO_EXTENSIONS = {
+    ".avi",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp4",
+    ".mpeg",
+    ".mpg",
+    ".ts",
+    ".webm",
+    ".wmv",
+}
+
+SUBTITLE_EXTENSIONS = {
+    ".ass",
+    ".idx",
+    ".srt",
+    ".ssa",
+    ".sub",
+    ".vtt",
+}
+
+USEFUL_SIDECAR_EXTENSIONS = SUBTITLE_EXTENSIONS | {
+    ".jpg",
+    ".jpeg",
+    ".nfo",
+    ".png",
+}
+
+BACKFILL_SERIES_MAP = (
+    (re.compile(r"^South[ ._-]*Park[ ._-]*Season", re.I), "South Park"),
+    (re.compile(r"^Corporate", re.I), "Corporate"),
+    (re.compile(r"^A[ ._-]*P[ ._-]*Bio", re.I), "A.P. Bio"),
+    (re.compile(r"^Rick[ ._-]*and[ ._-]*Morty", re.I), "Rick and Morty"),
+    (re.compile(r"^Parks[ ._-]*and[ ._-]*Recreation", re.I), "Parks and Recreation"),
+    (re.compile(r"^Star[ ._-]*Trek[ ._-]*Deep[ ._-]*Space[ ._-]*Nine", re.I), "Star Trek Deep Space Nine"),
+    (re.compile(r"^Star[ ._-]*Trek[ ._-]*Enterprise", re.I), "Star Trek Enterprise"),
+    (re.compile(r"^Stargate[ ._-]*SG-?1", re.I), "Stargate SG-1"),
+    (re.compile(r"^Stargate[ ._-]*Atlantis", re.I), "Stargate Atlantis"),
+    (re.compile(r"^SGU[ ._-]*Stargate[ ._-]*Universe", re.I), "Stargate Universe"),
+    (re.compile(r"^Os[ ._-]*normais", re.I), "Os Normais"),
+    (re.compile(r"^Cowboy[ ._-]*Bebop", re.I), "Cowboy Bebop"),
+    (re.compile(r"^The[ ._-]*Chemistry[ ._-]*Of[ ._-]*Death", re.I), "The Chemistry of Death"),
+    (re.compile(r"^Top[ ._-]*Gear[ ._-]*UK[ ._-]*1-17", re.I), "Top Gear"),
+)
+
+
+@dataclass(frozen=True)
+class FileEntry:
+    relpath: Path
+    source: Path
+
+
+@dataclass(frozen=True)
+class MediaLabel:
+    kind: str
+    title: str
+    season: int | None = None
+
+
+def log(level: str, message: str) -> None:
+    stream = sys.stderr if level in {"ERROR", "WARNING"} else sys.stdout
+    print(f"{level}: media-sort-transmission: {message}", file=stream, flush=True)
+
+
+def safe_component(value: str) -> str:
+    cleaned = value.replace("/", " ").replace("\0", "").strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = cleaned.strip(".")
+    if not cleaned or cleaned == "..":
+        raise ValueError(f"unsafe path component: {value!r}")
+    return cleaned
+
+
+def parse_season(value: str) -> int | None:
+    value = value.replace("_", " ")
+    patterns = (
+        r"(?i)(?:^|[ .\-\[(])s(\d{1,2})(?:e\d{1,3})?(?:\b|[ .\-\])])",
+        r"(?i)(?:^|[ .\-\[(])season[ .\-]*(\d{1,2})(?:\b|[ .\-\])])",
+        r"(?i)(?:^|[ .\-\[(])(\d{1,2})x\d{1,3}(?:\b|[ .\-\])])",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, value)
+        if match:
+            season = int(match.group(1))
+            if 0 <= season <= 99:
+                return season
+    return None
+
+
+def normalize_labels(raw_labels: object) -> list[str]:
+    if raw_labels is None:
+        return []
+    if isinstance(raw_labels, str):
+        return [raw_labels]
+    if isinstance(raw_labels, list):
+        return [str(item) for item in raw_labels]
+    return []
+
+
+def parse_label(labels: list[str]) -> MediaLabel | None:
+    kind = None
+    title = None
+    season = None
+
+    for label in labels:
+        raw = label.strip()
+        if ":" not in raw:
+            continue
+        prefix, value = raw.split(":", 1)
+        prefix = prefix.strip().lower()
+        value = value.strip()
+        if prefix in {"series", "show"} and value:
+            kind = "series"
+            title = value
+        elif prefix in {"film", "movie"} and value:
+            kind = "film"
+            title = value
+        elif prefix == "season" and value:
+            season_match = re.search(r"\d{1,2}", value)
+            if season_match:
+                season = int(season_match.group(0))
+
+    if kind and title:
+        return MediaLabel(kind=kind, title=safe_component(title), season=season)
+    return None
+
+
+def load_transmission_metadata(args: argparse.Namespace) -> dict:
+    if args.metadata_json:
+        with Path(args.metadata_json).open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    torrent_ref = args.torrent or os.environ.get("TR_TORRENT_HASH") or os.environ.get("TR_TORRENT_ID")
+    if not torrent_ref:
+        raise RuntimeError("missing torrent reference; TR_TORRENT_HASH was not set")
+
+    command = [
+        "transmission-remote",
+        args.rpc_url,
+        "-t",
+        str(torrent_ref),
+        "-j",
+        "-i",
+    ]
+    result = subprocess.run(command, check=False, text=True, capture_output=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"transmission-remote failed: {result.stderr.strip() or result.stdout.strip()}")
+    return json.loads(result.stdout)
+
+
+def transmission_torrent(metadata: dict) -> dict:
+    if "arguments" in metadata:
+        torrents = metadata.get("arguments", {}).get("torrents", [])
+        if not torrents:
+            raise RuntimeError("transmission-remote returned no torrent records")
+        return torrents[0]
+    return metadata
+
+
+def files_from_torrent(torrent: dict, source_root: Path | None) -> tuple[str, Path, list[FileEntry]]:
+    name = str(torrent.get("name") or os.environ.get("TR_TORRENT_NAME") or "torrent")
+    download_dir = Path(
+        torrent.get("downloadDir")
+        or torrent.get("download_dir")
+        or os.environ.get("TR_TORRENT_DIR")
+        or source_root
+        or "."
+    )
+
+    entries = []
+    for item in torrent.get("files", []):
+        if isinstance(item, str):
+            relpath = Path(item)
+        else:
+            relpath = Path(str(item.get("name", "")))
+        if not relpath.name:
+            continue
+        entries.append(FileEntry(relpath=relpath, source=download_dir / relpath))
+
+    if not entries and source_root:
+        path = source_root / name
+        entries = collect_files(path, source_root)
+
+    return name, download_dir, entries
+
+
+def collect_files(path: Path, root: Path) -> list[FileEntry]:
+    if path.is_file():
+        return [FileEntry(relpath=path.relative_to(root), source=path)]
+    entries = []
+    for file_path in sorted(path.rglob("*")):
+        if file_path.is_file():
+            entries.append(FileEntry(relpath=file_path.relative_to(root), source=file_path))
+    return entries
+
+
+def backfill_label(name: str) -> MediaLabel | None:
+    for pattern, series in BACKFILL_SERIES_MAP:
+        if pattern.search(name):
+            return MediaLabel(kind="series", title=series)
+    return None
+
+
+def is_video(entry: FileEntry) -> bool:
+    return entry.source.suffix.lower() in VIDEO_EXTENSIONS
+
+
+def same_stem_sidecars(video: FileEntry, entries: list[FileEntry]) -> list[FileEntry]:
+    return [
+        entry
+        for entry in entries
+        if entry.source.suffix.lower() in USEFUL_SIDECAR_EXTENSIONS
+        and entry.relpath.parent == video.relpath.parent
+        and entry.source.stem == video.source.stem
+    ]
+
+
+def film_sidecars(entries: list[FileEntry]) -> list[FileEntry]:
+    return [
+        entry
+        for entry in entries
+        if entry.source.suffix.lower() in USEFUL_SIDECAR_EXTENSIONS
+        and not entry.source.name.lower().endswith(".txt")
+    ]
+
+
+def link_file(source: Path, dest: Path, dry_run: bool) -> bool:
+    if not source.exists():
+        log("WARNING", f"source missing, skipping source={source}")
+        return True
+
+    if dest.exists():
+        try:
+            if os.path.samefile(source, dest):
+                log("INFO", f"already linked source={source} dest={dest}")
+                return True
+        except OSError:
+            pass
+        log("WARNING", f"destination conflict, skipping source={source} dest={dest}")
+        return True
+
+    if dry_run:
+        log("INFO", f"would hardlink source={source} dest={dest}")
+        return True
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.link(source, dest)
+    except OSError as exc:
+        if exc.errno == errno.EXDEV:
+            log("ERROR", f"cross-filesystem hardlink failed, not copying source={source} dest={dest}")
+        else:
+            log("ERROR", f"hardlink failed errno={exc.errno} source={source} dest={dest}: {exc}")
+        return False
+
+    log("INFO", f"hardlinked source={source} dest={dest}")
+    return True
+
+
+def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], series_root: Path, dry_run: bool) -> bool:
+    ok = True
+    videos = [entry for entry in entries if is_video(entry)]
+    if not videos:
+        log("WARNING", f"no video files found for series={label.title!r}")
+        return True
+
+    for video in videos:
+        season = parse_season(str(video.relpath)) or parse_season(torrent_name) or label.season
+        if season is None:
+            log("WARNING", f"needs season label, skipping source={video.source} series={label.title!r}")
+            continue
+
+        season_dir = f"Season {season:02d}"
+        dest_dir = series_root / safe_component(label.title) / season_dir
+        ok = link_file(video.source, dest_dir / video.source.name, dry_run) and ok
+
+        for sidecar in same_stem_sidecars(video, entries):
+            ok = link_file(sidecar.source, dest_dir / sidecar.source.name, dry_run) and ok
+
+    return ok
+
+
+def sort_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, dry_run: bool) -> bool:
+    ok = True
+    videos = [entry for entry in entries if is_video(entry)]
+    if not videos:
+        log("WARNING", f"no video files found for film={label.title!r}")
+        return True
+
+    dest_dir = films_root / safe_component(label.title)
+    selected = videos + film_sidecars(entries)
+    seen: set[Path] = set()
+    for entry in selected:
+        if entry.source in seen:
+            continue
+        seen.add(entry.source)
+        ok = link_file(entry.source, dest_dir / entry.source.name, dry_run) and ok
+    return ok
+
+
+def sort_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry], args: argparse.Namespace) -> bool:
+    if label.kind == "series":
+        return sort_series(label, torrent_name, entries, Path(args.series_root), args.dry_run)
+    if label.kind == "film":
+        return sort_film(label, entries, Path(args.films_root), args.dry_run)
+    log("WARNING", f"unsupported label kind={label.kind!r}")
+    return True
+
+
+def run_backfill(args: argparse.Namespace) -> int:
+    source_root = Path(args.source_root)
+    if not source_root.exists():
+        raise RuntimeError(f"source root does not exist: {source_root}")
+
+    ok = True
+    for item in sorted(source_root.iterdir()):
+        if item.name in {"films", "movies", "series", "tv"}:
+            continue
+        label = backfill_label(item.name)
+        if not label:
+            log("INFO", f"backfill needs explicit label, skipping path={item}")
+            continue
+        entries = collect_files(item, source_root)
+        if not entries:
+            log("INFO", f"backfill item has no files, skipping path={item}")
+            continue
+        ok = sort_entries(label, item.name, entries, args) and ok
+    return 0 if ok else 1
+
+
+def run_hook(args: argparse.Namespace) -> int:
+    metadata = load_transmission_metadata(args)
+    torrent = transmission_torrent(metadata)
+    labels = normalize_labels(torrent.get("labels"))
+    if args.label:
+        labels.append(args.label)
+
+    label = parse_label(labels)
+    torrent_name, _download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
+    if not label:
+        log("WARNING", f"needs label, leaving in downloads torrent={torrent_name!r} labels={labels!r}")
+        return 0
+    if not entries:
+        log("WARNING", f"no torrent files found, leaving in downloads torrent={torrent_name!r}")
+        return 0
+
+    return 0 if sort_entries(label, torrent_name, entries, args) else 1
+
+
+def parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("torrent", nargs="?", help="Transmission torrent id or hash; defaults to TR_TORRENT_HASH")
+    parser.add_argument("--rpc-url", default="127.0.0.1:9091")
+    parser.add_argument("--series-root", default="/mnt/media/series")
+    parser.add_argument("--films-root", default="/mnt/media/films")
+    parser.add_argument("--source-root", default="/mnt/media/downloads")
+    parser.add_argument("--metadata-json", help="test helper: read Transmission JSON from this file")
+    parser.add_argument("--label", action="append", default=[], help="test/helper label, e.g. series:South Park")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--backfill-current-downloads", action="store_true")
+    parser.add_argument("--apply", action="store_true", help="accepted for explicit backfill apply mode")
+    return parser
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        if args.backfill_current_downloads:
+            if not args.apply:
+                args.dry_run = True
+            return run_backfill(args)
+        return run_hook(args)
+    except Exception as exc:
+        log("ERROR", str(exc))
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

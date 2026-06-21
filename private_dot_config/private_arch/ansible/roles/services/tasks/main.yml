@@ -23,6 +23,15 @@
   register: services_transmission_override
   when: arch_transmission_enabled | bool
 
+- name: Install Transmission media sorter hook
+  ansible.builtin.copy:
+    src: media-sort-transmission
+    dest: "{{ arch_media_sorter_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+
 - name: Reload systemd after Transmission override changes
   ansible.builtin.systemd:
     daemon_reload: true
@@ -76,6 +85,18 @@
     group: transmission
     mode: "2775"
   register: services_transmission_download_dir
+  when: arch_transmission_enabled | bool
+
+- name: Ensure Jellyfin media library directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "2775"
+  loop:
+    - "{{ arch_media_series_dir }}"
+    - "{{ arch_media_films_dir }}"
   when: arch_transmission_enabled | bool
 
 - name: Enable and start core services

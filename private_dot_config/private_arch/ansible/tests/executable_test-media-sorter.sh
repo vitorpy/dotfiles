@@ -75,10 +75,13 @@ assert_not_exists "${films}/Ewoks The Battle for Endor/tracker.txt"
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"
 printf subs > "${downloads}/South.Park.S01E01/South.Park.S01E01.srt"
+mkdir "${downloads}/South.Park.S01E01/South.Park.S01E01.nfo"
 write_metadata "${tmpdir}/show.json" "South.Park.S01E01" '["series:South Park"]' \
   "South.Park.S01E01/South.Park.S01E01.mkv" \
-  "South.Park.S01E01/South.Park.S01E01.srt"
-run_sorter --metadata-json "${tmpdir}/show.json"
+  "South.Park.S01E01/South.Park.S01E01.srt" \
+  "South.Park.S01E01/South.Park.S01E01.nfo"
+run_sorter --metadata-json "${tmpdir}/show.json" > "${tmpdir}/optional-sidecar.out" 2>&1
+grep -q "hardlink failed" "${tmpdir}/optional-sidecar.out"
 assert_samefile "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv" "${series}/South Park/Season 01/South.Park.S01E01.mkv"
 assert_samefile "${downloads}/South.Park.S01E01/South.Park.S01E01.srt" "${series}/South Park/Season 01/South.Park.S01E01.srt"
 run_sorter --metadata-json "${tmpdir}/show.json"

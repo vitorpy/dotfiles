@@ -241,7 +241,8 @@ def film_sidecars(entries: list[FileEntry]) -> list[FileEntry]:
     ]
 
 
-def link_file(source: Path, dest: Path, dry_run: bool) -> bool:
+def link_file(source: Path, dest: Path, dry_run: bool, required: bool = True) -> bool:
+    level = "ERROR" if required else "WARNING"
     if not source.exists():
         log("WARNING", f"source missing, skipping source={source}")
         return True
@@ -265,10 +266,10 @@ def link_file(source: Path, dest: Path, dry_run: bool) -> bool:
         os.link(source, dest)
     except OSError as exc:
         if exc.errno == errno.EXDEV:
-            log("ERROR", f"cross-filesystem hardlink failed, not copying source={source} dest={dest}")
+            log(level, f"cross-filesystem hardlink failed, not copying source={source} dest={dest}")
         else:
-            log("ERROR", f"hardlink failed errno={exc.errno} source={source} dest={dest}: {exc}")
-        return False
+            log(level, f"hardlink failed errno={exc.errno} source={source} dest={dest}: {exc}")
+        return not required
 
     log("INFO", f"hardlinked source={source} dest={dest}")
     return True
@@ -292,7 +293,7 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         ok = link_file(video.source, dest_dir / video.source.name, dry_run) and ok
 
         for sidecar in same_stem_sidecars(video, entries):
-            ok = link_file(sidecar.source, dest_dir / sidecar.source.name, dry_run) and ok
+            ok = link_file(sidecar.source, dest_dir / sidecar.source.name, dry_run, required=False) and ok
 
     return ok
 

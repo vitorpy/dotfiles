@@ -32,6 +32,48 @@
     mode: "0755"
   when: arch_transmission_enabled | bool
 
+- name: Check Transmission media sorter settings
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - >-
+        import json;
+        data = json.load(open("/var/lib/transmission/.config/transmission-daemon/settings.json"));
+        print("ok" if data.get("script-torrent-done-enabled") is True
+        and data.get("script-torrent-done-filename") == "{{ arch_media_sorter_path }}" else "changed")
+  register: services_transmission_sorter_settings
+  changed_when: false
+  failed_when: false
+  when: arch_transmission_enabled | bool
+
+- name: Stop Transmission before changing daemon-owned settings
+  ansible.builtin.systemd:
+    name: transmission
+    state: stopped
+  when:
+    - arch_transmission_enabled | bool
+    - not ansible_check_mode
+    - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
+
+- name: Enable Transmission done script setting
+  ansible.builtin.lineinfile:
+    path: /var/lib/transmission/.config/transmission-daemon/settings.json
+    regexp: '^\s*"script-torrent-done-enabled"\s*:'
+    line: '    "script-torrent-done-enabled": true,'
+    validate: python3 -m json.tool %s
+  register: services_transmission_sorter_enabled
+  when: arch_transmission_enabled | bool
+
+- name: Configure Transmission done script path
+  ansible.builtin.lineinfile:
+    path: /var/lib/transmission/.config/transmission-daemon/settings.json
+    regexp: '^\s*"script-torrent-done-filename"\s*:'
+    line: '    "script-torrent-done-filename": {{ arch_media_sorter_path | to_json }},'
+    validate: python3 -m json.tool %s
+  register: services_transmission_sorter_filename
+  when: arch_transmission_enabled | bool
+
 - name: Reload systemd after Transmission override changes
   ansible.builtin.systemd:
     daemon_reload: true
@@ -114,7 +156,7 @@
     state: restarted
   when:
     - arch_transmission_enabled | bool
-    - services_transmission_override.changed or services_transmission_download_dir.changed
+    - services_transmission_override.changed or services_transmission_download_dir.changed or services_transmission_sorter_enabled.changed or services_transmission_sorter_filename.changed
 
 - name: Restart Jellyfin after media group changes
   ansible.builtin.systemd:

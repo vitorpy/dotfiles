@@ -8,5 +8,6 @@ arch_extra_mounts:
     path: /mnt/media
     fstype: ext4
     opts: defaults,nofail,x-systemd.device-timeout=10
+    mode: "2775"
 
 arch_transmission_download_dir: /mnt/media/downloads

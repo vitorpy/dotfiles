@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
-"""Transmission completion hook that hardlinks media into Jellyfin libraries."""
+"""Transmission media sorter hook and queue processor."""
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import errno
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 VIDEO_EXTENSIONS = {
@@ -60,6 +68,37 @@ BACKFILL_SERIES_MAP = (
     (re.compile(r"^Top[ ._-]*Gear[ ._-]*UK[ ._-]*1-17", re.I), "Top Gear"),
 )
 
+RELEASE_TOKENS = {
+    "aac",
+    "amzn",
+    "bd",
+    "bdrip",
+    "bluray",
+    "brrip",
+    "complete",
+    "ddp",
+    "dual",
+    "dvdrip",
+    "galaxyrg",
+    "galaxyrg265",
+    "galaxytv",
+    "hdtv",
+    "hevc",
+    "japanese",
+    "proper",
+    "rarbg",
+    "remastered",
+    "repack",
+    "rerip",
+    "tgx",
+    "web",
+    "web-dl",
+    "webdl",
+    "webrip",
+    "x264",
+    "x265",
+}
+
 
 @dataclass(frozen=True)
 class FileEntry:
@@ -74,9 +113,21 @@ class MediaLabel:
     season: int | None = None
 
 
+@dataclass(frozen=True)
+class MatchDecision:
+    label: MediaLabel | None
+    status: str
+    reason: str
+    match: dict[str, Any] | None = None
+
+
 def log(level: str, message: str) -> None:
     stream = sys.stderr if level in {"ERROR", "WARNING"} else sys.stdout
     print(f"{level}: media-sort-transmission: {message}", file=stream, flush=True)
+
+
+def now_ts() -> int:
+    return int(time.time())
 
 
 def safe_component(value: str) -> str:
@@ -142,7 +193,7 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
     return None
 
 
-def load_transmission_metadata(args: argparse.Namespace) -> dict:
+def load_transmission_metadata(args: argparse.Namespace) -> dict[str, Any]:
     if args.metadata_json:
         with Path(args.metadata_json).open("r", encoding="utf-8") as handle:
             return json.load(handle)
@@ -165,7 +216,7 @@ def load_transmission_metadata(args: argparse.Namespace) -> dict:
     return json.loads(result.stdout)
 
 
-def transmission_torrent(metadata: dict) -> dict:
+def transmission_torrent(metadata: dict[str, Any]) -> dict[str, Any]:
     if "result" in metadata:
         torrents = metadata.get("result", {}).get("torrents", [])
         if not torrents:
@@ -179,7 +230,11 @@ def transmission_torrent(metadata: dict) -> dict:
     return metadata
 
 
-def files_from_torrent(torrent: dict, source_root: Path | None) -> tuple[str, Path, list[FileEntry]]:
+def torrent_hash(torrent: dict[str, Any]) -> str:
+    return str(torrent.get("hash_string") or torrent.get("hashString") or "").strip().lower()
+
+
+def files_from_torrent(torrent: dict[str, Any], source_root: Path | None) -> tuple[str, Path, list[FileEntry]]:
     name = str(torrent.get("name") or os.environ.get("TR_TORRENT_NAME") or "torrent")
     download_dir = Path(
         torrent.get("downloadDir")
@@ -200,8 +255,7 @@ def files_from_torrent(torrent: dict, source_root: Path | None) -> tuple[str, Pa
         entries.append(FileEntry(relpath=relpath, source=download_dir / relpath))
 
     if not entries and source_root:
-        path = source_root / name
-        entries = collect_files(path, source_root)
+        entries = collect_files(source_root / name, source_root)
 
     return name, download_dir, entries
 
@@ -210,10 +264,131 @@ def collect_files(path: Path, root: Path) -> list[FileEntry]:
     if path.is_file():
         return [FileEntry(relpath=path.relative_to(root), source=path)]
     entries = []
+    if not path.exists():
+        return entries
     for file_path in sorted(path.rglob("*")):
         if file_path.is_file():
             entries.append(FileEntry(relpath=file_path.relative_to(root), source=file_path))
     return entries
+
+
+def is_video(entry: FileEntry) -> bool:
+    return entry.source.suffix.lower() in VIDEO_EXTENSIONS
+
+
+def file_kind(entry: FileEntry) -> str:
+    suffix = entry.source.suffix.lower()
+    if suffix in VIDEO_EXTENSIONS:
+        return "video"
+    if suffix in USEFUL_SIDECAR_EXTENSIONS:
+        return "sidecar"
+    return "other"
+
+
+def file_records(entries: list[FileEntry]) -> list[dict[str, Any]]:
+    records = []
+    for entry in entries:
+        try:
+            size = entry.source.stat().st_size
+        except OSError:
+            size = None
+        records.append(
+            {
+                "path": str(entry.relpath),
+                "size": size,
+                "kind": file_kind(entry),
+            }
+        )
+    return records
+
+
+def entries_from_record(record: dict[str, Any]) -> list[FileEntry]:
+    download_dir = Path(record["torrent"]["download_dir"])
+    return [
+        FileEntry(relpath=Path(item["path"]), source=download_dir / item["path"])
+        for item in record.get("files", [])
+        if item.get("path")
+    ]
+
+
+def download_key(torrent: dict[str, Any], download_dir: Path, name: str, entries: list[FileEntry]) -> str:
+    hash_string = torrent_hash(torrent)
+    if hash_string:
+        return f"btih:{hash_string}"
+
+    manifest = {
+        "download_dir": str(download_dir),
+        "name": name,
+        "files": sorted((str(entry.relpath), entry.source.stat().st_size if entry.source.exists() else None) for entry in entries),
+    }
+    digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return f"pathsha256:{digest}"
+
+
+def key_filename(key: str) -> str:
+    return key.replace(":", "_")
+
+
+def queue_dirs(queue_root: Path) -> dict[str, Path]:
+    return {
+        "queue": queue_root / "queue",
+        "done": queue_root / "done",
+        "needs_review": queue_root / "needs-review",
+        "failed": queue_root / "failed",
+    }
+
+
+def ensure_queue_dirs(queue_root: Path) -> None:
+    for directory in queue_dirs(queue_root).values():
+        directory.mkdir(parents=True, exist_ok=True)
+
+
+def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+        json.dump(data, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+        temp_name = handle.name
+    os.replace(temp_name, path)
+
+
+def make_queue_record(torrent: dict[str, Any], name: str, download_dir: Path, entries: list[FileEntry]) -> dict[str, Any]:
+    key = download_key(torrent, download_dir, name, entries)
+    timestamp = now_ts()
+    return {
+        "schema_version": 1,
+        "download_key": key,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "status": "queued",
+        "torrent": {
+            "id": torrent.get("id"),
+            "hash_string": torrent_hash(torrent) or None,
+            "name": name,
+            "download_dir": str(download_dir),
+            "labels": normalize_labels(torrent.get("labels")),
+            "done_date": torrent.get("done_date") or torrent.get("doneDate"),
+            "total_size": torrent.get("total_size") or torrent.get("totalSize") or torrent.get("size_when_done"),
+        },
+        "files": file_records(entries),
+        "match": None,
+        "reason": None,
+    }
+
+
+def enqueue_torrent(args: argparse.Namespace) -> int:
+    metadata = load_transmission_metadata(args)
+    torrent = transmission_torrent(metadata)
+    name, download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
+    record = make_queue_record(torrent, name, download_dir, entries)
+    queue_path = queue_dirs(Path(args.queue_root))["queue"] / f"{key_filename(record['download_key'])}.json"
+
+    if queue_path.exists():
+        existing = json.loads(queue_path.read_text(encoding="utf-8"))
+        record["created_at"] = existing.get("created_at", record["created_at"])
+    atomic_write_json(queue_path, record)
+    log("INFO", f"queued torrent={name!r} key={record['download_key']} path={queue_path}")
+    return 0
 
 
 def backfill_label(name: str) -> MediaLabel | None:
@@ -221,10 +396,6 @@ def backfill_label(name: str) -> MediaLabel | None:
         if pattern.search(name):
             return MediaLabel(kind="series", title=series)
     return None
-
-
-def is_video(entry: FileEntry) -> bool:
-    return entry.source.suffix.lower() in VIDEO_EXTENSIONS
 
 
 def same_stem_sidecars(video: FileEntry, entries: list[FileEntry]) -> list[FileEntry]:
@@ -330,6 +501,247 @@ def sort_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry],
     return True
 
 
+def normalize_title(value: str) -> str:
+    value = re.sub(r"[\._]+", " ", value)
+    value = re.sub(r"[^a-zA-Z0-9]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def display_title(value: str) -> str:
+    value = re.sub(r"[\._]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip(" -_.")
+    return safe_component(" ".join(word[:1].upper() + word[1:].lower() for word in value.split()))
+
+
+def strip_bracketed(value: str) -> str:
+    return re.sub(r"[\[(].*?[\])]", " ", value)
+
+
+def extract_year(value: str) -> int | None:
+    match = re.search(r"(?:^|[ ._-])((?:19|20)\d{2})(?:\b|[ ._-])", value)
+    return int(match.group(1)) if match else None
+
+
+def title_before_release_tokens(value: str) -> str:
+    cleaned = strip_bracketed(value)
+    cleaned = re.sub(r"(?i)\b(?:19|20)\d{2}\b.*$", "", cleaned)
+    cleaned = re.sub(r"(?i)\bS\d{1,2}(?:E\d{1,3})?\b.*$", "", cleaned)
+    cleaned = re.sub(r"(?i)\bSeason[ ._-]*\d{1,2}\b.*$", "", cleaned)
+    tokens = re.split(r"[ ._-]+", cleaned)
+    kept = []
+    for token in tokens:
+        if not token:
+            continue
+        lower = token.lower()
+        if lower in RELEASE_TOKENS or re.fullmatch(r"\d{3,4}p", lower):
+            break
+        kept.append(token)
+    return display_title(" ".join(kept)) if kept else ""
+
+
+def media_hints(record: dict[str, Any]) -> dict[str, Any]:
+    torrent_name = record["torrent"]["name"]
+    files = [item["path"] for item in record.get("files", []) if item.get("kind") == "video"]
+    evidence = " ".join([torrent_name] + files)
+    season = parse_season(evidence)
+    year = extract_year(torrent_name) or extract_year(" ".join(files))
+    query = title_before_release_tokens(torrent_name)
+    if not query and files:
+        query = title_before_release_tokens(Path(files[0]).stem)
+
+    if season is not None:
+        preferred = "series"
+    elif len(files) == 1 and year is not None:
+        preferred = "film"
+    else:
+        preferred = "unknown"
+
+    return {
+        "query": query,
+        "year": year,
+        "season": season,
+        "preferred": preferred,
+        "video_count": len(files),
+    }
+
+
+def tmdb_fixture_search(fixture_path: str, media_type: str, query: str) -> dict[str, Any]:
+    fixture = json.loads(Path(fixture_path).read_text(encoding="utf-8"))
+    return fixture.get(media_type, {}).get(query, {"results": []})
+
+
+def tmdb_search(args: argparse.Namespace, media_type: str, query: str, year: int | None) -> dict[str, Any]:
+    if args.tmdb_fixture_json:
+        return tmdb_fixture_search(args.tmdb_fixture_json, media_type, query)
+
+    token = args.tmdb_api_token or os.environ.get("TMDB_API_TOKEN")
+    if not token:
+        raise RuntimeError("TMDB_API_TOKEN is not set")
+
+    params = {"query": query, "include_adult": "false", "language": "en-US", "page": "1"}
+    if year is not None and media_type == "movie":
+        params["year"] = str(year)
+    if year is not None and media_type == "tv":
+        params["first_air_date_year"] = str(year)
+    url = f"https://api.themoviedb.org/3/search/{media_type}?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=args.tmdb_timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"TMDB search failed for {media_type}:{query}: {exc}") from exc
+
+
+def candidate_title(media_type: str, candidate: dict[str, Any]) -> str:
+    if media_type == "movie":
+        return str(candidate.get("title") or candidate.get("original_title") or "")
+    return str(candidate.get("name") or candidate.get("original_name") or "")
+
+
+def candidate_year(media_type: str, candidate: dict[str, Any]) -> int | None:
+    key = "release_date" if media_type == "movie" else "first_air_date"
+    value = str(candidate.get(key) or "")
+    match = re.match(r"(\d{4})", value)
+    return int(match.group(1)) if match else None
+
+
+def score_candidate(media_type: str, query: str, year: int | None, candidate: dict[str, Any]) -> float:
+    title_score = difflib.SequenceMatcher(None, normalize_title(query), normalize_title(candidate_title(media_type, candidate))).ratio()
+    year_bonus = 0.08 if year is not None and candidate_year(media_type, candidate) == year else 0
+    return min(1.0, title_score + year_bonus)
+
+
+def ranked_candidates(args: argparse.Namespace, media_type: str, query: str, year: int | None) -> list[dict[str, Any]]:
+    response = tmdb_search(args, media_type, query, year)
+    ranked = []
+    for candidate in response.get("results", [])[:5]:
+        ranked.append(
+            {
+                "provider": "tmdb",
+                "media_type": media_type,
+                "provider_id": candidate.get("id"),
+                "title": candidate_title(media_type, candidate),
+                "year": candidate_year(media_type, candidate),
+                "confidence": round(score_candidate(media_type, query, year, candidate), 3),
+                "raw": candidate,
+            }
+        )
+    return sorted(ranked, key=lambda item: item["confidence"], reverse=True)
+
+
+def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
+    hints = media_hints(record)
+    query = hints["query"]
+    if not query:
+        return MatchDecision(None, "needs_review", "could not derive metadata search query")
+
+    media_types = ["movie", "tv"]
+    if hints["preferred"] == "film":
+        media_types = ["movie", "tv"]
+    elif hints["preferred"] == "series":
+        media_types = ["tv", "movie"]
+
+    candidates: list[dict[str, Any]] = []
+    for media_type in media_types:
+        candidates.extend(ranked_candidates(args, media_type, query, hints["year"]))
+    candidates = sorted(candidates, key=lambda item: item["confidence"], reverse=True)
+    if not candidates:
+        return MatchDecision(None, "needs_review", "no TMDB candidates", {"query": query, "candidates": []})
+
+    top = candidates[0]
+    runner_up = candidates[1]["confidence"] if len(candidates) > 1 else 0
+    if top["confidence"] < args.tmdb_min_confidence or top["confidence"] - runner_up < args.tmdb_min_gap:
+        return MatchDecision(
+            None,
+            "needs_review",
+            "ambiguous TMDB match",
+            {"query": query, "candidates": candidates[:5]},
+        )
+
+    if top["media_type"] == "movie":
+        label = MediaLabel(kind="film", title=safe_component(top["title"]))
+    else:
+        label = MediaLabel(kind="series", title=safe_component(top["title"]), season=hints["season"])
+    match = {"query": query, "selected": top, "candidates": candidates[:5], "hints": hints}
+    return MatchDecision(label, "matched", "matched via TMDB", match)
+
+
+def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any]) -> None:
+    record["status"] = status
+    record["updated_at"] = now_ts()
+    target_dir = queue_dirs(queue_root)[status]
+    target = target_dir / path.name
+    atomic_write_json(target, record)
+    if path.exists():
+        path.unlink()
+
+
+def process_queue(args: argparse.Namespace) -> int:
+    queue_root = Path(args.queue_root)
+    ensure_queue_dirs(queue_root)
+    ok = True
+    queue_paths = sorted(queue_dirs(queue_root)["queue"].glob("*.json"))
+    if not queue_paths:
+        log("INFO", "queue is empty")
+        return 0
+
+    for path in queue_paths:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        entries = entries_from_record(record)
+        labels = normalize_labels(record["torrent"].get("labels"))
+        label = parse_label(labels)
+        decision = MatchDecision(label, "matched", "matched via label", {"provider": "label"}) if label else None
+
+        if decision is None:
+            try:
+                decision = tmdb_match(record, args)
+            except Exception as exc:
+                record["reason"] = str(exc)
+                log("ERROR", f"failed key={record['download_key']}: {exc}")
+                if not args.dry_run:
+                    move_record(path, queue_root, "failed", record)
+                ok = False
+                continue
+
+        record["reason"] = decision.reason
+        record["match"] = decision.match
+        if decision.status != "matched" or decision.label is None:
+            log("WARNING", f"needs review key={record['download_key']} reason={decision.reason}")
+            if not args.dry_run:
+                move_record(path, queue_root, "needs_review", record)
+            continue
+
+        log("INFO", f"processing key={record['download_key']} as {decision.label.kind}:{decision.label.title}")
+        sorted_ok = sort_entries(decision.label, record["torrent"]["name"], entries, args)
+        if sorted_ok:
+            if not args.dry_run:
+                move_record(path, queue_root, "done", record)
+        else:
+            ok = False
+            record["reason"] = "hardlink sorting failed"
+            if not args.dry_run:
+                move_record(path, queue_root, "failed", record)
+    return 0 if ok else 1
+
+
+def run_direct_sort(args: argparse.Namespace) -> int:
+    metadata = load_transmission_metadata(args)
+    torrent = transmission_torrent(metadata)
+    labels = normalize_labels(torrent.get("labels"))
+    if args.label:
+        labels.extend(args.label)
+
+    torrent_name, _download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
+    label = parse_label(labels)
+    if not label:
+        log("WARNING", f"needs label, leaving in downloads torrent={torrent_name!r} labels={labels!r}")
+        return 0
+    if not entries:
+        log("WARNING", f"no torrent files found, leaving in downloads torrent={torrent_name!r}")
+        return 0
+    return 0 if sort_entries(label, torrent_name, entries, args) else 1
+
+
 def run_backfill(args: argparse.Namespace) -> int:
     source_root = Path(args.source_root)
     if not source_root.exists():
@@ -351,25 +763,6 @@ def run_backfill(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
-def run_hook(args: argparse.Namespace) -> int:
-    metadata = load_transmission_metadata(args)
-    torrent = transmission_torrent(metadata)
-    labels = normalize_labels(torrent.get("labels"))
-    if args.label:
-        labels.extend(args.label)
-
-    label = parse_label(labels)
-    torrent_name, _download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
-    if not label:
-        log("WARNING", f"needs label, leaving in downloads torrent={torrent_name!r} labels={labels!r}")
-        return 0
-    if not entries:
-        log("WARNING", f"no torrent files found, leaving in downloads torrent={torrent_name!r}")
-        return 0
-
-    return 0 if sort_entries(label, torrent_name, entries, args) else 1
-
-
 def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("torrent", nargs="?", help="Transmission torrent id or hash; defaults to TR_TORRENT_HASH")
@@ -377,9 +770,16 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--series-root", default="/mnt/media/series")
     parser.add_argument("--films-root", default="/mnt/media/films")
     parser.add_argument("--source-root", default="/mnt/media/downloads")
+    parser.add_argument("--queue-root", default="/var/lib/transmission/media-sorter")
     parser.add_argument("--metadata-json", help="test helper: read Transmission JSON from this file")
-    parser.add_argument("--label", action="append", default=[], help="test/helper label, e.g. series:South Park")
+    parser.add_argument("--tmdb-fixture-json", help="test helper: read TMDB search responses from this file")
+    parser.add_argument("--tmdb-api-token", help="TMDB v4 API read token; defaults to TMDB_API_TOKEN")
+    parser.add_argument("--tmdb-timeout", type=float, default=10.0)
+    parser.add_argument("--tmdb-min-confidence", type=float, default=0.86)
+    parser.add_argument("--tmdb-min-gap", type=float, default=0.07)
+    parser.add_argument("--label", action="append", default=[], help="manual override label, e.g. series:South Park")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--process-queue", action="store_true")
     parser.add_argument("--backfill-current-downloads", action="store_true")
     parser.add_argument("--apply", action="store_true", help="accepted for explicit backfill apply mode")
     return parser
@@ -392,7 +792,11 @@ def main() -> int:
             if not args.apply:
                 args.dry_run = True
             return run_backfill(args)
-        return run_hook(args)
+        if args.process_queue:
+            return process_queue(args)
+        if args.label:
+            return run_direct_sort(args)
+        return enqueue_torrent(args)
     except Exception as exc:
         log("ERROR", str(exc))
         return 1

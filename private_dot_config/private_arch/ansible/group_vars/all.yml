@@ -37,6 +37,10 @@ arch_transmission_rpc_auth_required: false
 arch_media_series_dir: /mnt/media/series
 arch_media_films_dir: /mnt/media/films
 arch_media_sorter_path: /usr/local/bin/media-sort-transmission
+arch_media_sorter_queue_root: /var/lib/transmission/media-sorter
+arch_media_sorter_tmdb_env_dir: /etc/media-sorter
+arch_media_sorter_tmdb_env_file: "{{ arch_media_sorter_tmdb_env_dir }}/tmdb.env"
+arch_media_sorter_timer_enabled: true
 
 arch_hosts_entries:
   - "127.0.0.1 localhost"

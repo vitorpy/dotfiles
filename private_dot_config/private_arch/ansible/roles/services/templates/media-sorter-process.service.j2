@@ -1,0 +1,11 @@
+[Unit]
+Description=Process queued Transmission media sorter items
+After=network-online.target transmission.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=transmission
+Group=transmission
+EnvironmentFile=-{{ arch_media_sorter_tmdb_env_file }}
+ExecStart={{ arch_media_sorter_path }} --process-queue --queue-root {{ arch_media_sorter_queue_root }} --series-root {{ arch_media_series_dir }} --films-root {{ arch_media_films_dir }} --source-root {{ arch_transmission_download_dir }}

@@ -32,6 +32,46 @@
     mode: "0755"
   when: arch_transmission_enabled | bool
 
+- name: Ensure media sorter TMDB environment directory exists
+  ansible.builtin.file:
+    path: "{{ arch_media_sorter_tmdb_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+
+- name: Ensure media sorter queue directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "0755"
+  loop:
+    - "{{ arch_media_sorter_queue_root }}"
+    - "{{ arch_media_sorter_queue_root }}/queue"
+    - "{{ arch_media_sorter_queue_root }}/done"
+    - "{{ arch_media_sorter_queue_root }}/needs-review"
+    - "{{ arch_media_sorter_queue_root }}/failed"
+  when: arch_transmission_enabled | bool
+
+- name: Install media sorter queue processor service
+  ansible.builtin.template:
+    src: media-sorter-process.service.j2
+    dest: /etc/systemd/system/media-sorter-process.service
+    mode: "0644"
+  register: services_media_sorter_process_service
+  when: arch_transmission_enabled | bool
+
+- name: Install media sorter queue processor timer
+  ansible.builtin.template:
+    src: media-sorter-process.timer.j2
+    dest: /etc/systemd/system/media-sorter-process.timer
+    mode: "0644"
+  register: services_media_sorter_process_timer
+  when: arch_transmission_enabled | bool
+
 - name: Check Transmission media sorter settings
   ansible.builtin.command:
     argv:
@@ -79,7 +119,7 @@
     daemon_reload: true
   when:
     - arch_transmission_enabled | bool
-    - services_transmission_override.changed
+    - services_transmission_override.changed or services_media_sorter_process_service.changed or services_media_sorter_process_timer.changed
 
 - name: Gather service facts
   ansible.builtin.service_facts:
@@ -149,6 +189,16 @@
   loop: "{{ arch_system_services | difference(['nftables']) }}"
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
+
+- name: Enable media sorter queue processor timer
+  ansible.builtin.systemd:
+    name: media-sorter-process.timer
+    enabled: true
+    state: started
+  when:
+    - arch_transmission_enabled | bool
+    - arch_media_sorter_timer_enabled | bool
+    - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
 
 - name: Restart Transmission after config changes
   ansible.builtin.systemd:

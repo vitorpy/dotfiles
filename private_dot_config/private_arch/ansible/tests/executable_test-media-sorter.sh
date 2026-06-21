@@ -146,6 +146,13 @@ mkdir -p "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]"
 printf patriot > "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv"
 write_jsonrpc_metadata "${tmpdir}/patriot.json" "Patriot Season 2 Complete 720p WEBRip x264 [i_c]" "patriothash"
 
+mkdir -p "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]"
+printf lain01 > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4"
+printf lain02 > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 02 [BD][1080p][AAC].mp4"
+printf lainop > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
+printf lained > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4"
+write_jsonrpc_metadata "${tmpdir}/lain.json" "[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]" "lainhash"
+
 cat > "${tmpdir}/tmdb-fixture.json" <<JSON
 {
   "movie": {
@@ -162,6 +169,11 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
     }
   },
   "tv": {
+    "Serial Experiments Lain": {
+      "results": [
+        {"id": 1087, "name": "Serial Experiments Lain", "first_air_date": "1998-07-06"}
+      ]
+    },
     "Patriot": {
       "results": [
         {"id": 64396, "name": "Patriot", "first_air_date": "2015-11-05"}
@@ -173,11 +185,18 @@ JSON
 
 run_sorter --metadata-json "${tmpdir}/perfect.json"
 run_sorter --metadata-json "${tmpdir}/patriot.json"
+run_sorter --metadata-json "${tmpdir}/lain.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
+assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4"
+assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 00/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
+assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 00/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4"
+assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 test -f "${queue_root}/done/btih_perfecthash.json"
 test -f "${queue_root}/done/btih_patriothash.json"
+test -f "${queue_root}/done/btih_lainhash.json"
+jq -e '.match.query == "Serial Experiments Lain" and .match.hints.season == 1' "${queue_root}/done/btih_lainhash.json" >/dev/null
 
 mkdir -p "${downloads}/Ambiguous.2020.1080p.WEBRip"
 printf ambiguous > "${downloads}/Ambiguous.2020.1080p.WEBRip/Ambiguous.2020.1080p.WEBRip.mkv"

@@ -171,6 +171,13 @@ def parse_season(value: str) -> int | None:
     return None
 
 
+def first_not_none(*values: int | None) -> int | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 def normalize_labels(raw_labels: object) -> list[str]:
     if raw_labels is None:
         return []
@@ -298,10 +305,23 @@ def is_special_video(entry: FileEntry) -> bool:
 
 
 def extra_video_folder(entry: FileEntry) -> str | None:
-    name = entry.source.stem
-    for pattern, folder in EXTRA_VIDEO_PATTERNS:
-        if pattern.search(name):
-            return folder
+    values = [entry.source.stem, *entry.relpath.parent.parts]
+    for value in values:
+        for pattern, folder in EXTRA_VIDEO_PATTERNS:
+            if pattern.search(value):
+                return folder
+    return None
+
+
+def season_from_entry(entry: FileEntry) -> int | None:
+    values = [entry.relpath.name, *reversed(entry.relpath.parent.parts)]
+    for value in values:
+        lower = value.lower()
+        if lower in {"special", "specials"}:
+            return 0
+        season = parse_season(value)
+        if season is not None:
+            return season
     return None
 
 
@@ -501,10 +521,7 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         season = (
             0
             if is_special_video(video)
-            else parse_season(video.relpath.name)
-            or parse_season(str(video.relpath.parent))
-            or parse_season(torrent_name)
-            or label.season
+            else first_not_none(season_from_entry(video), parse_season(torrent_name), label.season)
         )
         if season is None:
             log("WARNING", f"needs season label, skipping source={video.source} series={label.title!r}")

@@ -141,6 +141,19 @@ assert_samefile "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargat
 assert_samefile "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S02E01 - The Siege.mkv" "${series}/Stargate Atlantis/Season 02/Stargate Atlantis - S02E01 - The Siege.mkv"
 assert_not_exists "${series}/Stargate Atlantis/Season 01/Stargate Atlantis - S02E01 - The Siege.mkv"
 
+mkdir -p "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Featurettes/Season 2"
+mkdir -p "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Specials"
+printf bsgfeature > "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Featurettes/Season 2/Sizzle Reel.mkv"
+printf bsgspecial > "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Specials/Battlestar Galactica (2003) - S00E04-E05 - Razor.mkv"
+write_metadata "${tmpdir}/bsg-specials-featurettes.json" "Battlestar Galactica (2003) Season 1-4 S01-S04" '[]' \
+  "Battlestar Galactica (2003) Season 1-4 S01-S04/Featurettes/Season 2/Sizzle Reel.mkv" \
+  "Battlestar Galactica (2003) Season 1-4 S01-S04/Specials/Battlestar Galactica (2003) - S00E04-E05 - Razor.mkv"
+run_sorter --metadata-json "${tmpdir}/bsg-specials-featurettes.json" --label "series:Battlestar Galactica"
+assert_samefile "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Featurettes/Season 2/Sizzle Reel.mkv" "${series}/Battlestar Galactica/Season 02/featurettes/Sizzle Reel.mkv"
+assert_samefile "${downloads}/Battlestar Galactica (2003) Season 1-4 S01-S04/Specials/Battlestar Galactica (2003) - S00E04-E05 - Razor.mkv" "${series}/Battlestar Galactica/Season 00/Battlestar Galactica (2003) - S00E04-E05 - Razor.mkv"
+assert_not_exists "${series}/Battlestar Galactica/Season 01/Sizzle Reel.mkv"
+assert_not_exists "${series}/Battlestar Galactica/Season 01/Battlestar Galactica (2003) - S00E04-E05 - Razor.mkv"
+
 mkdir -p "${downloads}/SGU Stargate Universe Season 1 & 2"
 printf sgu1 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi"
 printf sgu2 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi"

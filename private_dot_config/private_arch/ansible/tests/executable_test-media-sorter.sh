@@ -144,13 +144,29 @@ assert_not_exists "${series}/Stargate Atlantis/Season 01/Stargate Atlantis - S02
 mkdir -p "${downloads}/SGU Stargate Universe Season 1 & 2"
 printf sgu1 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi"
 printf sgu2 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+printf kino > "${downloads}/SGU Stargate Universe Season 1 & 2/Kino 01 - Get Outta Here.avi"
+printf interview > "${downloads}/SGU Stargate Universe Season 1 & 2/SGU Interviews 01.avi"
 write_metadata "${tmpdir}/season-word-parent-range.json" "SGU Stargate Universe Season 1 & 2" '[]' \
   "SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi" \
-  "SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+  "SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi" \
+  "SGU Stargate Universe Season 1 & 2/Kino 01 - Get Outta Here.avi" \
+  "SGU Stargate Universe Season 1 & 2/SGU Interviews 01.avi"
 run_sorter --metadata-json "${tmpdir}/season-word-parent-range.json" --label "series:Stargate Universe"
 assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi" "${series}/Stargate Universe/Season 01/Stargate Universe Season 1 Episode 01 - Air.avi"
 assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi" "${series}/Stargate Universe/Season 02/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/Kino 01 - Get Outta Here.avi" "${series}/Stargate Universe/Season 01/shorts/Kino 01 - Get Outta Here.avi"
+assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/SGU Interviews 01.avi" "${series}/Stargate Universe/Season 01/interviews/SGU Interviews 01.avi"
 assert_not_exists "${series}/Stargate Universe/Season 01/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+assert_not_exists "${series}/Stargate Universe/Season 01/Kino 01 - Get Outta Here.avi"
+assert_not_exists "${series}/Stargate Universe/Season 01/SGU Interviews 01.avi"
+
+mkdir -p "${downloads}/Star Trek Enterprise S01"
+printf enterprise > "${downloads}/Star Trek Enterprise S01/Star Trek Enterprise S01E01E02 Broken Bow.mkv"
+write_metadata "${tmpdir}/multi-episode-file.json" "Star Trek Enterprise S01" '[]' \
+  "Star Trek Enterprise S01/Star Trek Enterprise S01E01E02 Broken Bow.mkv"
+run_sorter --metadata-json "${tmpdir}/multi-episode-file.json" --label "series:Star Trek Enterprise"
+assert_samefile "${downloads}/Star Trek Enterprise S01/Star Trek Enterprise S01E01E02 Broken Bow.mkv" "${series}/Star Trek Enterprise/Season 01/Star Trek Enterprise S01E01-E02 Broken Bow.mkv"
+assert_not_exists "${series}/Star Trek Enterprise/Season 01/Star Trek Enterprise S01E01E02 Broken Bow.mkv"
 
 mkdir -p "${downloads}/NoLabel.S01E01"
 printf episode > "${downloads}/NoLabel.S01E01/NoLabel.S01E01.mkv"

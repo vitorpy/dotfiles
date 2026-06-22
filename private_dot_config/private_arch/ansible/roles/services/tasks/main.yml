@@ -213,6 +213,22 @@
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
 
+- name: Check Jellyfin encoding config
+  ansible.builtin.stat:
+    path: /etc/jellyfin/encoding.xml
+  register: services_jellyfin_encoding_config
+  when: "'jellyfin' in arch_system_services"
+
+- name: Disable unsupported Jellyfin AV1 hardware encoding
+  ansible.builtin.replace:
+    path: /etc/jellyfin/encoding.xml
+    regexp: '(<AllowAv1Encoding>)true(</AllowAv1Encoding>)'
+    replace: '\1false\2'
+  register: services_jellyfin_disable_av1_encoding
+  when:
+    - "'jellyfin' in arch_system_services"
+    - services_jellyfin_encoding_config.stat.exists | default(false)
+
 - name: Enable media sorter queue processor timer
   ansible.builtin.systemd:
     name: media-sorter-process.timer
@@ -231,13 +247,13 @@
     - arch_transmission_enabled | bool
     - services_transmission_override.changed or services_transmission_download_dir.changed or services_transmission_sorter_enabled.changed or services_transmission_sorter_filename.changed
 
-- name: Restart Jellyfin after media group changes
+- name: Restart Jellyfin after media config changes
   ansible.builtin.systemd:
     name: jellyfin
     state: restarted
   when:
-    - arch_transmission_enabled | bool
-    - services_jellyfin_media_group.changed
+    - "'jellyfin' in arch_system_services"
+    - (services_jellyfin_media_group.changed | default(false)) or (services_jellyfin_disable_av1_encoding.changed | default(false))
 
 - name: Enable nftables service
   ansible.builtin.systemd:

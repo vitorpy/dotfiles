@@ -181,6 +181,26 @@
     - "{{ arch_media_films_dir }}"
   when: arch_transmission_enabled | bool
 
+- name: Find existing Jellyfin media library directories
+  ansible.builtin.find:
+    paths:
+      - "{{ arch_media_series_dir }}"
+      - "{{ arch_media_films_dir }}"
+    file_type: directory
+    recurse: true
+  register: services_jellyfin_media_directories
+  when: arch_transmission_enabled | bool
+
+- name: Ensure existing Jellyfin media directories are group writable
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "2775"
+  loop: "{{ services_jellyfin_media_directories.files | default([]) }}"
+  when: arch_transmission_enabled | bool
+
 - name: Enable and start core services
   ansible.builtin.systemd:
     name: "{{ item }}"

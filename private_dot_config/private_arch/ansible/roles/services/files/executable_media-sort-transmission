@@ -471,7 +471,14 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         return True
 
     for video in videos:
-        season = 0 if is_special_video(video) else parse_season(str(video.relpath)) or parse_season(torrent_name) or label.season
+        season = (
+            0
+            if is_special_video(video)
+            else parse_season(video.relpath.name)
+            or parse_season(str(video.relpath.parent))
+            or parse_season(torrent_name)
+            or label.season
+        )
         if season is None:
             log("WARNING", f"needs season label, skipping source={video.source} series={label.title!r}")
             continue

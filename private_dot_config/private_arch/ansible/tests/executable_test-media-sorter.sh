@@ -130,6 +130,28 @@ assert_samefile "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv" "${series
 assert_samefile "${downloads}/South.Park.S01E01/South.Park.S01E01.srt" "${series}/South Park/Season 01/South.Park.S01E01.srt"
 run_sorter --metadata-json "${tmpdir}/show.json" --label "series:South Park"
 
+mkdir -p "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05"
+printf atlantis1 > "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S01E01 - Rising.mkv"
+printf atlantis2 > "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S02E01 - The Siege.mkv"
+write_metadata "${tmpdir}/multi-season-parent-range.json" "Stargate Atlantis (2004) Season 1-5 S01-05" '[]' \
+  "Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S01E01 - Rising.mkv" \
+  "Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S02E01 - The Siege.mkv"
+run_sorter --metadata-json "${tmpdir}/multi-season-parent-range.json" --label "series:Stargate Atlantis"
+assert_samefile "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S01E01 - Rising.mkv" "${series}/Stargate Atlantis/Season 01/Stargate Atlantis - S01E01 - Rising.mkv"
+assert_samefile "${downloads}/Stargate Atlantis (2004) Season 1-5 S01-05/Stargate Atlantis - S02E01 - The Siege.mkv" "${series}/Stargate Atlantis/Season 02/Stargate Atlantis - S02E01 - The Siege.mkv"
+assert_not_exists "${series}/Stargate Atlantis/Season 01/Stargate Atlantis - S02E01 - The Siege.mkv"
+
+mkdir -p "${downloads}/SGU Stargate Universe Season 1 & 2"
+printf sgu1 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi"
+printf sgu2 > "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+write_metadata "${tmpdir}/season-word-parent-range.json" "SGU Stargate Universe Season 1 & 2" '[]' \
+  "SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi" \
+  "SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+run_sorter --metadata-json "${tmpdir}/season-word-parent-range.json" --label "series:Stargate Universe"
+assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 1 Episode 01 - Air.avi" "${series}/Stargate Universe/Season 01/Stargate Universe Season 1 Episode 01 - Air.avi"
+assert_samefile "${downloads}/SGU Stargate Universe Season 1 & 2/Stargate Universe Season 2 Episode 01 - Intervention.avi" "${series}/Stargate Universe/Season 02/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+assert_not_exists "${series}/Stargate Universe/Season 01/Stargate Universe Season 2 Episode 01 - Intervention.avi"
+
 mkdir -p "${downloads}/NoLabel.S01E01"
 printf episode > "${downloads}/NoLabel.S01E01/NoLabel.S01E01.mkv"
 write_jsonrpc_metadata "${tmpdir}/queued.json" "NoLabel.S01E01" "abc123"

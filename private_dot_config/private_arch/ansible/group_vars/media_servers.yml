@@ -4,7 +4,7 @@ arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8
 arch_firewall_allowed_udp_ports:
   - 51413
 
-arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg', 'transmission-cli'] }}"
+arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg', 'transmission-cli', 'intel-media-driver', 'libva-utils', 'vulkan-intel', 'vulkan-tools'] }}"
 arch_aur_packages: "{{ arch_server_aur_packages }}"
 
 arch_transmission_enabled: true

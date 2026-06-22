@@ -145,7 +145,10 @@
 - name: Allow Jellyfin to write shared media
   ansible.builtin.user:
     name: jellyfin
-    groups: transmission
+    groups:
+      - render
+      - transmission
+      - video
     append: true
   register: services_jellyfin_media_group
   when: arch_transmission_enabled | bool

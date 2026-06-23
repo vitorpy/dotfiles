@@ -775,6 +775,65 @@ def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any
         path.unlink()
 
 
+def candidate_summary(candidate: dict[str, Any]) -> str:
+    media_type = candidate.get("media_type") or "unknown"
+    title = candidate.get("title") or candidate.get("name") or "unknown"
+    date = candidate.get("release_date") or candidate.get("first_air_date") or ""
+    candidate_year = candidate.get("year") or (date[:4] if date else "")
+    year = f" ({candidate_year})" if candidate_year else ""
+    tmdb_id = candidate.get("provider_id") or candidate.get("id")
+    confidence = candidate.get("confidence")
+
+    parts = [f"{media_type}:{title}{year}"]
+    if tmdb_id is not None:
+        parts.append(f"id={tmdb_id}")
+    if confidence is not None:
+        parts.append(f"confidence={float(confidence):.3f}")
+    return " ".join(parts)
+
+
+def print_review_queue(args: argparse.Namespace) -> int:
+    queue_root = Path(args.queue_root)
+    review_dir = queue_dirs(queue_root)["needs_review"]
+    review_paths = sorted(review_dir.glob("*.json")) if review_dir.exists() else []
+
+    if not review_paths:
+        print("needs-review queue is empty")
+        return 0
+
+    print(f"needs-review: {len(review_paths)} item(s)")
+    for index, path in enumerate(review_paths):
+        if index:
+            print()
+
+        record = json.loads(path.read_text(encoding="utf-8"))
+        torrent = record.get("torrent", {})
+        match = record.get("match") or {}
+        files = record.get("files", [])
+        media_files = [item for item in files if item.get("kind") in {"video", "sidecar"}]
+
+        print(f"- record: {path}")
+        print(f"  key: {record.get('download_key', '')}")
+        print(f"  torrent: {torrent.get('name', '')}")
+        print(f"  download_dir: {torrent.get('download_dir', '')}")
+        print(f"  reason: {record.get('reason') or 'needs review'}")
+        if match.get("query"):
+            print(f"  query: {match['query']}")
+        if torrent.get("labels"):
+            print(f"  labels: {', '.join(normalize_labels(torrent.get('labels')))}")
+
+        candidates = match.get("candidates") or []
+        if candidates:
+            print("  candidates:")
+            for candidate in candidates:
+                print(f"    - {candidate_summary(candidate)}")
+
+        print(f"  files ({len(media_files)} media / {len(files)} total):")
+        for item in media_files:
+            print(f"    - [{item.get('kind', 'file')}] {item.get('path', '')}")
+    return 0
+
+
 def process_queue(args: argparse.Namespace) -> int:
     queue_root = Path(args.queue_root)
     ensure_queue_dirs(queue_root)
@@ -878,6 +937,7 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--tmdb-min-gap", type=float, default=0.07)
     parser.add_argument("--label", action="append", default=[], help="manual override label, e.g. series:South Park")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--queue", action="store_true", help="print downloads waiting for human review")
     parser.add_argument("--process-queue", action="store_true")
     parser.add_argument("--backfill-current-downloads", action="store_true")
     parser.add_argument("--apply", action="store_true", help="accepted for explicit backfill apply mode")
@@ -887,6 +947,8 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
+        if args.queue:
+            return print_review_queue(args)
         if args.backfill_current_downloads:
             if not args.apply:
                 args.dry_run = True

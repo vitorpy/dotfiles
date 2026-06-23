@@ -186,6 +186,7 @@ printf episode > "${downloads}/NoLabel.S01E01/NoLabel.S01E01.mkv"
 write_jsonrpc_metadata "${tmpdir}/queued.json" "NoLabel.S01E01" "abc123"
 run_sorter --metadata-json "${tmpdir}/queued.json"
 test -f "${queue_root}/queue/btih_abc123.json"
+[[ "$(stat -c '%a' "${queue_root}/queue/btih_abc123.json")" == "640" ]]
 run_sorter --metadata-json "${tmpdir}/queued.json"
 [[ "$(find "${queue_root}/queue" -name 'btih_abc123.json' | wc -l)" -eq 1 ]]
 
@@ -255,6 +256,7 @@ write_jsonrpc_metadata "${tmpdir}/ambiguous.json" "Ambiguous.2020.1080p.WEBRip" 
 run_sorter --metadata-json "${tmpdir}/ambiguous.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 test -f "${queue_root}/needs-review/btih_ambiguoushash.json"
+[[ "$(stat -c '%a' "${queue_root}/needs-review/btih_ambiguoushash.json")" == "640" ]]
 assert_not_exists "${films}/Ambiguous"
 run_sorter --queue > "${tmpdir}/queue-review.out"
 grep -q "needs-review:" "${tmpdir}/queue-review.out"

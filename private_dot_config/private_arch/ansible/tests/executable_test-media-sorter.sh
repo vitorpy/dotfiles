@@ -141,13 +141,70 @@ jq -e '.match.provider == "filename" and .match.artist == "Frank Sinatra" and .m
 
 mkdir -p "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m"
 printf audio > "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3"
+printf lyrics > "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.lrc"
 write_jsonrpc_metadata "${tmpdir}/music-obfuscated.json" "3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m" "obfuscatedmusichash"
+cat > "${tmpdir}/audiodb-fixture.json" <<JSON
+{
+  "album": {}
+}
+JSON
+cat > "${tmpdir}/acoustid-fixture.json" <<JSON
+{
+  "fingerprints": {
+    "elis-track-1": {
+      "status": "ok",
+      "results": [
+        {
+          "score": 0.98,
+          "recordings": [
+            {
+              "title": "Aguas de Marco",
+              "artists": [{"name": "Elis Regina"}],
+              "releasegroups": [{"id": "rg-elis-tom", "title": "Elis & Tom", "type": "Album"}]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+JSON
+cat > "${tmpdir}/fpcalc" <<'SH'
+#!/usr/bin/env bash
+case "$*" in
+  *"Aguas De Marco"*) printf '{"duration": 180, "fingerprint": "elis-track-1"}\n' ;;
+  *) printf '{"duration": 180, "fingerprint": "unknown-track"}\n' ;;
+esac
+SH
+chmod +x "${tmpdir}/fpcalc"
 run_sorter --metadata-json "${tmpdir}/music-obfuscated.json"
-TMDB_API_TOKEN= run_sorter --process-queue
-test -f "${queue_root}/needs-review/btih_obfuscatedmusichash.json"
+TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+test -f "${queue_root}/done/btih_obfuscatedmusichash.json"
+assert_samefile "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3" "${music}/Elis Regina/Elis & Tom/01 - Aguas De Marco.mp3"
+assert_samefile "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.lrc" "${music}/Elis Regina/Elis & Tom/01 - Aguas De Marco.lrc"
+jq -e '.match.provider == "acoustid" and .match.selected.artist == "Elis Regina" and .match.selected.title == "Elis & Tom"' "${queue_root}/done/btih_obfuscatedmusichash.json" >/dev/null
+
+mkdir -p "${downloads}/LooseTracks"
+printf audio > "${downloads}/LooseTracks/track01.flac"
+write_jsonrpc_metadata "${tmpdir}/music-unparsed.json" "LooseTracks" "unparsedmusichash"
+run_sorter --metadata-json "${tmpdir}/music-unparsed.json"
+TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+test -f "${queue_root}/needs-review/btih_unparsedmusichash.json"
 run_sorter --queue > "${tmpdir}/music-queue-review.out"
-grep -q "could not derive music artist/album from filename" "${tmpdir}/music-queue-review.out"
-grep -q "\\[audio\\] 3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3" "${tmpdir}/music-queue-review.out"
+grep -q "no AcoustID album candidates" "${tmpdir}/music-queue-review.out"
+grep -q "\\[audio\\] LooseTracks/track01.flac" "${tmpdir}/music-queue-review.out"
+
+mkdir -p "${downloads}/Artist Pack/Live/(1972) Album One" "${downloads}/Artist Pack/Studio/(1973) Album Two"
+printf audio > "${downloads}/Artist Pack/Live/(1972) Album One/01 - One.mp3"
+printf audio > "${downloads}/Artist Pack/Studio/(1973) Album Two/01 - Two.mp3"
+write_jsonrpc_metadata "${tmpdir}/music-pack.json" "Artist Pack" "musicpackhash"
+run_sorter --metadata-json "${tmpdir}/music-pack.json"
+TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+test -f "${queue_root}/needs-review/btih_musicpackhash.json"
+assert_not_exists "${music}/Elis Regina/Elis & Tom/Live"
+run_sorter --queue > "${tmpdir}/music-pack-queue-review.out"
+grep -q "multi-album music pack needs explicit review" "${tmpdir}/music-pack-queue-review.out"
+grep -q "\\[audio\\] Artist Pack/Live/(1972) Album One/01 - One.mp3" "${tmpdir}/music-pack-queue-review.out"
 
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"

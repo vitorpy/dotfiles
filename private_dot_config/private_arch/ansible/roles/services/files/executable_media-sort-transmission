@@ -69,8 +69,10 @@ AUDIO_EXTENSIONS = {
 
 MUSIC_SIDECAR_EXTENSIONS = {
     ".cue",
+    ".elrc",
     ".jpg",
     ".jpeg",
+    ".lrc",
     ".log",
     ".m3u",
     ".m3u8",
@@ -182,6 +184,21 @@ class MatchDecision:
     status: str
     reason: str
     match: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class MusicCandidate:
+    artist: str
+    album: str
+    query: str
+    source: str
+
+
+@dataclass(frozen=True)
+class AcoustIDFingerprint:
+    entry: FileEntry
+    duration: int
+    fingerprint: str
 
 
 def log(level: str, message: str) -> None:
@@ -756,6 +773,10 @@ def looks_obfuscated_music_text(value: str) -> bool:
     return digit_ratio >= 0.22 and len(mixed_tokens) >= 3
 
 
+def deobfuscate_music_text(value: str) -> str:
+    return value.translate(str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t"}))
+
+
 def music_label_from_text(value: str, reject_obfuscated: bool = True) -> MediaLabel | None:
     cleaned = strip_bracketed(value)
     cleaned = re.sub(r"\s*[\[(].*$", " ", cleaned)
@@ -776,8 +797,299 @@ def music_label_from_text(value: str, reject_obfuscated: bool = True) -> MediaLa
     return MediaLabel(kind="music", title=artist, album=album)
 
 
+def music_candidates_from_text(value: str) -> list[MusicCandidate]:
+    candidates = []
+    seen = set()
+    for source, candidate_text in (("filename", value), ("deobfuscated-filename", deobfuscate_music_text(value))):
+        label = music_label_from_text(candidate_text, reject_obfuscated=(source == "filename"))
+        if not label or not label.album:
+            continue
+        key = (normalize_title(label.title), normalize_title(label.album))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(MusicCandidate(artist=label.title, album=label.album, query=value, source=source))
+    return candidates
+
+
+def audiodb_fixture_search(fixture_path: str, artist: str, album: str) -> dict[str, Any]:
+    fixture = json.loads(Path(fixture_path).read_text(encoding="utf-8"))
+    key = f"{normalize_title(artist)}\0{normalize_title(album)}"
+    return fixture.get("album", {}).get(key, {"album": []})
+
+
+def audiodb_search_album(args: argparse.Namespace, artist: str, album: str) -> dict[str, Any]:
+    if args.audiodb_fixture_json:
+        return audiodb_fixture_search(args.audiodb_fixture_json, artist, album)
+
+    token = args.audiodb_api_key or os.environ.get("AUDIODB_API_KEY")
+    if not token:
+        return {"album": []}
+
+    params = urllib.parse.urlencode({"s": artist, "a": album})
+    token_path = urllib.parse.quote(str(token), safe="")
+    url = f"https://www.theaudiodb.com/api/v1/json/{token_path}/searchalbum.php?{params}"
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=args.audiodb_timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"TheAudioDB search failed for artist={artist!r} album={album!r}: {exc}") from exc
+
+
+def audiodb_album_title(candidate: dict[str, Any]) -> str:
+    return str(candidate.get("strAlbum") or "")
+
+
+def audiodb_artist_title(candidate: dict[str, Any]) -> str:
+    return str(candidate.get("strArtist") or "")
+
+
+def score_audiodb_album(query: MusicCandidate, candidate: dict[str, Any]) -> float:
+    artist_score = difflib.SequenceMatcher(None, normalize_title(query.artist), normalize_title(audiodb_artist_title(candidate))).ratio()
+    album_score = difflib.SequenceMatcher(None, normalize_title(query.album), normalize_title(audiodb_album_title(candidate))).ratio()
+    return min(1.0, (artist_score * 0.4) + (album_score * 0.6))
+
+
+def ranked_audiodb_candidates(args: argparse.Namespace, query: MusicCandidate) -> list[dict[str, Any]]:
+    response = audiodb_search_album(args, query.artist, query.album)
+    ranked = []
+    for candidate in (response.get("album") or [])[:5]:
+        ranked.append(
+            {
+                "provider": "audiodb",
+                "media_type": "album",
+                "provider_id": candidate.get("idAlbum"),
+                "title": audiodb_album_title(candidate),
+                "artist": audiodb_artist_title(candidate),
+                "year": candidate.get("intYearReleased"),
+                "confidence": round(score_audiodb_album(query, candidate), 3),
+                "query_artist": query.artist,
+                "query_album": query.album,
+                "query_source": query.source,
+                "raw": candidate,
+            }
+        )
+    return sorted(ranked, key=lambda item: item["confidence"], reverse=True)
+
+
+def audiodb_match(candidates: list[MusicCandidate], args: argparse.Namespace) -> MatchDecision:
+    ranked: list[dict[str, Any]] = []
+    for candidate in candidates:
+        ranked.extend(ranked_audiodb_candidates(args, candidate))
+    ranked = sorted(ranked, key=lambda item: item["confidence"], reverse=True)
+    if not ranked:
+        return MatchDecision(None, "needs_review", "no TheAudioDB album candidates", {"provider": "audiodb", "candidates": []})
+
+    top = ranked[0]
+    if top["confidence"] < args.audiodb_min_confidence:
+        return MatchDecision(
+            None,
+            "needs_review",
+            "low confidence TheAudioDB album match",
+            {"provider": "audiodb", "candidates": ranked[:5]},
+        )
+
+    artist = audiodb_artist_title(top["raw"]) or str(top["artist"])
+    album = audiodb_album_title(top["raw"]) or str(top["title"])
+    label = MediaLabel(kind="music", title=safe_component(artist), album=safe_component(album))
+    return MatchDecision(
+        label,
+        "matched",
+        "matched via TheAudioDB",
+        {"provider": "audiodb", "selected": top, "candidates": ranked[:5]},
+    )
+
+
+def is_disc_folder(value: str) -> bool:
+    return re.fullmatch(r"(?i)(?:cd|disc|disk)[ ._-]*\d{1,2}", value.strip()) is not None
+
+
+def stripped_music_parent(entry: FileEntry, entries: list[FileEntry]) -> tuple[str, ...]:
+    selected_parts = [item.relpath.parts for item in entries if item.relpath.parts]
+    parts = entry.relpath.parts
+    if selected_parts and parts and all(len(item_parts) > 1 and item_parts[0] == parts[0] for item_parts in selected_parts):
+        parts = parts[1:]
+    parent = parts[:-1]
+    if parent and is_disc_folder(parent[-1]):
+        parent = parent[:-1]
+    return tuple(parent)
+
+
+def looks_like_single_album(audio: list[FileEntry]) -> bool:
+    if not audio:
+        return False
+    album_parents = {stripped_music_parent(entry, audio) for entry in audio}
+    return len(album_parents) <= 1
+
+
+def fpcalc_fingerprint(entry: FileEntry, args: argparse.Namespace) -> AcoustIDFingerprint | None:
+    command = [args.fpcalc_path, "-json", str(entry.source)]
+    result = subprocess.run(command, check=False, text=True, capture_output=True, timeout=args.acoustid_fpcalc_timeout)
+    if result.returncode != 0:
+        log("WARNING", f"fpcalc failed source={entry.source}: {result.stderr.strip() or result.stdout.strip()}")
+        return None
+    data = json.loads(result.stdout)
+    fingerprint = str(data.get("fingerprint") or "").strip()
+    duration_raw = data.get("duration")
+    if not fingerprint or duration_raw is None:
+        return None
+    return AcoustIDFingerprint(entry=entry, duration=int(float(duration_raw)), fingerprint=fingerprint)
+
+
+def acoustid_fixture_lookup(fixture_path: str, fingerprint: str) -> dict[str, Any]:
+    fixture = json.loads(Path(fixture_path).read_text(encoding="utf-8"))
+    return fixture.get("fingerprints", {}).get(fingerprint, {"status": "ok", "results": []})
+
+
+def acoustid_lookup(args: argparse.Namespace, fingerprint: AcoustIDFingerprint) -> dict[str, Any]:
+    if args.acoustid_fixture_json:
+        return acoustid_fixture_lookup(args.acoustid_fixture_json, fingerprint.fingerprint)
+
+    token = args.acoustid_api_key or os.environ.get("ACOUSTID_API_KEY")
+    if not token:
+        return {"status": "ok", "results": []}
+
+    params = {
+        "client": token,
+        "duration": str(fingerprint.duration),
+        "fingerprint": fingerprint.fingerprint,
+        "meta": "recordings releases releasegroups compress",
+    }
+    request = urllib.request.Request(
+        "https://api.acoustid.org/v2/lookup",
+        data=urllib.parse.urlencode(params).encode("utf-8"),
+        headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=args.acoustid_timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"AcoustID lookup failed source={fingerprint.entry.source}: {exc}") from exc
+
+
+def acoustid_recording_artist(recording: dict[str, Any]) -> str:
+    artists = recording.get("artists") or []
+    if artists:
+        return str(artists[0].get("name") or "")
+    return ""
+
+
+def acoustid_album_candidates(response: dict[str, Any], min_score: float) -> list[dict[str, Any]]:
+    candidates = []
+    if response.get("status") not in {None, "ok"}:
+        return candidates
+    for result in response.get("results", []):
+        result_score = float(result.get("score") or 0)
+        if result_score < min_score:
+            continue
+        for recording in result.get("recordings", []):
+            artist = acoustid_recording_artist(recording)
+            for release_group in recording.get("releasegroups", []) or []:
+                title = str(release_group.get("title") or "")
+                if not artist or not title:
+                    continue
+                candidates.append(
+                    {
+                        "provider": "acoustid",
+                        "media_type": "album",
+                        "provider_id": release_group.get("id"),
+                        "title": title,
+                        "artist": artist,
+                        "confidence": result_score,
+                        "recording": recording.get("title"),
+                        "raw": release_group,
+                    }
+                )
+            for release in recording.get("releases", []) or []:
+                title = str(release.get("title") or "")
+                if not artist or not title:
+                    continue
+                candidates.append(
+                    {
+                        "provider": "acoustid",
+                        "media_type": "album",
+                        "provider_id": release.get("id"),
+                        "title": title,
+                        "artist": artist,
+                        "confidence": result_score,
+                        "recording": recording.get("title"),
+                        "raw": release,
+                    }
+                )
+    return candidates
+
+
+def acoustid_match(audio: list[FileEntry], args: argparse.Namespace) -> MatchDecision:
+    if not looks_like_single_album(audio):
+        return MatchDecision(
+            None,
+            "needs_review",
+            "multi-album music pack needs explicit review",
+            {"provider": "acoustid", "audio_count": len(audio)},
+        )
+
+    if not args.acoustid_api_key and not os.environ.get("ACOUSTID_API_KEY") and not args.acoustid_fixture_json:
+        return MatchDecision(None, "needs_review", "ACOUSTID_API_KEY is not set", {"provider": "acoustid"})
+
+    votes: dict[tuple[str, str], dict[str, Any]] = {}
+    sampled = 0
+    for entry in audio[: args.acoustid_max_tracks]:
+        fingerprint = fpcalc_fingerprint(entry, args)
+        if not fingerprint:
+            continue
+        sampled += 1
+        if sampled > 1 and not args.acoustid_fixture_json and args.acoustid_request_delay > 0:
+            time.sleep(args.acoustid_request_delay)
+        response = acoustid_lookup(args, fingerprint)
+        for candidate in acoustid_album_candidates(response, args.acoustid_min_score):
+            key = (normalize_title(candidate["artist"]), normalize_title(candidate["title"]))
+            vote = votes.setdefault(
+                key,
+                {
+                    **candidate,
+                    "score_total": 0.0,
+                    "track_count": 0,
+                    "sources": [],
+                },
+            )
+            vote["score_total"] += float(candidate["confidence"])
+            vote["track_count"] += 1
+            vote["sources"].append(str(entry.relpath))
+
+    if not votes:
+        return MatchDecision(
+            None,
+            "needs_review",
+            "no AcoustID album candidates",
+            {"provider": "acoustid", "sampled_tracks": sampled},
+        )
+
+    ranked = sorted(
+        votes.values(),
+        key=lambda item: (item["track_count"], item["score_total"]),
+        reverse=True,
+    )
+    top = ranked[0]
+    runner_up_tracks = ranked[1]["track_count"] if len(ranked) > 1 else 0
+    if top["track_count"] < args.acoustid_min_tracks or top["track_count"] == runner_up_tracks:
+        return MatchDecision(
+            None,
+            "needs_review",
+            "ambiguous AcoustID album match",
+            {"provider": "acoustid", "candidates": ranked[:5], "sampled_tracks": sampled},
+        )
+
+    label = MediaLabel(kind="music", title=safe_component(top["artist"]), album=safe_component(top["title"]))
+    return MatchDecision(
+        label,
+        "matched",
+        "matched via AcoustID fingerprint",
+        {"provider": "acoustid", "selected": top, "candidates": ranked[:5], "sampled_tracks": sampled},
+    )
+
+
 def music_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision | None:
-    del args
     entries = entries_from_record(record)
     audio = [entry for entry in entries if is_audio(entry)]
     if not audio or any(is_video(entry) for entry in entries):
@@ -807,13 +1119,30 @@ def music_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisi
                 },
             )
 
-    return MatchDecision(
-        None,
-        "needs_review",
-        "could not derive music artist/album from filename",
-        {"provider": "filename", "query": torrent_name, "audio_count": len(audio)},
-    )
+    music_candidates: list[MusicCandidate] = []
+    seen_music_candidates = set()
+    for candidate in candidates:
+        for music_candidate in music_candidates_from_text(candidate):
+            key = (normalize_title(music_candidate.artist), normalize_title(music_candidate.album))
+            if key in seen_music_candidates:
+                continue
+            seen_music_candidates.add(key)
+            music_candidates.append(music_candidate)
 
+    if music_candidates:
+        try:
+            decision = audiodb_match(music_candidates, args)
+        except Exception as exc:
+            decision = MatchDecision(None, "needs_review", str(exc), {"provider": "audiodb", "query": torrent_name})
+        if decision.status == "matched":
+            return decision
+
+    try:
+        return acoustid_match(audio, args)
+    except subprocess.TimeoutExpired as exc:
+        return MatchDecision(None, "needs_review", f"fpcalc timed out: {exc}", {"provider": "acoustid", "query": torrent_name})
+    except Exception as exc:
+        return MatchDecision(None, "needs_review", str(exc), {"provider": "acoustid", "query": torrent_name})
 
 def extract_year(value: str) -> int | None:
     match = re.search(r"(?:^|[ ._-])((?:19|20)\d{2})(?:\b|[ ._-])", value)
@@ -1014,7 +1343,10 @@ def candidate_summary(candidate: dict[str, Any]) -> str:
     tmdb_id = candidate.get("provider_id") or candidate.get("id")
     confidence = candidate.get("confidence")
 
-    parts = [f"{media_type}:{title}{year}"]
+    if candidate.get("provider") in {"audiodb", "acoustid"} and candidate.get("artist"):
+        parts = [f"{media_type}:{candidate['artist']} - {title}{year}"]
+    else:
+        parts = [f"{media_type}:{title}{year}"]
     if tmdb_id is not None:
         parts.append(f"id={tmdb_id}")
     if confidence is not None:
@@ -1169,6 +1501,19 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--tmdb-timeout", type=float, default=10.0)
     parser.add_argument("--tmdb-min-confidence", type=float, default=0.86)
     parser.add_argument("--tmdb-min-gap", type=float, default=0.07)
+    parser.add_argument("--audiodb-fixture-json", help="test helper: read TheAudioDB search responses from this file")
+    parser.add_argument("--audiodb-api-key", help="TheAudioDB v1 API key; defaults to AUDIODB_API_KEY")
+    parser.add_argument("--audiodb-timeout", type=float, default=10.0)
+    parser.add_argument("--audiodb-min-confidence", type=float, default=0.78)
+    parser.add_argument("--acoustid-fixture-json", help="test helper: read AcoustID lookup responses from this file")
+    parser.add_argument("--acoustid-api-key", help="AcoustID application API key; defaults to ACOUSTID_API_KEY")
+    parser.add_argument("--acoustid-timeout", type=float, default=10.0)
+    parser.add_argument("--acoustid-fpcalc-timeout", type=float, default=20.0)
+    parser.add_argument("--acoustid-request-delay", type=float, default=0.35)
+    parser.add_argument("--acoustid-min-score", type=float, default=0.85)
+    parser.add_argument("--acoustid-min-tracks", type=int, default=1)
+    parser.add_argument("--acoustid-max-tracks", type=int, default=5)
+    parser.add_argument("--fpcalc-path", default="fpcalc")
     parser.add_argument("--label", action="append", default=[], help="manual override label, e.g. series:South Park")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--queue", action="store_true", help="print downloads waiting for human review")

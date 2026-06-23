@@ -41,6 +41,30 @@
     mode: "0755"
   when: arch_transmission_enabled | bool
 
+- name: Ensure media sorter environment file exists
+  ansible.builtin.copy:
+    dest: "{{ arch_media_sorter_tmdb_env_file }}"
+    content: ""
+    force: false
+    owner: root
+    group: root
+    mode: "0600"
+  when: arch_transmission_enabled | bool
+
+- name: Configure media sorter AcoustID API key
+  ansible.builtin.lineinfile:
+    path: "{{ arch_media_sorter_tmdb_env_file }}"
+    regexp: "^ACOUSTID_API_KEY="
+    line: "ACOUSTID_API_KEY={{ arch_media_sorter_acoustid_api_key }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when:
+    - arch_transmission_enabled | bool
+    - arch_media_sorter_acoustid_api_key | default('') | length > 0
+
 - name: Ensure media sorter queue directories exist
   ansible.builtin.file:
     path: "{{ item }}"

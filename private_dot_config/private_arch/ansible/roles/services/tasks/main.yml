@@ -214,6 +214,7 @@
   loop:
     - "{{ arch_media_series_dir }}"
     - "{{ arch_media_films_dir }}"
+    - "{{ arch_media_music_dir }}"
   when: arch_transmission_enabled | bool
 
 - name: Find existing Jellyfin media library directories
@@ -221,6 +222,7 @@
     paths:
       - "{{ arch_media_series_dir }}"
       - "{{ arch_media_films_dir }}"
+      - "{{ arch_media_music_dir }}"
     file_type: directory
     recurse: true
   register: services_jellyfin_media_directories

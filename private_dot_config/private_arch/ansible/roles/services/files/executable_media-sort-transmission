@@ -51,6 +51,53 @@ USEFUL_SIDECAR_EXTENSIONS = SUBTITLE_EXTENSIONS | {
     ".png",
 }
 
+AUDIO_EXTENSIONS = {
+    ".aac",
+    ".aif",
+    ".aiff",
+    ".alac",
+    ".ape",
+    ".flac",
+    ".m4a",
+    ".mp3",
+    ".oga",
+    ".ogg",
+    ".opus",
+    ".wav",
+    ".wma",
+}
+
+MUSIC_SIDECAR_EXTENSIONS = {
+    ".cue",
+    ".jpg",
+    ".jpeg",
+    ".log",
+    ".m3u",
+    ".m3u8",
+    ".nfo",
+    ".png",
+}
+
+MUSIC_RELEASE_MARKERS = {
+    "aac",
+    "cd",
+    "cds",
+    "cue",
+    "eac",
+    "flac",
+    "lossless",
+    "m4a",
+    "mp3",
+    "ogg",
+    "opus",
+    "proper",
+    "retail",
+    "v0",
+    "v2",
+    "vinyl",
+    "web",
+}
+
 BACKFILL_SERIES_MAP = (
     (re.compile(r"^South[ ._-]*Park[ ._-]*Season", re.I), "South Park"),
     (re.compile(r"^Corporate", re.I), "Corporate"),
@@ -126,6 +173,7 @@ class MediaLabel:
     kind: str
     title: str
     season: int | None = None
+    album: str | None = None
 
 
 @dataclass(frozen=True)
@@ -192,6 +240,7 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
     kind = None
     title = None
     season = None
+    album = None
 
     for label in labels:
         raw = label.strip()
@@ -206,11 +255,24 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
         elif prefix in {"film", "movie"} and value:
             kind = "film"
             title = value
+        elif prefix == "music" and value:
+            parsed = music_label_from_text(value, reject_obfuscated=False)
+            if parsed:
+                kind = "music"
+                title = parsed.title
+                album = parsed.album
+        elif prefix in {"artist", "album_artist"} and value:
+            kind = "music"
+            title = value
+        elif prefix == "album" and value:
+            album = value
         elif prefix == "season" and value:
             season_match = re.search(r"\d{1,2}", value)
             if season_match:
                 season = int(season_match.group(0))
 
+    if kind == "music" and title and album:
+        return MediaLabel(kind=kind, title=safe_component(title), album=safe_component(album))
     if kind and title:
         return MediaLabel(kind=kind, title=safe_component(title), season=season)
     return None
@@ -299,6 +361,10 @@ def is_video(entry: FileEntry) -> bool:
     return entry.source.suffix.lower() in VIDEO_EXTENSIONS
 
 
+def is_audio(entry: FileEntry) -> bool:
+    return entry.source.suffix.lower() in AUDIO_EXTENSIONS
+
+
 def is_special_video(entry: FileEntry) -> bool:
     name = entry.source.stem
     return any(pattern.search(name) for pattern in SPECIAL_VIDEO_PATTERNS)
@@ -329,7 +395,26 @@ def file_kind(entry: FileEntry) -> str:
     suffix = entry.source.suffix.lower()
     if suffix in VIDEO_EXTENSIONS:
         return "video"
+    if suffix in AUDIO_EXTENSIONS:
+        return "audio"
     if suffix in USEFUL_SIDECAR_EXTENSIONS:
+        return "sidecar"
+    if suffix in MUSIC_SIDECAR_EXTENSIONS:
+        return "sidecar"
+    return "other"
+
+
+def record_item_kind(item: dict[str, Any]) -> str:
+    kind = item.get("kind")
+    if kind and kind != "other":
+        return str(kind)
+
+    suffix = Path(str(item.get("path") or "")).suffix.lower()
+    if suffix in VIDEO_EXTENSIONS:
+        return "video"
+    if suffix in AUDIO_EXTENSIONS:
+        return "audio"
+    if suffix in USEFUL_SIDECAR_EXTENSIONS or suffix in MUSIC_SIDECAR_EXTENSIONS:
         return "sidecar"
     return "other"
 
@@ -467,6 +552,14 @@ def film_sidecars(entries: list[FileEntry]) -> list[FileEntry]:
     ]
 
 
+def music_sidecars(entries: list[FileEntry]) -> list[FileEntry]:
+    return [
+        entry
+        for entry in entries
+        if entry.source.suffix.lower() in MUSIC_SIDECAR_EXTENSIONS
+    ]
+
+
 def link_file(source: Path, dest: Path, dry_run: bool, required: bool = True) -> bool:
     level = "ERROR" if required else "WARNING"
     if not source.exists():
@@ -561,11 +654,51 @@ def sort_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, dry
     return ok
 
 
+def strip_common_top_dir(entry: FileEntry, selected: list[FileEntry]) -> Path:
+    selected_parts = [item.relpath.parts for item in selected if item.relpath.parts]
+    if selected_parts and all(len(parts) > 1 for parts in selected_parts):
+        first = selected_parts[0][0]
+        if all(parts[0] == first for parts in selected_parts):
+            return Path(*entry.relpath.parts[1:])
+    return Path(entry.relpath.name)
+
+
+def safe_relative_path(path: Path) -> Path:
+    parts = [safe_component(part) for part in path.parts if part not in {"", "."}]
+    if not parts:
+        raise ValueError(f"unsafe relative path: {path}")
+    return Path(*parts)
+
+
+def sort_music(label: MediaLabel, entries: list[FileEntry], music_root: Path, dry_run: bool) -> bool:
+    ok = True
+    audio = [entry for entry in entries if is_audio(entry)]
+    if not audio:
+        log("WARNING", f"no audio files found for music={label.title!r}")
+        return True
+    if not label.album:
+        log("WARNING", f"needs album label, skipping music artist={label.title!r}")
+        return True
+
+    dest_dir = music_root / safe_component(label.title) / safe_component(label.album)
+    selected = audio + music_sidecars(entries)
+    seen: set[Path] = set()
+    for entry in selected:
+        if entry.source in seen:
+            continue
+        seen.add(entry.source)
+        dest_relpath = safe_relative_path(strip_common_top_dir(entry, selected))
+        ok = link_file(entry.source, dest_dir / dest_relpath, dry_run) and ok
+    return ok
+
+
 def sort_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry], args: argparse.Namespace) -> bool:
     if label.kind == "series":
         return sort_series(label, torrent_name, entries, Path(args.series_root), args.dry_run)
     if label.kind == "film":
         return sort_film(label, entries, Path(args.films_root), args.dry_run)
+    if label.kind == "music":
+        return sort_music(label, entries, Path(args.music_root), args.dry_run)
     log("WARNING", f"unsupported label kind={label.kind!r}")
     return True
 
@@ -584,6 +717,102 @@ def display_title(value: str) -> str:
 
 def strip_bracketed(value: str) -> str:
     return re.sub(r"[\[(].*?[\])]", " ", value)
+
+
+def clean_music_component(value: str) -> str:
+    value = re.sub(r"[\._]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip(" -_.")
+    return safe_component(value)
+
+
+def is_music_release_marker(value: str) -> bool:
+    marker = re.sub(r"[\[\](){}._-]+", " ", value)
+    marker = re.sub(r"\s+", " ", marker).strip().lower()
+    if not marker:
+        return True
+    if marker in MUSIC_RELEASE_MARKERS:
+        return True
+    if re.fullmatch(r"\d{1,2}\s*(?:cd|cds|disc|discs)", marker):
+        return True
+    if re.fullmatch(r"(?:cd|disc)\s*\d{1,2}", marker):
+        return True
+    if re.fullmatch(r"(?:mp3|aac|flac|ogg|opus)\s*\d{2,4}", marker):
+        return True
+    if re.fullmatch(r"\d{2,4}\s*(?:kbps|k|vbr)", marker):
+        return True
+    return False
+
+
+def looks_obfuscated_music_text(value: str) -> bool:
+    alnum = re.findall(r"[a-zA-Z0-9]", value)
+    if len(alnum) < 8:
+        return False
+    digit_ratio = sum(1 for char in alnum if char.isdigit()) / len(alnum)
+    mixed_tokens = [
+        token
+        for token in re.findall(r"[a-zA-Z0-9]+", value)
+        if any(char.isalpha() for char in token) and any(char.isdigit() for char in token)
+    ]
+    return digit_ratio >= 0.22 and len(mixed_tokens) >= 3
+
+
+def music_label_from_text(value: str, reject_obfuscated: bool = True) -> MediaLabel | None:
+    cleaned = strip_bracketed(value)
+    cleaned = re.sub(r"\s*[\[(].*$", " ", cleaned)
+    cleaned = re.sub(r"[\._]+", " ", cleaned)
+    cleaned = re.sub(r"\s+-\s*", " - ", cleaned)
+    cleaned = re.sub(r"\s*-\s+", " - ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -_.")
+    parts = [part.strip(" -_.") for part in re.split(r"\s+-\s+", cleaned) if part.strip(" -_.")]
+    while parts and is_music_release_marker(parts[-1]):
+        parts.pop()
+    if len(parts) < 2:
+        return None
+
+    artist = clean_music_component(parts[0])
+    album = clean_music_component(" - ".join(parts[1:]))
+    if reject_obfuscated and looks_obfuscated_music_text(f"{artist} {album}"):
+        return None
+    return MediaLabel(kind="music", title=artist, album=album)
+
+
+def music_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision | None:
+    del args
+    entries = entries_from_record(record)
+    audio = [entry for entry in entries if is_audio(entry)]
+    if not audio or any(is_video(entry) for entry in entries):
+        return None
+
+    torrent_name = record["torrent"]["name"]
+    candidates = [torrent_name]
+    candidates.extend(entry.relpath.parts[0] for entry in audio if len(entry.relpath.parts) > 1)
+
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        label = music_label_from_text(candidate)
+        if label:
+            return MatchDecision(
+                label,
+                "matched",
+                "matched via music filename heuristic",
+                {
+                    "provider": "filename",
+                    "query": candidate,
+                    "artist": label.title,
+                    "album": label.album,
+                    "audio_count": len(audio),
+                },
+            )
+
+    return MatchDecision(
+        None,
+        "needs_review",
+        "could not derive music artist/album from filename",
+        {"provider": "filename", "query": torrent_name, "audio_count": len(audio)},
+    )
 
 
 def extract_year(value: str) -> int | None:
@@ -811,7 +1040,7 @@ def print_review_queue(args: argparse.Namespace) -> int:
         torrent = record.get("torrent", {})
         match = record.get("match") or {}
         files = record.get("files", [])
-        media_files = [item for item in files if item.get("kind") in {"video", "sidecar"}]
+        media_files = [item for item in files if record_item_kind(item) in {"video", "audio", "sidecar"}]
 
         print(f"- record: {path}")
         print(f"  key: {record.get('download_key', '')}")
@@ -831,7 +1060,7 @@ def print_review_queue(args: argparse.Namespace) -> int:
 
         print(f"  files ({len(media_files)} media / {len(files)} total):")
         for item in media_files:
-            print(f"    - [{item.get('kind', 'file')}] {item.get('path', '')}")
+            print(f"    - [{record_item_kind(item)}] {item.get('path', '')}")
     return 0
 
 
@@ -850,6 +1079,9 @@ def process_queue(args: argparse.Namespace) -> int:
         labels = normalize_labels(record["torrent"].get("labels"))
         label = parse_label(labels)
         decision = MatchDecision(label, "matched", "matched via label", {"provider": "label"}) if label else None
+
+        if decision is None:
+            decision = music_match(record, args)
 
         if decision is None:
             try:
@@ -928,6 +1160,7 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--rpc-url", default="127.0.0.1:9091")
     parser.add_argument("--series-root", default="/mnt/media/series")
     parser.add_argument("--films-root", default="/mnt/media/films")
+    parser.add_argument("--music-root", default="/mnt/media/music")
     parser.add_argument("--source-root", default="/mnt/media/downloads")
     parser.add_argument("--queue-root", default="/var/lib/transmission/media-sorter")
     parser.add_argument("--metadata-json", help="test helper: read Transmission JSON from this file")

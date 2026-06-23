@@ -36,6 +36,7 @@ arch_transmission_rpc_port: 9091
 arch_transmission_rpc_auth_required: false
 arch_media_series_dir: /mnt/media/series
 arch_media_films_dir: /mnt/media/films
+arch_media_music_dir: /mnt/media/music
 arch_media_sorter_path: /usr/local/bin/media-sort-transmission
 arch_media_sorter_queue_root: /var/lib/transmission/media-sorter
 arch_media_sorter_tmdb_env_dir: /etc/media-sorter

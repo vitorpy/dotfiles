@@ -10,14 +10,16 @@ trap 'rm -rf "${tmpdir}"' EXIT
 downloads="${tmpdir}/downloads"
 series="${tmpdir}/series"
 films="${tmpdir}/films"
+music="${tmpdir}/music"
 queue_root="${tmpdir}/queue-root"
-mkdir -p "${downloads}" "${series}" "${films}" "${queue_root}"
+mkdir -p "${downloads}" "${series}" "${films}" "${music}" "${queue_root}"
 
 run_sorter() {
   python3 "${sorter}" \
     --source-root "${downloads}" \
     --series-root "${series}" \
     --films-root "${films}" \
+    --music-root "${music}" \
     --queue-root "${queue_root}" \
     "$@"
 }
@@ -115,6 +117,37 @@ cat > "${tmpdir}/json-rpc-movie.json" <<JSON
 JSON
 run_sorter --metadata-json "${tmpdir}/json-rpc-movie.json" --label "film:Ewoks Jsonrpc"
 assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks Jsonrpc/Ewoks.mkv"
+
+mkdir -p "${downloads}/SelectedAmbient"
+printf audio > "${downloads}/SelectedAmbient/01 - Xtal.flac"
+write_metadata "${tmpdir}/music-label.json" "SelectedAmbient" '[]' \
+  "SelectedAmbient/01 - Xtal.flac"
+run_sorter --metadata-json "${tmpdir}/music-label.json" --label "music:Aphex Twin - Selected Ambient Works 85-92"
+assert_samefile "${downloads}/SelectedAmbient/01 - Xtal.flac" "${music}/Aphex Twin/Selected Ambient Works 85-92/01 - Xtal.flac"
+
+mkdir -p "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Disc 1"
+mkdir -p "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Artwork"
+printf audio > "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Disc 1/01 - Fly Me To The Moon.mp3"
+printf cover > "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Artwork/Front.jpg"
+printf tracker > "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/tracker.txt"
+write_jsonrpc_metadata "${tmpdir}/music-auto.json" "Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]" "musichash"
+run_sorter --metadata-json "${tmpdir}/music-auto.json"
+TMDB_API_TOKEN= run_sorter --process-queue
+assert_samefile "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Disc 1/01 - Fly Me To The Moon.mp3" "${music}/Frank Sinatra/Love Songs My Way/Disc 1/01 - Fly Me To The Moon.mp3"
+assert_samefile "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Artwork/Front.jpg" "${music}/Frank Sinatra/Love Songs My Way/Artwork/Front.jpg"
+assert_not_exists "${music}/Frank Sinatra/Love Songs My Way/tracker.txt"
+test -f "${queue_root}/done/btih_musichash.json"
+jq -e '.match.provider == "filename" and .match.artist == "Frank Sinatra" and .match.album == "Love Songs My Way"' "${queue_root}/done/btih_musichash.json" >/dev/null
+
+mkdir -p "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m"
+printf audio > "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3"
+write_jsonrpc_metadata "${tmpdir}/music-obfuscated.json" "3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m" "obfuscatedmusichash"
+run_sorter --metadata-json "${tmpdir}/music-obfuscated.json"
+TMDB_API_TOKEN= run_sorter --process-queue
+test -f "${queue_root}/needs-review/btih_obfuscatedmusichash.json"
+run_sorter --queue > "${tmpdir}/music-queue-review.out"
+grep -q "could not derive music artist/album from filename" "${tmpdir}/music-queue-review.out"
+grep -q "\\[audio\\] 3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3" "${tmpdir}/music-queue-review.out"
 
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"

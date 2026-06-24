@@ -27,3 +27,13 @@ arch_hosts_entries:
 arch_host_firewall_allowed_tcp_ports_extra:
   - 4000
   - 8081
+
+arch_nginx_managed_confs:
+  - name: atproto-bot-webhook.conf
+    src: nginx/atproto-bot-webhook.conf.j2
+  - name: lob-web.conf
+    src: nginx/lob-web.conf.j2
+  - name: vitorpy.conf
+    src: nginx/vitorpy.conf.j2
+  - name: jellyfin.conf
+    src: nginx/jellyfin.conf.j2

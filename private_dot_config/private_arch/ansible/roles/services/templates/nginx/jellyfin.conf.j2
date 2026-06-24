@@ -1,0 +1,59 @@
+# Managed by Ansible.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jellyfin.vitorpy.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name jellyfin.vitorpy.com;
+    http2 on;
+
+    ssl_certificate /etc/letsencrypt/live/vitorpy.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/vitorpy.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 20M;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+
+    location / {
+        proxy_pass http://mediaserver:8096;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Protocol $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 36000s;
+        proxy_send_timeout 36000s;
+    }
+
+    location /socket {
+        proxy_pass http://mediaserver:8096;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Protocol $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+
+        proxy_buffering off;
+        proxy_read_timeout 36000s;
+        proxy_send_timeout 36000s;
+    }
+}

@@ -1,0 +1,28 @@
+# Managed by Ansible.
+
+server {
+    listen 8081;
+    server_name _;
+
+    root /home/tiago/lob-web/static;
+    index index.html;
+
+    location /downloads/ {
+        alias /home/tiago/lob_server/;
+        autoindex on;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.glb$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location ~* \.(js|css)$ {
+        expires 1d;
+        add_header Cache-Control "public";
+    }
+}

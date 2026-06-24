@@ -1,0 +1,56 @@
+# Managed by Ansible.
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name webhooks.vitorpy.com;
+
+    ssl_certificate /etc/letsencrypt/live/vitorpy.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/vitorpy.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+
+    access_log /var/log/nginx/atproto-bot-webhook-access.log;
+    error_log /var/log/nginx/atproto-bot-webhook-error.log;
+
+    location /webhooks/github {
+        proxy_pass http://127.0.0.1:8082/webhooks/github;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+
+        proxy_buffering off;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8082/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        proxy_connect_timeout 2s;
+        proxy_send_timeout 2s;
+        proxy_read_timeout 2s;
+    }
+
+    location / {
+        return 404;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name webhooks.vitorpy.com;
+    return 301 https://$server_name$request_uri;
+}

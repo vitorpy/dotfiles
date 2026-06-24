@@ -44,6 +44,8 @@ arch_media_sorter_tmdb_env_file: "{{ arch_media_sorter_tmdb_env_dir }}/tmdb.env"
 arch_media_sorter_audiodb_api_key: "123"
 arch_media_sorter_acoustid_api_key: ""
 arch_media_sorter_timer_enabled: true
+arch_nginx_conf_dir: /etc/nginx/conf.d
+arch_nginx_managed_confs: []
 
 arch_hosts_entries:
   - "127.0.0.1 localhost"

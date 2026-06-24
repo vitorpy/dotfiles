@@ -95,6 +95,52 @@
     - security_grub_defaults.stat.exists
   notify: Regenerate grub config
 
+- name: Compute managed GRUB kernel parameter tokens
+  ansible.builtin.set_fact:
+    security_grub_kernel_parameter_tokens: >-
+      {{
+        (
+          (arch_apparmor_boot_parameters.split() if (arch_apparmor_enabled | bool) else [])
+          + (['lockdown=' ~ arch_lockdown_mode] if (arch_lockdown_enabled | bool) else [])
+        ) | unique
+      }}
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - arch_apparmor_enabled | bool or arch_lockdown_enabled | bool
+    - security_grub_defaults.stat.exists
+
+- name: Check generated GRUB config for managed kernel parameters
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Fq
+      - "--"
+      - "{{ item }}"
+      - /boot/grub/grub.cfg
+  loop: "{{ security_grub_kernel_parameter_tokens | default([]) }}"
+  register: security_grub_config_parameter_checks
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - arch_manage_grub_kernel_parameters | bool
+    - security_grub_defaults.stat.exists
+
+- name: Report stale generated GRUB config
+  ansible.builtin.debug:
+    msg: /boot/grub/grub.cfg is missing managed kernel parameters and will be regenerated outside check mode.
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - security_grub_config_parameter_checks.results | default([]) | selectattr('rc', 'ne', 0) | list | length > 0
+
+- name: Regenerate stale GRUB config
+  ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - security_grub_config_parameter_checks.results | default([]) | selectattr('rc', 'ne', 0) | list | length > 0
+
 - name: Install nftables ruleset
   ansible.builtin.template:
     src: nftables.conf.j2

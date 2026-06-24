@@ -1,0 +1,10 @@
+[Unit]
+Description=Update Transmission torrents with managed public trackers
+After=network-online.target transmission.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=transmission
+Group=transmission
+ExecStart={{ arch_transmission_tracker_updater_path }} --rpc-url http://127.0.0.1:{{ arch_transmission_rpc_port }}/transmission/rpc --state-file {{ arch_transmission_tracker_updater_state_file }}{% for tracker_url in arch_transmission_tracker_updater_tracker_urls %} --tracker-url {{ tracker_url | quote }}{% endfor %}

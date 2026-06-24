@@ -32,6 +32,28 @@
     mode: "0755"
   when: arch_transmission_enabled | bool
 
+- name: Install Transmission tracker updater
+  ansible.builtin.copy:
+    src: transmission-update-trackers
+    dest: "{{ arch_transmission_tracker_updater_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - arch_transmission_enabled | bool
+    - arch_transmission_tracker_updater_enabled | bool
+
+- name: Ensure Transmission tracker updater state directory exists
+  ansible.builtin.file:
+    path: "{{ arch_transmission_tracker_updater_state_dir }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "0750"
+  when:
+    - arch_transmission_enabled | bool
+    - arch_transmission_tracker_updater_enabled | bool
+
 - name: Ensure media sorter TMDB environment directory exists
   ansible.builtin.file:
     path: "{{ arch_media_sorter_tmdb_env_dir }}"
@@ -128,6 +150,26 @@
   register: services_media_sorter_process_timer
   when: arch_transmission_enabled | bool
 
+- name: Install Transmission tracker updater service
+  ansible.builtin.template:
+    src: transmission-trackers-update.service.j2
+    dest: /etc/systemd/system/transmission-trackers-update.service
+    mode: "0644"
+  register: services_transmission_trackers_update_service
+  when:
+    - arch_transmission_enabled | bool
+    - arch_transmission_tracker_updater_enabled | bool
+
+- name: Install Transmission tracker updater timer
+  ansible.builtin.template:
+    src: transmission-trackers-update.timer.j2
+    dest: /etc/systemd/system/transmission-trackers-update.timer
+    mode: "0644"
+  register: services_transmission_trackers_update_timer
+  when:
+    - arch_transmission_enabled | bool
+    - arch_transmission_tracker_updater_enabled | bool
+
 - name: Check Transmission media sorter settings
   ansible.builtin.command:
     argv:
@@ -175,7 +217,7 @@
     daemon_reload: true
   when:
     - arch_transmission_enabled | bool
-    - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false))
+    - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false)) or (services_transmission_trackers_update_service.changed | default(false)) or (services_transmission_trackers_update_timer.changed | default(false))
 
 - name: Gather service facts
   ansible.builtin.service_facts:
@@ -328,6 +370,16 @@
     - arch_transmission_enabled | bool
     - arch_media_sorter_timer_enabled | bool
     - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
+
+- name: Enable Transmission tracker updater timer
+  ansible.builtin.systemd:
+    name: transmission-trackers-update.timer
+    enabled: true
+    state: started
+  when:
+    - arch_transmission_enabled | bool
+    - arch_transmission_tracker_updater_enabled | bool
+    - not ansible_check_mode or 'transmission-trackers-update.timer' in ansible_facts.services
 
 - name: Restart Transmission after config changes
   ansible.builtin.systemd:

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Transmission tracker updater daily
+
+[Timer]
+OnCalendar={{ arch_transmission_tracker_updater_on_calendar }}
+Persistent=true
+RandomizedDelaySec=1h
+AccuracySec=15m
+Unit=transmission-trackers-update.service
+
+[Install]
+WantedBy=timers.target

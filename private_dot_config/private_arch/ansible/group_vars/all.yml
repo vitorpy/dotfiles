@@ -34,6 +34,13 @@ arch_transmission_download_dir: /var/lib/transmission/Downloads
 arch_transmission_rpc_allowed: "127.0.0.1,::1"
 arch_transmission_rpc_port: 9091
 arch_transmission_rpc_auth_required: false
+arch_transmission_tracker_updater_enabled: false
+arch_transmission_tracker_updater_path: /usr/local/bin/transmission-update-trackers
+arch_transmission_tracker_updater_state_dir: /var/lib/transmission/tracker-updater
+arch_transmission_tracker_updater_state_file: "{{ arch_transmission_tracker_updater_state_dir }}/state.json"
+arch_transmission_tracker_updater_tracker_urls:
+  - https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt
+arch_transmission_tracker_updater_on_calendar: daily
 arch_media_series_dir: /mnt/media/series
 arch_media_films_dir: /mnt/media/films
 arch_media_music_dir: /mnt/media/music

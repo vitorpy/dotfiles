@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Update Transmission torrents with a managed public tracker list."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+
+ALLOWED_TRACKER_PREFIXES = ("http://", "https://", "udp://")
+
+
+def tracker_key(tracker: str) -> str:
+    return tracker.strip().lower()
+
+
+def parse_tracker_text(text: str) -> list[str]:
+    trackers: list[str] = []
+    seen: set[str] = set()
+    for line in text.splitlines():
+        tracker = line.strip()
+        if not tracker or tracker.startswith("#"):
+            continue
+        if not tracker.lower().startswith(ALLOWED_TRACKER_PREFIXES):
+            continue
+        key = tracker_key(tracker)
+        if key in seen:
+            continue
+        seen.add(key)
+        trackers.append(tracker)
+    return trackers
+
+
+def merge_trackers(
+    current_trackers: list[str],
+    desired_trackers: list[str],
+    previous_managed_trackers: list[str],
+) -> list[str]:
+    desired_keys = {tracker_key(tracker) for tracker in desired_trackers}
+    previous_keys = {tracker_key(tracker) for tracker in previous_managed_trackers}
+    preserved = [
+        tracker
+        for tracker in current_trackers
+        if tracker_key(tracker) not in previous_keys and tracker_key(tracker) not in desired_keys
+    ]
+    return preserved + desired_trackers
+
+
+def fetch_tracker_url(url: str, timeout: int) -> str:
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "transmission-update-trackers/1"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read().decode("utf-8")
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"WARNING: ignoring unreadable state file {path}: {exc}", file=sys.stderr)
+        return {}
+
+
+def write_state(path: Path, managed_trackers: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    state = {
+        "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "managed_trackers": managed_trackers,
+    }
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w") as tmp_file:
+            json.dump(state, tmp_file, indent=2, sort_keys=True)
+            tmp_file.write("\n")
+        os.replace(tmp_name, path)
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+
+
+class TransmissionRpc:
+    def __init__(self, url: str, timeout: int) -> None:
+        self.url = url
+        self.timeout = timeout
+        self.session_id: str | None = None
+
+    def call(self, method: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = json.dumps({"method": method, "arguments": arguments or {}}).encode()
+        for _ in range(2):
+            headers = {"Content-Type": "application/json"}
+            if self.session_id:
+                headers["X-Transmission-Session-Id"] = self.session_id
+            request = urllib.request.Request(self.url, data=payload, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                    if result.get("result") != "success":
+                        raise RuntimeError(f"Transmission RPC {method} failed: {result!r}")
+                    return result
+            except urllib.error.HTTPError as exc:
+                if exc.code == 409:
+                    self.session_id = exc.headers.get("X-Transmission-Session-Id")
+                    if self.session_id:
+                        continue
+                raise
+        raise RuntimeError("Transmission RPC session-id handshake failed")
+
+    def get_torrents(self) -> list[dict[str, Any]]:
+        result = self.call(
+            "torrent-get",
+            {"fields": ["id", "name", "trackerList"]},
+        )
+        return result.get("arguments", {}).get("torrents", [])
+
+    def set_tracker_list(self, torrent_id: int, trackers: list[str]) -> None:
+        self.call(
+            "torrent-set",
+            {
+                "ids": [torrent_id],
+                "trackerList": "\n\n".join(trackers),
+            },
+        )
+
+
+def tracker_list_changed(current_trackers: list[str], desired_trackers: list[str]) -> bool:
+    return [tracker_key(tracker) for tracker in current_trackers] != [
+        tracker_key(tracker) for tracker in desired_trackers
+    ]
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--rpc-url", default="http://127.0.0.1:9091/transmission/rpc")
+    parser.add_argument("--state-file", default="/var/lib/transmission/tracker-updater/state.json")
+    parser.add_argument("--tracker-url", action="append", default=[])
+    parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--dry-run", action="store_true")
+    return parser
+
+
+def main() -> int:
+    args = build_arg_parser().parse_args()
+    state_file = Path(args.state_file)
+    state = load_state(state_file)
+    previous_managed_trackers = state.get("managed_trackers", [])
+    if not isinstance(previous_managed_trackers, list):
+        previous_managed_trackers = []
+
+    desired_trackers: list[str] = []
+    seen_desired: set[str] = set()
+    for url in args.tracker_url:
+        for tracker in parse_tracker_text(fetch_tracker_url(url, args.timeout)):
+            key = tracker_key(tracker)
+            if key not in seen_desired:
+                seen_desired.add(key)
+                desired_trackers.append(tracker)
+
+    if not desired_trackers:
+        raise RuntimeError("no usable trackers were loaded")
+
+    client = TransmissionRpc(args.rpc_url, args.timeout)
+    torrents = client.get_torrents()
+    changed_count = 0
+
+    for torrent in torrents:
+        torrent_id = int(torrent["id"])
+        name = torrent.get("name", f"id={torrent_id}")
+        current_trackers = parse_tracker_text(torrent.get("trackerList") or "")
+        merged_trackers = merge_trackers(
+            current_trackers,
+            desired_trackers,
+            [str(tracker) for tracker in previous_managed_trackers],
+        )
+        if not tracker_list_changed(current_trackers, merged_trackers):
+            continue
+        changed_count += 1
+        print(f"updating torrent id={torrent_id} name={name!r} trackers={len(merged_trackers)}")
+        if not args.dry_run:
+            client.set_tracker_list(torrent_id, merged_trackers)
+
+    if not args.dry_run:
+        write_state(state_file, desired_trackers)
+
+    print(
+        "completed: "
+        f"torrents={len(torrents)} changed={changed_count} managed_trackers={len(desired_trackers)}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1)

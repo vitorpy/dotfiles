@@ -8,6 +8,9 @@ table inet filter {
     policy drop;
 
     iifname "lo" accept
+{% for interface in arch_firewall_trusted_interfaces | default([]) %}
+    iifname "{{ interface }}" accept
+{% endfor %}
     ct state established,related accept
     ct state invalid drop
 

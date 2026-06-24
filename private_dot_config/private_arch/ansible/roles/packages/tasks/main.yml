@@ -1,13 +1,17 @@
 ---
+- name: Compute effective pacman package list
+  ansible.builtin.set_fact:
+    packages_pacman_effective: "{{ (arch_pacman_packages + arch_host_pacman_packages_extra) | unique }}"
+
 - name: Install pacman packages
   ansible.builtin.package:
-    name: "{{ arch_pacman_packages | unique }}"
+    name: "{{ packages_pacman_effective }}"
     state: present
-  when: arch_pacman_packages | length > 0
+  when: packages_pacman_effective | length > 0
 
 - name: Compute declared package set
   ansible.builtin.set_fact:
-    packages_declared_all: "{{ (arch_pacman_packages + arch_aur_packages + arch_package_prune_exclude) | unique }}"
+    packages_declared_all: "{{ (packages_pacman_effective + arch_aur_packages + arch_package_prune_exclude) | unique }}"
   when: arch_package_prune_explicit | bool
 
 - name: Install yay build prerequisites

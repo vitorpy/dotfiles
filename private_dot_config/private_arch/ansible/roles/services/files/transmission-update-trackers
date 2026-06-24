@@ -133,6 +133,11 @@ class TransmissionRpc:
             },
         )
 
+    def reannounce_torrents(self, torrent_ids: list[int]) -> None:
+        if not torrent_ids:
+            return
+        self.call("torrent-reannounce", {"ids": torrent_ids})
+
 
 def tracker_list_changed(current_trackers: list[str], desired_trackers: list[str]) -> bool:
     return [tracker_key(tracker) for tracker in current_trackers] != [
@@ -173,6 +178,7 @@ def main() -> int:
     client = TransmissionRpc(args.rpc_url, args.timeout)
     torrents = client.get_torrents()
     changed_count = 0
+    changed_torrent_ids: list[int] = []
 
     for torrent in torrents:
         torrent_id = int(torrent["id"])
@@ -186,12 +192,16 @@ def main() -> int:
         if not tracker_list_changed(current_trackers, merged_trackers):
             continue
         changed_count += 1
+        changed_torrent_ids.append(torrent_id)
         print(f"updating torrent id={torrent_id} name={name!r} trackers={len(merged_trackers)}")
         if not args.dry_run:
             client.set_tracker_list(torrent_id, merged_trackers)
 
     if not args.dry_run:
         write_state(state_file, desired_trackers)
+        if changed_torrent_ids:
+            client.reannounce_torrents(changed_torrent_ids)
+            print(f"reannounced torrents={len(changed_torrent_ids)}")
 
     print(
         "completed: "

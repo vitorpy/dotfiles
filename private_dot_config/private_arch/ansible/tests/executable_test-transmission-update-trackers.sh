@@ -56,4 +56,22 @@ assert merged == [
 
 assert module.tracker_list_changed(["UDP://TRACKER.EXAMPLE:1337/announce"], ["udp://tracker.example:1337/announce"]) is False
 assert module.tracker_list_changed(["udp://old.example/announce"], ["udp://new.example/announce"]) is True
+
+calls = []
+
+
+class FakeTransmissionRpc(module.TransmissionRpc):
+    def __init__(self):
+        pass
+
+    def call(self, method, arguments=None):
+        calls.append((method, arguments or {}))
+        return {"result": "success"}
+
+
+client = FakeTransmissionRpc()
+client.reannounce_torrents([])
+assert calls == []
+client.reannounce_torrents([1, 2])
+assert calls == [("torrent-reannounce", {"ids": [1, 2]})]
 PY

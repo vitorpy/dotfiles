@@ -71,7 +71,7 @@
     state: directory
     owner: transmission
     group: transmission
-    mode: "2750"
+    mode: "2770"
   loop:
     - "{{ arch_media_sorter_queue_root }}"
     - "{{ arch_media_sorter_queue_root }}/queue"
@@ -175,7 +175,7 @@
     daemon_reload: true
   when:
     - arch_transmission_enabled | bool
-    - services_transmission_override.changed or services_media_sorter_process_service.changed or services_media_sorter_process_timer.changed
+    - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false))
 
 - name: Gather service facts
   ansible.builtin.service_facts:
@@ -303,7 +303,7 @@
     state: restarted
   when:
     - arch_transmission_enabled | bool
-    - services_transmission_override.changed or services_transmission_download_dir.changed or services_transmission_sorter_enabled.changed or services_transmission_sorter_filename.changed
+    - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
 
 - name: Restart Jellyfin after media config changes
   ansible.builtin.systemd:

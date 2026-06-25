@@ -1376,6 +1376,28 @@ def candidate_year(media_type: str, candidate: dict[str, Any]) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def candidate_vote_count(candidate: dict[str, Any]) -> int:
+    try:
+        return int(candidate.get("vote_count") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def candidate_popularity(candidate: dict[str, Any]) -> float:
+    try:
+        return float(candidate.get("popularity") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def tmdb_candidate_sort_key(candidate: dict[str, Any]) -> tuple[float, int, float]:
+    return (
+        float(candidate.get("confidence") or 0),
+        int(candidate.get("vote_count") or 0),
+        float(candidate.get("popularity") or 0),
+    )
+
+
 def score_candidate(
     media_type: str,
     query: MetadataQuery,
@@ -1431,6 +1453,8 @@ def ranked_candidates(args: argparse.Namespace, media_type: str, query: Metadata
                 "provider_id": candidate.get("id"),
                 "title": candidate_title(media_type, candidate),
                 "year": candidate_year(media_type, candidate),
+                "vote_count": candidate_vote_count(candidate),
+                "popularity": candidate_popularity(candidate),
                 "query": query.query,
                 "query_source": query.source,
                 "alternative_titles": alternative_title_values(alternative_titles)[:10],
@@ -1439,7 +1463,23 @@ def ranked_candidates(args: argparse.Namespace, media_type: str, query: Metadata
                 "raw": candidate,
             }
         )
-    return sorted(ranked, key=lambda item: item["confidence"], reverse=True)
+    return sorted(ranked, key=tmdb_candidate_sort_key, reverse=True)
+
+
+def tmdb_vote_count_tiebreak(top: dict[str, Any], runner_up: dict[str, Any], args: argparse.Namespace) -> dict[str, Any] | None:
+    top_votes = int(top.get("vote_count") or 0)
+    runner_up_votes = int(runner_up.get("vote_count") or 0)
+    vote_gap = top_votes - runner_up_votes
+    if top_votes < args.tmdb_vote_tiebreak_min_votes:
+        return None
+    if vote_gap < args.tmdb_vote_tiebreak_min_gap:
+        return None
+    return {
+        "type": "vote_count",
+        "top_vote_count": top_votes,
+        "runner_up_vote_count": runner_up_votes,
+        "vote_gap": vote_gap,
+    }
 
 
 def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
@@ -1462,9 +1502,9 @@ def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisio
     for candidate in candidates:
         key = (str(candidate.get("media_type")), candidate.get("provider_id") or f"{candidate.get('title')}:{candidate.get('year')}")
         existing = deduped.get(key)
-        if existing is None or candidate["confidence"] > existing["confidence"]:
+        if existing is None or tmdb_candidate_sort_key(candidate) > tmdb_candidate_sort_key(existing):
             deduped[key] = candidate
-    candidates = sorted(deduped.values(), key=lambda item: item["confidence"], reverse=True)
+    candidates = sorted(deduped.values(), key=tmdb_candidate_sort_key, reverse=True)
     if not candidates:
         return MatchDecision(
             None,
@@ -1474,20 +1514,34 @@ def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisio
         )
 
     top = candidates[0]
-    runner_up = candidates[1]["confidence"] if len(candidates) > 1 else 0
-    if top["confidence"] < args.tmdb_min_confidence or top["confidence"] - runner_up < args.tmdb_min_gap:
+    runner_up_candidate = candidates[1] if len(candidates) > 1 else None
+    runner_up = runner_up_candidate["confidence"] if runner_up_candidate else 0
+    tie_breaker = None
+    if top["confidence"] < args.tmdb_min_confidence:
         return MatchDecision(
             None,
             "needs_review",
             "ambiguous TMDB match",
             {"query": top["query"], "queries": [query.query for query in queries], "candidates": candidates[:5]},
         )
+    if top["confidence"] - runner_up < args.tmdb_min_gap:
+        if runner_up_candidate:
+            tie_breaker = tmdb_vote_count_tiebreak(top, runner_up_candidate, args)
+        if not tie_breaker:
+            return MatchDecision(
+                None,
+                "needs_review",
+                "ambiguous TMDB match",
+                {"query": top["query"], "queries": [query.query for query in queries], "candidates": candidates[:5]},
+            )
 
     if top["media_type"] == "movie":
         label = MediaLabel(kind="film", title=safe_component(top["title"]))
     else:
         label = MediaLabel(kind="series", title=safe_component(top["title"]), season=hints["season"])
     match = {"query": top["query"], "queries": [query.query for query in queries], "selected": top, "candidates": candidates[:5], "hints": hints}
+    if tie_breaker:
+        match["tie_breaker"] = tie_breaker
     return MatchDecision(label, "matched", "matched via TMDB", match)
 
 
@@ -1668,6 +1722,8 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--tmdb-timeout", type=float, default=10.0)
     parser.add_argument("--tmdb-min-confidence", type=float, default=0.86)
     parser.add_argument("--tmdb-min-gap", type=float, default=0.07)
+    parser.add_argument("--tmdb-vote-tiebreak-min-votes", type=int, default=25)
+    parser.add_argument("--tmdb-vote-tiebreak-min-gap", type=int, default=25)
     parser.add_argument("--audiodb-fixture-json", help="test helper: read TheAudioDB search responses from this file")
     parser.add_argument("--audiodb-api-key", help="TheAudioDB v1 API key; defaults to AUDIODB_API_KEY")
     parser.add_argument("--audiodb-timeout", type=float, default=10.0)

@@ -304,6 +304,10 @@ printf stalker > "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HE
 printf stalkersubs > "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker.srt"
 write_jsonrpc_metadata "${tmpdir}/stalker.json" "Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]" "stalkerhash"
 
+mkdir -p "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]"
+printf loveletter > "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
+write_jsonrpc_metadata "${tmpdir}/love-letter.json" "Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]" "loveletterhash"
+
 cat > "${tmpdir}/tmdb-fixture.json" <<JSON
 {
   "movie": {
@@ -325,6 +329,12 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
         {"id": 1398, "title": "Stalker", "release_date": "1979-05-25"},
         {"id": 1444232, "title": "Stalker", "release_date": "2025-05-23"},
         {"id": 401218, "title": "Stalker", "release_date": "2014-08-27"}
+      ]
+    },
+    "Love Letter": {
+      "results": [
+        {"id": 1370985, "title": "love letter", "release_date": "1995-02-05", "vote_count": 0, "popularity": 0.0461},
+        {"id": 47002, "title": "Love Letter", "release_date": "1995-03-25", "vote_count": 265, "popularity": 5.2822}
       ]
     },
     "Ambiguous": {
@@ -368,6 +378,7 @@ run_sorter --metadata-json "${tmpdir}/patriot.json"
 run_sorter --metadata-json "${tmpdir}/lain.json"
 run_sorter --metadata-json "${tmpdir}/russian-movie.json"
 run_sorter --metadata-json "${tmpdir}/stalker.json"
+run_sorter --metadata-json "${tmpdir}/love-letter.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
@@ -377,15 +388,18 @@ assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1
 assert_samefile "${downloads}/Короткий фильм о любви.1988.BDRip 720p msltel/Короткий фильм о любви.1988.BDRip 720p msltel.mkv" "${films}/A Short Film About Love/Короткий фильм о любви.1988.BDRip 720p msltel.mkv"
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker .mkv" "${films}/Stalker/Stalker .mkv"
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker.srt" "${films}/Stalker/Stalker.srt"
+assert_samefile "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv" "${films}/Love Letter/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
 assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 test -f "${queue_root}/done/btih_perfecthash.json"
 test -f "${queue_root}/done/btih_patriothash.json"
 test -f "${queue_root}/done/btih_lainhash.json"
 test -f "${queue_root}/done/btih_russianmoviehash.json"
 test -f "${queue_root}/done/btih_stalkerhash.json"
+test -f "${queue_root}/done/btih_loveletterhash.json"
 jq -e '.match.query == "Serial Experiments Lain" and .match.hints.season == 1' "${queue_root}/done/btih_lainhash.json" >/dev/null
 jq -e '.match.selected.matched_title_source == "alternative_title" and .match.selected.provider_id == 31056' "${queue_root}/done/btih_russianmoviehash.json" >/dev/null
 jq -e '.match.query == "Stalker" and .match.selected.query_source == "file-stem" and .match.selected.provider_id == 1398' "${queue_root}/done/btih_stalkerhash.json" >/dev/null
+jq -e '.match.selected.provider_id == 47002 and .match.tie_breaker.type == "vote_count" and .match.tie_breaker.vote_gap == 265' "${queue_root}/done/btih_loveletterhash.json" >/dev/null
 
 mkdir -p "${downloads}/Ambiguous.2020.1080p.WEBRip"
 printf ambiguous > "${downloads}/Ambiguous.2020.1080p.WEBRip/Ambiguous.2020.1080p.WEBRip.mkv"

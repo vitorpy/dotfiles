@@ -7,6 +7,7 @@ from media_sorter.labels import parse_label
 from media_sorter.media_files import is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
+from media_sorter.series import jellyfin_series_name
 from media_sorter.tmdb import media_hints, record_has_series_season_hint, tmdb_vote_count_tiebreak
 from media_sorter.utils import parse_season
 
@@ -38,6 +39,12 @@ def test_special_opening_videos_are_detected_without_season() -> None:
     assert season_from_entry(clean_op) is None
 
 
+def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:
+    assert jellyfin_series_name("Show E01 Title.mkv", 1) == "Show S01E01 Title.mkv"
+    assert jellyfin_series_name("Show E26 Finale.mkv", 12) == "Show S12E26 Finale.mkv"
+    assert jellyfin_series_name("Show S01E01E02 Pilot.mkv", 1) == "Show S01E01-E02 Pilot.mkv"
+
+
 def test_episode_range_pack_can_infer_season_one() -> None:
     record = queue_record(
         "[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]",
@@ -55,6 +62,16 @@ def test_seasonless_series_needs_review_even_with_episode_numbers() -> None:
         "Seasonless Anime",
         video_record("Seasonless Anime/Seasonless Anime E01.mkv"),
         video_record("Seasonless Anime/Seasonless Anime E02.mkv"),
+    )
+    hints = media_hints(record)
+    assert hints["season"] is None
+    assert not record_has_series_season_hint(record, hints)
+
+
+def test_special_videos_are_not_series_season_hints() -> None:
+    record = queue_record(
+        "Ghost in the Shell Stand Alone Complex Complete Series Batch",
+        video_record("Ghost in the Shell Stand Alone Complex Clean OP.mp4"),
     )
     hints = media_hints(record)
     assert hints["season"] is None

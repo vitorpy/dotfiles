@@ -21,11 +21,18 @@ def same_stem_sidecars(video: FileEntry, entries: list[FileEntry]) -> list[FileE
 
 
 
-def jellyfin_series_name(filename: str) -> str:
-    return re.sub(
+def jellyfin_series_name(filename: str, season: int | None = None) -> str:
+    filename = re.sub(
         r"(?i)\bS(\d{1,2})E(\d{1,3})((?:E\d{1,3})+)\b",
         lambda match: f"S{int(match.group(1)):02d}E{int(match.group(2)):02d}"
         + "".join(f"-E{int(episode):02d}" for episode in re.findall(r"(?i)E(\d{1,3})", match.group(3))),
+        filename,
+    )
+    if season is None:
+        return filename
+    return re.sub(
+        r"(?i)(?<![A-Z0-9-])E(\d{1,3})(?![A-Z0-9])",
+        lambda match: f"S{season:02d}E{int(match.group(1)):02d}",
         filename,
     )
 
@@ -39,23 +46,23 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         return True
 
     for video in videos:
+        special_video = is_special_video(video)
         extra_folder = extra_video_folder(video)
-        season = (
-            0
-            if is_special_video(video)
-            else first_not_none(season_from_entry(video), parse_season(torrent_name), label.season)
-        )
-        if season is None:
+        if special_video:
+            extra_folder = "extras"
+        season = first_not_none(season_from_entry(video), parse_season(torrent_name), label.season)
+        if season is None and not special_video:
             log("WARNING", f"needs season label, skipping source={video.source} series={label.title!r}")
             ok = False
             continue
 
-        season_dir = f"Season {season:02d}"
-        dest_dir = series_root / safe_component(label.title) / season_dir
+        dest_dir = series_root / safe_component(label.title)
+        if season is not None:
+            dest_dir = dest_dir / f"Season {season:02d}"
         if extra_folder:
             dest_dir = dest_dir / extra_folder
 
-        video_dest_name = jellyfin_series_name(video.source.name)
+        video_dest_name = jellyfin_series_name(video.source.name, season)
         ok = link_file(video.source, dest_dir / video_dest_name, dry_run) and ok
 
         for sidecar in same_stem_sidecars(video, entries):

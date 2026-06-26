@@ -374,7 +374,7 @@ def record_has_series_season_hint(record: dict[str, Any], hints: dict[str, Any])
     if parse_season(torrent_name) is not None:
         return True
     videos = [entry for entry in entries_from_record(record) if is_video(entry)]
-    return any(is_special_video(entry) or season_from_entry(entry) is not None for entry in videos)
+    return any(season_from_entry(entry) is not None for entry in videos)
 
 
 

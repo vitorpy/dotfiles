@@ -291,6 +291,7 @@ write_jsonrpc_metadata "${tmpdir}/patriot.json" "Patriot Season 2 Complete 720p 
 mkdir -p "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]"
 printf lain01 > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4"
 printf lain02 > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 02 [BD][1080p][AAC].mp4"
+printf laincleanop > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
 printf lainop > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 printf lained > "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4"
 write_jsonrpc_metadata "${tmpdir}/lain.json" "[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]" "lainhash"
@@ -307,6 +308,11 @@ write_jsonrpc_metadata "${tmpdir}/stalker.json" "Andrei Tarkovsky's Stalker (197
 mkdir -p "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]"
 printf loveletter > "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
 write_jsonrpc_metadata "${tmpdir}/love-letter.json" "Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]" "loveletterhash"
+
+mkdir -p "${downloads}/Seasonless Anime"
+printf seasonless01 > "${downloads}/Seasonless Anime/Seasonless Anime E01.mkv"
+printf seasonless02 > "${downloads}/Seasonless Anime/Seasonless Anime E02.mkv"
+write_jsonrpc_metadata "${tmpdir}/seasonless-anime.json" "Seasonless Anime" "seasonlessanimehash"
 
 cat > "${tmpdir}/tmdb-fixture.json" <<JSON
 {
@@ -359,6 +365,11 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
       "results": [
         {"id": 60796, "name": "Stalker", "first_air_date": "2014-10-01"}
       ]
+    },
+    "Seasonless Anime": {
+      "results": [
+        {"id": 424242, "name": "Seasonless Anime", "first_air_date": "2020-01-01"}
+      ]
     }
   },
   "alternative_titles": {
@@ -379,16 +390,22 @@ run_sorter --metadata-json "${tmpdir}/lain.json"
 run_sorter --metadata-json "${tmpdir}/russian-movie.json"
 run_sorter --metadata-json "${tmpdir}/stalker.json"
 run_sorter --metadata-json "${tmpdir}/love-letter.json"
+run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4"
+assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 00/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 00/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 00/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/Короткий фильм о любви.1988.BDRip 720p msltel/Короткий фильм о любви.1988.BDRip 720p msltel.mkv" "${films}/A Short Film About Love/Короткий фильм о любви.1988.BDRip 720p msltel.mkv"
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker .mkv" "${films}/Stalker/Stalker .mkv"
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker.srt" "${films}/Stalker/Stalker.srt"
 assert_samefile "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv" "${films}/Love Letter/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
+assert_not_exists "${series}/Seasonless Anime"
+test -f "${queue_root}/needs-review/btih_seasonlessanimehash.json"
+jq -e '.reason == "series season ambiguous" and .match.candidates[0].provider_id == 424242' "${queue_root}/needs-review/btih_seasonlessanimehash.json" >/dev/null
+assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
 assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 test -f "${queue_root}/done/btih_perfecthash.json"
 test -f "${queue_root}/done/btih_patriothash.json"

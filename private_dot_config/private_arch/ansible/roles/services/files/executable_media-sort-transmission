@@ -152,6 +152,7 @@ RELEASE_TOKENS = {
 SPECIAL_VIDEO_PATTERNS = (
     re.compile(r"(?i)(?:^|[^a-z0-9])NCOP(?:[^a-z0-9]|$)"),
     re.compile(r"(?i)(?:^|[^a-z0-9])NCED(?:[^a-z0-9]|$)"),
+    re.compile(r"(?i)clean[ ._-]*(?:op|opening)"),
     re.compile(r"(?i)non[ ._-]*credit"),
     re.compile(r"(?i)creditless"),
 )
@@ -643,6 +644,7 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         )
         if season is None:
             log("WARNING", f"needs season label, skipping source={video.source} series={label.title!r}")
+            ok = False
             continue
 
         season_dir = f"Season {season:02d}"
@@ -1482,6 +1484,16 @@ def tmdb_vote_count_tiebreak(top: dict[str, Any], runner_up: dict[str, Any], arg
     }
 
 
+def record_has_series_season_hint(record: dict[str, Any], hints: dict[str, Any]) -> bool:
+    if hints.get("season") is not None:
+        return True
+    torrent_name = record["torrent"]["name"]
+    if parse_season(torrent_name) is not None:
+        return True
+    videos = [entry for entry in entries_from_record(record) if is_video(entry)]
+    return any(is_special_video(entry) or season_from_entry(entry) is not None for entry in videos)
+
+
 def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
     hints = media_hints(record)
     queries = metadata_query_variants(record, hints)
@@ -1538,6 +1550,13 @@ def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisio
     if top["media_type"] == "movie":
         label = MediaLabel(kind="film", title=safe_component(top["title"]))
     else:
+        if not record_has_series_season_hint(record, hints):
+            return MatchDecision(
+                None,
+                "needs_review",
+                "series season ambiguous",
+                {"query": top["query"], "queries": [query.query for query in queries], "candidates": candidates[:5], "hints": hints},
+            )
         label = MediaLabel(kind="series", title=safe_component(top["title"]), season=hints["season"])
     match = {"query": top["query"], "queries": [query.query for query in queries], "selected": top, "candidates": candidates[:5], "hints": hints}
     if tie_breaker:

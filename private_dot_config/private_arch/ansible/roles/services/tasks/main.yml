@@ -23,6 +23,16 @@
   register: services_transmission_override
   when: arch_transmission_enabled | bool
 
+- name: Install Transmission media sorter library
+  ansible.builtin.copy:
+    src: media-sorter/
+    dest: "{{ arch_media_sorter_lib_dir }}/"
+    owner: root
+    group: root
+    mode: "0644"
+    directory_mode: "0755"
+  when: arch_transmission_enabled | bool
+
 - name: Install Transmission media sorter hook
   ansible.builtin.copy:
     src: media-sort-transmission

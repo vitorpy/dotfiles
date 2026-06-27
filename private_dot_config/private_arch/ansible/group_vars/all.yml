@@ -261,6 +261,7 @@ arch_aur_packages_development:
   - vscodium-bin
   - aws-cli-bin
   - vsce
+  - jira-cli-bin
 
 arch_aur_packages_communication:
   - 1password
@@ -389,11 +390,13 @@ arch_pacman_packages_desktop_extras:
   - colord
   - cups
   - fontforge
+  - freerdp
   - gst-plugin-pipewire
   - kpat
   - libpulse
   - nss-mdns
   - radeontop
+  - remmina
   - solaar
   - system-config-printer
   - transmission-gtk
@@ -412,5 +415,7 @@ arch_pacman_packages_desktop_extras:
   - vlc-plugin-x265
 
 arch_pacman_packages_dev_extras:
+  - helm
+  - kubectl
   - python-huggingface-hub
   - rocm-ml-sdk

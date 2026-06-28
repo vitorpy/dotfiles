@@ -8,7 +8,7 @@ from media_sorter.media_files import is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
 from media_sorter.series import jellyfin_series_name
-from media_sorter.tmdb import media_hints, record_has_series_season_hint, tmdb_vote_count_tiebreak
+from media_sorter.tmdb import candidates_matching_preference, media_hints, record_has_series_season_hint, tmdb_vote_count_tiebreak
 from media_sorter.utils import parse_season
 
 
@@ -43,6 +43,7 @@ def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:
     assert jellyfin_series_name("Show E01 Title.mkv", 1) == "Show S01E01 Title.mkv"
     assert jellyfin_series_name("Show E26 Finale.mkv", 12) == "Show S12E26 Finale.mkv"
     assert jellyfin_series_name("Show S01E01E02 Pilot.mkv", 1) == "Show S01E01-E02 Pilot.mkv"
+    assert jellyfin_series_name("Show 5x01 Title.mkv") == "Show S05E01 Title.mkv"
 
 
 def test_episode_range_pack_can_infer_season_one() -> None:
@@ -88,6 +89,16 @@ def test_tmdb_vote_count_tiebreak_requires_vote_floor_and_gap() -> None:
     }
     assert tmdb_vote_count_tiebreak({"vote_count": 30}, {"vote_count": 20}, args) is None
     assert tmdb_vote_count_tiebreak({"vote_count": 10}, {"vote_count": 0}, args) is None
+
+
+def test_tmdb_candidates_honor_strong_media_preference() -> None:
+    candidates = [
+        {"media_type": "movie", "title": "Fury", "confidence": 1.0, "vote_count": 12961},
+        {"media_type": "tv", "title": "Initial D", "confidence": 1.0, "vote_count": 132},
+    ]
+    assert candidates_matching_preference(candidates, {"preferred": "series"}) == [candidates[1]]
+    assert candidates_matching_preference(candidates, {"preferred": "film"}) == [candidates[0]]
+    assert candidates_matching_preference(candidates, {"preferred": "unknown"}) == candidates
 
 
 def test_music_label_and_obfuscated_candidates() -> None:

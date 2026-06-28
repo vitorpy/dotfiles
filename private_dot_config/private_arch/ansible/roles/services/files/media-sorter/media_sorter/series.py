@@ -28,6 +28,11 @@ def jellyfin_series_name(filename: str, season: int | None = None) -> str:
         + "".join(f"-E{int(episode):02d}" for episode in re.findall(r"(?i)E(\d{1,3})", match.group(3))),
         filename,
     )
+    filename = re.sub(
+        r"(?i)(?<![A-Z0-9])(\d{1,2})x(\d{1,3})(?![A-Z0-9])",
+        lambda match: f"S{int(match.group(1)):02d}E{int(match.group(2)):02d}",
+        filename,
+    )
     if season is None:
         return filename
     return re.sub(

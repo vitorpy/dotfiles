@@ -279,6 +279,19 @@ def tmdb_candidate_sort_key(candidate: dict[str, Any]) -> tuple[float, int, floa
     )
 
 
+def candidates_matching_preference(candidates: list[dict[str, Any]], hints: dict[str, Any]) -> list[dict[str, Any]]:
+    preferred = hints.get("preferred")
+    if preferred == "series":
+        tv_candidates = [candidate for candidate in candidates if candidate.get("media_type") == "tv"]
+        if tv_candidates:
+            return tv_candidates
+    if preferred == "film":
+        movie_candidates = [candidate for candidate in candidates if candidate.get("media_type") == "movie"]
+        if movie_candidates:
+            return movie_candidates
+    return candidates
+
+
 
 def score_candidate(
     media_type: str,
@@ -408,6 +421,7 @@ def tmdb_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisio
             "no TMDB candidates",
             {"query": queries[0].query, "queries": [query.query for query in queries], "candidates": []},
         )
+    candidates = candidates_matching_preference(candidates, hints)
 
     top = candidates[0]
     runner_up_candidate = candidates[1] if len(candidates) > 1 else None

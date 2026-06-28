@@ -309,6 +309,11 @@ mkdir -p "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]"
 printf loveletter > "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
 write_jsonrpc_metadata "${tmpdir}/love-letter.json" "Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]" "loveletterhash"
 
+mkdir -p "${downloads}/Initial D Complete"
+printf initiald1 > "${downloads}/Initial D Complete/Initial D S05E01 A New Battlefield.mkv"
+printf initiald2 > "${downloads}/Initial D Complete/Initial D - 5x02 - Ryosuke's Fury.mkv"
+write_jsonrpc_metadata "${tmpdir}/initial-d.json" "Initial D Complete" "initialdhash"
+
 mkdir -p "${downloads}/Seasonless Anime"
 printf seasonless01 > "${downloads}/Seasonless Anime/Seasonless Anime E01.mkv"
 printf seasonless02 > "${downloads}/Seasonless Anime/Seasonless Anime E02.mkv"
@@ -343,6 +348,16 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
         {"id": 47002, "title": "Love Letter", "release_date": "1995-03-25", "vote_count": 265, "popularity": 5.2822}
       ]
     },
+    "Initial D": {
+      "results": [
+        {"id": 9659, "title": "Initial D", "release_date": "2005-06-23", "vote_count": 450, "popularity": 12.2}
+      ]
+    },
+    "Fury": {
+      "results": [
+        {"id": 228150, "title": "Fury", "release_date": "2014-10-15", "vote_count": 12961, "popularity": 41.2}
+      ]
+    },
     "Ambiguous": {
       "results": [
         {"id": 1, "title": "Something Else", "release_date": "2020-01-01"},
@@ -364,6 +379,11 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
     "Stalker": {
       "results": [
         {"id": 60796, "name": "Stalker", "first_air_date": "2014-10-01"}
+      ]
+    },
+    "Initial D": {
+      "results": [
+        {"id": 40424, "name": "Initial D", "first_air_date": "1998-04-19", "vote_count": 132, "popularity": 18.4}
       ]
     },
     "Seasonless Anime": {
@@ -390,6 +410,7 @@ run_sorter --metadata-json "${tmpdir}/lain.json"
 run_sorter --metadata-json "${tmpdir}/russian-movie.json"
 run_sorter --metadata-json "${tmpdir}/stalker.json"
 run_sorter --metadata-json "${tmpdir}/love-letter.json"
+run_sorter --metadata-json "${tmpdir}/initial-d.json"
 run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
@@ -402,6 +423,10 @@ assert_samefile "${downloads}/Короткий фильм о любви.1988.BDR
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker .mkv" "${films}/Stalker/Stalker .mkv"
 assert_samefile "${downloads}/Andrei Tarkovsky's Stalker (1979) - 1080p x265 HEVC - RUS (ENG SUBS) [BRSHNKV]/Stalker.srt" "${films}/Stalker/Stalker.srt"
 assert_samefile "${downloads}/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi [PublicHD]/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv" "${films}/Love Letter/Love.Letter.1995.1080p.BluRay.x264.DTS-WiKi.mkv"
+assert_samefile "${downloads}/Initial D Complete/Initial D S05E01 A New Battlefield.mkv" "${series}/Initial D/Season 05/Initial D S05E01 A New Battlefield.mkv"
+assert_samefile "${downloads}/Initial D Complete/Initial D - 5x02 - Ryosuke's Fury.mkv" "${series}/Initial D/Season 05/Initial D - S05E02 - Ryosuke's Fury.mkv"
+assert_not_exists "${films}/Fury"
+assert_not_exists "${films}/Initial D"
 assert_not_exists "${series}/Seasonless Anime"
 test -f "${queue_root}/needs-review/btih_seasonlessanimehash.json"
 jq -e '.reason == "series season ambiguous" and .match.candidates[0].provider_id == 424242' "${queue_root}/needs-review/btih_seasonlessanimehash.json" >/dev/null
@@ -414,10 +439,12 @@ test -f "${queue_root}/done/btih_lainhash.json"
 test -f "${queue_root}/done/btih_russianmoviehash.json"
 test -f "${queue_root}/done/btih_stalkerhash.json"
 test -f "${queue_root}/done/btih_loveletterhash.json"
+test -f "${queue_root}/done/btih_initialdhash.json"
 jq -e '.match.query == "Serial Experiments Lain" and .match.hints.season == 1' "${queue_root}/done/btih_lainhash.json" >/dev/null
 jq -e '.match.selected.matched_title_source == "alternative_title" and .match.selected.provider_id == 31056' "${queue_root}/done/btih_russianmoviehash.json" >/dev/null
 jq -e '.match.query == "Stalker" and .match.selected.query_source == "file-stem" and .match.selected.provider_id == 1398' "${queue_root}/done/btih_stalkerhash.json" >/dev/null
 jq -e '.match.selected.provider_id == 47002 and .match.tie_breaker.type == "vote_count" and .match.tie_breaker.vote_gap == 265' "${queue_root}/done/btih_loveletterhash.json" >/dev/null
+jq -e '.match.selected.media_type == "tv" and .match.selected.provider_id == 40424' "${queue_root}/done/btih_initialdhash.json" >/dev/null
 
 mkdir -p "${downloads}/Ambiguous.2020.1080p.WEBRip"
 printf ambiguous > "${downloads}/Ambiguous.2020.1080p.WEBRip/Ambiguous.2020.1080p.WEBRip.mkv"

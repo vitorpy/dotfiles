@@ -250,6 +250,9 @@ arch_pacman_packages_utilities:
   - bc
   - veracrypt
 
+arch_pacman_packages_browsers:
+  - firefox
+
 arch_aur_packages_browsers:
   - google-chrome
 

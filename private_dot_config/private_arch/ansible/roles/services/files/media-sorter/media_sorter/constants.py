@@ -144,3 +144,22 @@ EXTRA_VIDEO_PATTERNS = (
     (re.compile(r"(?i)(?:^|[ ._-])featurettes?(?:\b|[ ._-])"), "featurettes"),
     (re.compile(r"(?i)(?:^|[ ._-])extras?(?:\b|[ ._-])"), "extras"),
 )
+
+MOVIE_EXTRA_VIDEO_PATTERNS = (
+    (re.compile(r"(?i)(?:^|[ ._-])trailers?(?:\b|[ ._-])"), "trailers"),
+    (re.compile(r"(?i)(?:^|[ ._-])teasers?(?:\b|[ ._-])"), "trailers"),
+    (re.compile(r"(?i)(?:^|[ ._-])music[ ._-]*videos?(?:\b|[ ._-])"), "extras"),
+    (re.compile(r"(?i)(?:^|[ ._-])deleted[ ._-]*scenes?(?:\b|[ ._-])"), "deleted scenes"),
+    (re.compile(r"(?i)(?:^|[ ._-])behind[ ._-]*the[ ._-]*scenes?(?:\b|[ ._-])"), "behind the scenes"),
+)
+
+GENERIC_METADATA_FOLDER_TITLES = {
+    "behind the scenes",
+    "deleted scenes",
+    "extras",
+    "featurettes",
+    "interviews",
+    "shorts",
+    "specials",
+    "trailers",
+}

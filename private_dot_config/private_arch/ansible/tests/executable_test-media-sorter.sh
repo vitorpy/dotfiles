@@ -100,6 +100,24 @@ assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks The Battle fo
 assert_samefile "${downloads}/EwoksPack/Ewoks.srt" "${films}/Ewoks The Battle for Endor/Ewoks.srt"
 assert_not_exists "${films}/Ewoks The Battle for Endor/tracker.txt"
 
+mkdir -p "${downloads}/NasuExtras"
+printf main-feature-video > "${downloads}/NasuExtras/Nasu Summer in Andalusia.mkv"
+printf trailer > "${downloads}/NasuExtras/Nasu Trailer.avi"
+printf trailersubs > "${downloads}/NasuExtras/Nasu Trailer.srt"
+printf music > "${downloads}/NasuExtras/Nasu Bike Show Song Music Video.mp4"
+write_metadata "${tmpdir}/movie-extras.json" "NasuExtras" '[]' \
+  "NasuExtras/Nasu Summer in Andalusia.mkv" \
+  "NasuExtras/Nasu Trailer.avi" \
+  "NasuExtras/Nasu Trailer.srt" \
+  "NasuExtras/Nasu Bike Show Song Music Video.mp4"
+run_sorter --metadata-json "${tmpdir}/movie-extras.json" --label "film:Nasu Summer in Andalusia"
+assert_samefile "${downloads}/NasuExtras/Nasu Summer in Andalusia.mkv" "${films}/Nasu Summer in Andalusia/Nasu Summer in Andalusia.mkv"
+assert_samefile "${downloads}/NasuExtras/Nasu Trailer.avi" "${films}/Nasu Summer in Andalusia/trailers/Nasu Trailer.avi"
+assert_samefile "${downloads}/NasuExtras/Nasu Trailer.srt" "${films}/Nasu Summer in Andalusia/trailers/Nasu Trailer.srt"
+assert_samefile "${downloads}/NasuExtras/Nasu Bike Show Song Music Video.mp4" "${films}/Nasu Summer in Andalusia/extras/Nasu Bike Show Song Music Video.mp4"
+assert_not_exists "${films}/Nasu Summer in Andalusia/Nasu Trailer.avi"
+assert_not_exists "${films}/Nasu Summer in Andalusia/Nasu Bike Show Song Music Video.mp4"
+
 cat > "${tmpdir}/json-rpc-movie.json" <<JSON
 {
   "id": 3,
@@ -314,6 +332,14 @@ printf initiald1 > "${downloads}/Initial D Complete/Initial D S05E01 A New Battl
 printf initiald2 > "${downloads}/Initial D Complete/Initial D - 5x02 - Ryosuke's Fury.mkv"
 write_jsonrpc_metadata "${tmpdir}/initial-d.json" "Initial D Complete" "initialdhash"
 
+mkdir -p "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras"
+printf nced > "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras/[SNSbu] Long Riders! - NCED (BD 1920x1080 HEVC FLAC).mkv"
+printf ncop1 > "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv"
+printf longriders01 > "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 01 (BD 1920x1080 HEVC FLAC).mkv"
+printf longriders02 > "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 02 (BD 1920x1080 HEVC FLAC).mkv"
+printf longriders03 > "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 03 (BD 1920x1080 HEVC FLAC).mkv"
+write_jsonrpc_metadata "${tmpdir}/long-riders.json" "[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)" "longridershash"
+
 mkdir -p "${downloads}/Seasonless Anime"
 printf seasonless01 > "${downloads}/Seasonless Anime/Seasonless Anime E01.mkv"
 printf seasonless02 > "${downloads}/Seasonless Anime/Seasonless Anime E02.mkv"
@@ -353,6 +379,11 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
         {"id": 9659, "title": "Initial D", "release_date": "2005-06-23", "vote_count": 450, "popularity": 12.2}
       ]
     },
+    "Extras": {
+      "results": [
+        {"id": 386277, "title": "Extras", "release_date": "2006-10-27", "vote_count": 6, "popularity": 1.1}
+      ]
+    },
     "Fury": {
       "results": [
         {"id": 228150, "title": "Fury", "release_date": "2014-10-15", "vote_count": 12961, "popularity": 41.2}
@@ -386,6 +417,16 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
         {"id": 40424, "name": "Initial D", "first_air_date": "1998-04-19", "vote_count": 132, "popularity": 18.4}
       ]
     },
+    "Extras": {
+      "results": [
+        {"id": 2693, "name": "Extras", "first_air_date": "2005-07-21", "vote_count": 420, "popularity": 8.8}
+      ]
+    },
+    "Long Riders!": {
+      "results": [
+        {"id": 65337, "name": "Long Riders!", "first_air_date": "2016-10-08", "vote_count": 5, "popularity": 2.5}
+      ]
+    },
     "Seasonless Anime": {
       "results": [
         {"id": 424242, "name": "Seasonless Anime", "first_air_date": "2020-01-01"}
@@ -411,11 +452,12 @@ run_sorter --metadata-json "${tmpdir}/russian-movie.json"
 run_sorter --metadata-json "${tmpdir}/stalker.json"
 run_sorter --metadata-json "${tmpdir}/love-letter.json"
 run_sorter --metadata-json "${tmpdir}/initial-d.json"
+run_sorter --metadata-json "${tmpdir}/long-riders.json"
 run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
-assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4"
+assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - S01E01 [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/extras/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/extras/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/extras/[Kanavid] Serial Experiments Lain NCED [BD][1080p][AAC].mp4"
@@ -427,6 +469,9 @@ assert_samefile "${downloads}/Initial D Complete/Initial D S05E01 A New Battlefi
 assert_samefile "${downloads}/Initial D Complete/Initial D - 5x02 - Ryosuke's Fury.mkv" "${series}/Initial D/Season 05/Initial D - S05E02 - Ryosuke's Fury.mkv"
 assert_not_exists "${films}/Fury"
 assert_not_exists "${films}/Initial D"
+assert_samefile "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 01 (BD 1920x1080 HEVC FLAC).mkv" "${series}/Long Riders!/Season 01/[SNSbu] Long Riders! - S01E01 (BD 1920x1080 HEVC FLAC).mkv"
+assert_samefile "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv" "${series}/Long Riders!/Season 01/extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv"
+assert_not_exists "${series}/Extras"
 assert_not_exists "${series}/Seasonless Anime"
 test -f "${queue_root}/needs-review/btih_seasonlessanimehash.json"
 jq -e '.reason == "series season ambiguous" and .match.candidates[0].provider_id == 424242' "${queue_root}/needs-review/btih_seasonlessanimehash.json" >/dev/null
@@ -440,11 +485,13 @@ test -f "${queue_root}/done/btih_russianmoviehash.json"
 test -f "${queue_root}/done/btih_stalkerhash.json"
 test -f "${queue_root}/done/btih_loveletterhash.json"
 test -f "${queue_root}/done/btih_initialdhash.json"
+test -f "${queue_root}/done/btih_longridershash.json"
 jq -e '.match.query == "Serial Experiments Lain" and .match.hints.season == 1' "${queue_root}/done/btih_lainhash.json" >/dev/null
 jq -e '.match.selected.matched_title_source == "alternative_title" and .match.selected.provider_id == 31056' "${queue_root}/done/btih_russianmoviehash.json" >/dev/null
 jq -e '.match.query == "Stalker" and .match.selected.query_source == "file-stem" and .match.selected.provider_id == 1398' "${queue_root}/done/btih_stalkerhash.json" >/dev/null
 jq -e '.match.selected.provider_id == 47002 and .match.tie_breaker.type == "vote_count" and .match.tie_breaker.vote_gap == 265' "${queue_root}/done/btih_loveletterhash.json" >/dev/null
 jq -e '.match.selected.media_type == "tv" and .match.selected.provider_id == 40424' "${queue_root}/done/btih_initialdhash.json" >/dev/null
+jq -e '.match.query == "Long Riders!" and .match.selected.provider_id == 65337 and .match.hints.season == 1' "${queue_root}/done/btih_longridershash.json" >/dev/null
 
 mkdir -p "${downloads}/Ambiguous.2020.1080p.WEBRip"
 printf ambiguous > "${downloads}/Ambiguous.2020.1080p.WEBRip/Ambiguous.2020.1080p.WEBRip.mkv"

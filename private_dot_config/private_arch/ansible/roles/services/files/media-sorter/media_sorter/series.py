@@ -35,10 +35,16 @@ def jellyfin_series_name(filename: str, season: int | None = None) -> str:
     )
     if season is None:
         return filename
-    return re.sub(
+    filename = re.sub(
         r"(?i)(?<![A-Z0-9-])E(\d{1,3})(?![A-Z0-9])",
         lambda match: f"S{season:02d}E{int(match.group(1)):02d}",
         filename,
+    )
+    return re.sub(
+        r"(?i)(^|[ ._]*-[ ._]*)(\d{1,3})(?![A-Z0-9])",
+        lambda match: f"{match.group(1)}S{season:02d}E{int(match.group(2)):02d}",
+        filename,
+        count=1,
     )
 
 
@@ -67,7 +73,7 @@ def sort_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
         if extra_folder:
             dest_dir = dest_dir / extra_folder
 
-        video_dest_name = jellyfin_series_name(video.source.name, season)
+        video_dest_name = video.source.name if special_video or extra_folder else jellyfin_series_name(video.source.name, season)
         ok = link_file(video.source, dest_dir / video_dest_name, dry_run) and ok
 
         for sidecar in same_stem_sidecars(video, entries):

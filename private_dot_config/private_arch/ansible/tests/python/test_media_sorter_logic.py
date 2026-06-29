@@ -8,7 +8,13 @@ from media_sorter.media_files import is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
 from media_sorter.series import jellyfin_series_name
-from media_sorter.tmdb import candidates_matching_preference, media_hints, record_has_series_season_hint, tmdb_vote_count_tiebreak
+from media_sorter.tmdb import (
+    candidates_matching_preference,
+    media_hints,
+    metadata_query_variants,
+    record_has_series_season_hint,
+    tmdb_vote_count_tiebreak,
+)
 from media_sorter.utils import parse_season
 
 
@@ -44,6 +50,7 @@ def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:
     assert jellyfin_series_name("Show E26 Finale.mkv", 12) == "Show S12E26 Finale.mkv"
     assert jellyfin_series_name("Show S01E01E02 Pilot.mkv", 1) == "Show S01E01-E02 Pilot.mkv"
     assert jellyfin_series_name("Show 5x01 Title.mkv") == "Show S05E01 Title.mkv"
+    assert jellyfin_series_name("Show - 01 Title.mkv", 1) == "Show - S01E01 Title.mkv"
 
 
 def test_episode_range_pack_can_infer_season_one() -> None:
@@ -56,6 +63,23 @@ def test_episode_range_pack_can_infer_season_one() -> None:
     assert hints["season"] == 1
     assert hints["preferred"] == "series"
     assert record_has_series_season_hint(record, hints)
+
+
+def test_bare_numbered_pack_can_infer_season_one_without_extras_query() -> None:
+    record = queue_record(
+        "[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)",
+        video_record("[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv"),
+        video_record("[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 01 (BD 1920x1080 HEVC FLAC).mkv"),
+        video_record("[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 02 (BD 1920x1080 HEVC FLAC).mkv"),
+        video_record("[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 03 (BD 1920x1080 HEVC FLAC).mkv"),
+    )
+    hints = media_hints(record)
+    queries = metadata_query_variants(record, hints)
+
+    assert hints["season"] == 1
+    assert hints["preferred"] == "series"
+    assert record_has_series_season_hint(record, hints)
+    assert "Extras" not in [query.query for query in queries]
 
 
 def test_seasonless_series_needs_review_even_with_episode_numbers() -> None:

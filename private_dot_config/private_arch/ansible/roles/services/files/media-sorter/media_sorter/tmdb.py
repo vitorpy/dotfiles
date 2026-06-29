@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from .constants import RELEASE_TOKENS
+from .constants import GENERIC_METADATA_FOLDER_TITLES, RELEASE_TOKENS, SPECIAL_VIDEO_PATTERNS
 from .media_files import entries_from_record, is_special_video, is_video, season_from_entry
 from .models import MatchDecision, MediaLabel, MetadataQuery
 from .utils import display_title, log, normalize_title, parse_season, safe_component, strip_bracketed
@@ -48,6 +48,21 @@ def has_episode_numbered_videos(files: list[str]) -> bool:
         if re.search(r"(?i)(?:^|[ ._\-\]])(?:e)?\d{1,3}(?:\b|[ ._\-\[])", stem):
             numbered += 1
     return numbered >= 2
+
+
+def has_bare_episode_numbered_videos(files: list[str]) -> bool:
+    numbers: set[int] = set()
+    for file_name in files:
+        stem = Path(file_name).stem
+        if any(pattern.search(stem) for pattern in SPECIAL_VIDEO_PATTERNS):
+            continue
+        match = re.search(r"(?i)(?:^|[ ._\-\]])(\d{1,3})(?:\b|[ ._\-\[])", stem)
+        if not match:
+            continue
+        episode = int(match.group(1))
+        if 1 <= episode <= 200:
+            numbers.add(episode)
+    return len(numbers) >= 3 and 1 in numbers
 
 
 
@@ -107,6 +122,8 @@ def metadata_query_variants(record: dict[str, Any], hints: dict[str, Any]) -> li
         key = normalize_title(query)
         if not key or key in seen:
             return
+        if source == "folder" and key in GENERIC_METADATA_FOLDER_TITLES:
+            return
         seen.add(key)
         variants.append(MetadataQuery(query=query, source=source))
 
@@ -129,6 +146,8 @@ def media_hints(record: dict[str, Any]) -> dict[str, Any]:
     season = parse_season(evidence)
     episode_range = extract_episode_range(torrent_name)
     if season is None and episode_range and episode_range[0] == 1 and has_episode_numbered_videos(files):
+        season = 1
+    if season is None and has_bare_episode_numbered_videos(files):
         season = 1
     year = extract_year(torrent_name) or extract_year(" ".join(files))
     query = title_before_release_tokens(torrent_name)

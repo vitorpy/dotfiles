@@ -317,9 +317,9 @@
     dest: "{{ arch_hermes_agent_home }}/.env"
     content: |
       # Managed by Ansible. Local llama endpoint and Telegram defaults are configured in config.yaml.
+      # Set TELEGRAM_BOT_TOKEN=<token> in this file on the host to enable the Telegram bridge.
       # BEGIN ANSIBLE MANAGED HERMES TELEGRAM BRIDGE
-      # Uncomment and set these on the host to enable the Telegram bridge.
-      # TELEGRAM_BOT_TOKEN=
+      # Optional Telegram bridge settings.
       # TELEGRAM_ALLOWED_USERS=
       # TELEGRAM_HOME_CHANNEL=
       # TELEGRAM_HOME_CHANNEL_NAME=
@@ -328,6 +328,7 @@
     owner: "{{ arch_primary_user }}"
     group: "{{ arch_primary_user }}"
     mode: "0600"
+  no_log: true
   when: arch_hermes_agent_enabled | bool
   tags:
     - hermes_agent
@@ -379,14 +380,14 @@
     path: "{{ arch_hermes_agent_home }}/.env"
     marker: "# {mark} ANSIBLE MANAGED HERMES TELEGRAM BRIDGE"
     block: |
-      # Uncomment and set these on the host to enable the Telegram bridge.
-      # TELEGRAM_BOT_TOKEN=
+      # Optional Telegram bridge settings.
       # TELEGRAM_ALLOWED_USERS=
       # TELEGRAM_HOME_CHANNEL=
       # TELEGRAM_HOME_CHANNEL_NAME=
     owner: "{{ arch_primary_user }}"
     group: "{{ arch_primary_user }}"
     mode: "0600"
+  no_log: true
   when:
     - arch_hermes_agent_enabled | bool
     - arch_hermes_agent_gateway_platform == 'telegram'
@@ -399,6 +400,133 @@
     path: "{{ arch_hermes_agent_home }}/whatsapp-bridge"
     state: absent
   when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Query Hermes Agent user id
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ arch_primary_user }}"
+  register: services_hermes_agent_user_id
+  changed_when: false
+  check_mode: false
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Query Hermes Agent user linger state
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - show-user
+      - "{{ arch_primary_user }}"
+      - --property=Linger
+      - --value
+  register: services_hermes_agent_linger
+  changed_when: false
+  check_mode: false
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Enable linger for Hermes Agent gateway user
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - "{{ arch_primary_user }}"
+  changed_when: true
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+    - services_hermes_agent_linger.stdout | default('no') != 'yes'
+    - not ansible_check_mode
+  tags:
+    - hermes_agent
+
+- name: Ensure Hermes Agent user systemd directory exists
+  ansible.builtin.file:
+    path: "{{ arch_primary_user_home }}/.config/systemd/user"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0700"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Install Hermes Agent gateway user service
+  ansible.builtin.template:
+    src: hermes-gateway.service.j2
+    dest: "{{ arch_primary_user_home }}/.config/systemd/user/hermes-gateway.service"
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0644"
+  register: services_hermes_agent_gateway_service
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Reload Hermes Agent user systemd manager
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ services_hermes_agent_user_id.stdout }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ services_hermes_agent_user_id.stdout }}/bus"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+    - services_hermes_agent_gateway_service.changed | default(false)
+    - not ansible_check_mode
+  tags:
+    - hermes_agent
+
+- name: Restart Hermes Agent gateway user service after unit changes
+  ansible.builtin.systemd:
+    name: hermes-gateway.service
+    state: restarted
+    scope: user
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ services_hermes_agent_user_id.stdout }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ services_hermes_agent_user_id.stdout }}/bus"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+    - services_hermes_agent_gateway_service.changed | default(false)
+    - not ansible_check_mode
+  tags:
+    - hermes_agent
+
+- name: Enable and start Hermes Agent gateway user service
+  ansible.builtin.systemd:
+    name: hermes-gateway.service
+    enabled: true
+    state: started
+    scope: user
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ services_hermes_agent_user_id.stdout }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ services_hermes_agent_user_id.stdout }}/bus"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_service_enabled | bool
+    - not ansible_check_mode
   tags:
     - hermes_agent
 

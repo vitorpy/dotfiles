@@ -63,6 +63,7 @@ arch_hermes_agent_provider: custom
 arch_hermes_agent_base_url: ""
 arch_hermes_agent_model: ""
 arch_hermes_agent_gateway_platform: telegram
+arch_hermes_agent_gateway_service_enabled: false
 arch_hermes_agent_telegram_reply_to_mode: first
 arch_hermes_agent_telegram_disable_link_previews: false
 arch_nginx_conf_dir: /etc/nginx/conf.d

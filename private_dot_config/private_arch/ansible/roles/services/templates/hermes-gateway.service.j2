@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes Agent Gateway - Messaging Platform Integration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hermes-agent
+Environment=HERMES_HOME={{ arch_hermes_agent_home }}
+ExecStart=/opt/hermes-agent/venv/bin/python /opt/hermes-agent/scripts/hermes-gateway run
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=240s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

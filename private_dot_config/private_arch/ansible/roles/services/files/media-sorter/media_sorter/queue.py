@@ -7,11 +7,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from .grok import review_plan_with_grok
 from .labels import normalize_labels, parse_label
 from .media_files import entries_from_record, file_records, record_item_kind
 from .models import FileEntry, MatchDecision
 from .music import music_match
-from .sorters import sort_entries
+from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
+from .sorters import plan_entries
 from .tmdb import tmdb_match
 from .transmission import download_key, files_from_torrent, load_transmission_metadata, torrent_hash, transmission_torrent
 from .utils import log, now_ts
@@ -37,6 +39,27 @@ def ensure_queue_dirs(queue_root: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
 
 
+def record_path(queue_root: Path, record_or_key: str) -> Path:
+    raw_path = Path(record_or_key)
+    if raw_path.exists():
+        return raw_path
+
+    filename = record_or_key if record_or_key.endswith(".json") else f"{key_filename(record_or_key)}.json"
+    for directory in queue_dirs(queue_root).values():
+        candidate = directory / filename
+        if candidate.exists():
+            return candidate
+    raise RuntimeError(f"queue record not found: {record_or_key}")
+
+
+def load_record(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def library_roots(args: argparse.Namespace) -> list[Path]:
+    return [Path(args.series_root), Path(args.films_root), Path(args.music_root)]
+
+
 
 def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -53,7 +76,7 @@ def make_queue_record(torrent: dict[str, Any], name: str, download_dir: Path, en
     key = download_key(torrent, download_dir, name, entries)
     timestamp = now_ts()
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "download_key": key,
         "created_at": timestamp,
         "updated_at": timestamp,
@@ -69,6 +92,10 @@ def make_queue_record(torrent: dict[str, Any], name: str, download_dir: Path, en
         },
         "files": file_records(entries),
         "match": None,
+        "plan": None,
+        "preflight": None,
+        "grok_review": None,
+        "owned_links": [],
         "reason": None,
     }
 
@@ -98,6 +125,20 @@ def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any
     atomic_write_json(target, record)
     if path.exists():
         path.unlink()
+
+
+def match_record(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
+    labels = normalize_labels(record["torrent"].get("labels"))
+    label = parse_label(labels)
+    decision = MatchDecision(label, "matched", "matched via label", {"provider": "label"}) if label else None
+
+    if decision is None:
+        decision = music_match(record, args)
+
+    if decision is None:
+        decision = tmdb_match(record, args)
+
+    return decision
 
 
 
@@ -165,6 +206,31 @@ def print_review_queue(args: argparse.Namespace) -> int:
 
 
 
+def print_preflight(args: argparse.Namespace) -> int:
+    if not args.preflight:
+        raise RuntimeError("--preflight requires a record path or queue key")
+
+    path = record_path(Path(args.queue_root), args.preflight)
+    record = load_record(path)
+    entries = entries_from_record(record)
+    decision = match_record(record, args)
+    record["reason"] = decision.reason
+    record["match"] = decision.match
+
+    if decision.status != "matched" or decision.label is None:
+        record["preflight"] = {"ok": False, "reasons": [decision.reason], "warnings": [], "skipped_optional": []}
+        print(json.dumps(record, indent=2, sort_keys=True))
+        return 0
+
+    plan = plan_entries(decision.label, record["torrent"]["name"], entries, args)
+    preflight = preflight_plan(plan, library_roots(args))
+    record["plan"] = plan_to_record(plan, preflight)
+    record["preflight"] = preflight_to_record(preflight)
+    print(json.dumps(record, indent=2, sort_keys=True))
+    return 0
+
+
+
 def process_queue(args: argparse.Namespace) -> int:
     queue_root = Path(args.queue_root)
     ensure_queue_dirs(queue_root)
@@ -175,25 +241,17 @@ def process_queue(args: argparse.Namespace) -> int:
         return 0
 
     for path in queue_paths:
-        record = json.loads(path.read_text(encoding="utf-8"))
+        record = load_record(path)
         entries = entries_from_record(record)
-        labels = normalize_labels(record["torrent"].get("labels"))
-        label = parse_label(labels)
-        decision = MatchDecision(label, "matched", "matched via label", {"provider": "label"}) if label else None
-
-        if decision is None:
-            decision = music_match(record, args)
-
-        if decision is None:
-            try:
-                decision = tmdb_match(record, args)
-            except Exception as exc:
-                record["reason"] = str(exc)
-                log("ERROR", f"failed key={record['download_key']}: {exc}")
-                if not args.dry_run:
-                    move_record(path, queue_root, "failed", record)
-                ok = False
-                continue
+        try:
+            decision = match_record(record, args)
+        except Exception as exc:
+            record["reason"] = str(exc)
+            log("ERROR", f"failed key={record['download_key']}: {exc}")
+            if not args.dry_run:
+                move_record(path, queue_root, "failed", record)
+            ok = False
+            continue
 
         record["reason"] = decision.reason
         record["match"] = decision.match
@@ -203,9 +261,49 @@ def process_queue(args: argparse.Namespace) -> int:
                 move_record(path, queue_root, "needs_review", record)
             continue
 
+        log("INFO", f"planning key={record['download_key']} as {decision.label.kind}:{decision.label.title}")
+        plan = plan_entries(decision.label, record["torrent"]["name"], entries, args)
+        preflight = preflight_plan(plan, library_roots(args))
+        record["preflight"] = preflight_to_record(preflight)
+        record["plan"] = plan_to_record(plan, preflight)
+
+        for warning in preflight.warnings:
+            log("WARNING", f"preflight warning key={record['download_key']}: {warning}")
+        if not preflight.ok:
+            record["reason"] = "preflight failed: " + "; ".join(preflight.reasons)
+            log("WARNING", f"needs review key={record['download_key']} reason={record['reason']}")
+            if not args.dry_run:
+                move_record(path, queue_root, "needs_review", record)
+            continue
+
+        if args.grok_review:
+            try:
+                review = review_plan_with_grok(record, args)
+            except Exception as exc:
+                record["reason"] = f"Grok review failed: {exc}"
+                record["grok_review"] = {"approved": False, "decision": "error", "reason": str(exc)}
+                if record.get("plan"):
+                    record["plan"]["grok_review_reason"] = record["reason"]
+                log("WARNING", f"needs review key={record['download_key']} reason={record['reason']}")
+                if not args.dry_run:
+                    move_record(path, queue_root, "needs_review", record)
+                continue
+
+            record["grok_review"] = review
+            if record.get("plan"):
+                record["plan"]["grok_review_reason"] = review["reason"]
+            if not review["approved"]:
+                record["reason"] = f"Grok rejected plan: {review['reason']}"
+                log("WARNING", f"needs review key={record['download_key']} reason={record['reason']}")
+                if not args.dry_run:
+                    move_record(path, queue_root, "needs_review", record)
+                continue
+
         log("INFO", f"processing key={record['download_key']} as {decision.label.kind}:{decision.label.title}")
-        sorted_ok = sort_entries(decision.label, record["torrent"]["name"], entries, args)
+        sorted_ok, owned_links = apply_plan(plan, preflight, args.dry_run)
+        record["owned_links"] = owned_links
         if sorted_ok:
+            record["reason"] = decision.reason
             if not args.dry_run:
                 move_record(path, queue_root, "done", record)
         else:

@@ -312,6 +312,76 @@ test -f "${queue_root}/queue/btih_abc123.json"
 run_sorter --metadata-json "${tmpdir}/queued.json"
 [[ "$(find "${queue_root}/queue" -name 'btih_abc123.json' | wc -l)" -eq 1 ]]
 
+mkdir -p "${downloads}/Grok.Approved.2020.1080p.WEBRip"
+printf grokapproved > "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv"
+write_jsonrpc_metadata "${tmpdir}/grok-approved.json" "Grok.Approved.2020.1080p.WEBRip" "grokapprovedhash"
+cat > "${tmpdir}/grok-tmdb-fixture.json" <<JSON
+{
+  "movie": {
+    "Grok Approved": {
+      "results": [
+        {"id": 901, "title": "Grok Approved", "release_date": "2020-01-01", "vote_count": 50}
+      ]
+    },
+    "Grok Rejected": {
+      "results": [
+        {"id": 902, "title": "Grok Rejected", "release_date": "2020-01-01", "vote_count": 50}
+      ]
+    }
+  },
+  "tv": {}
+}
+JSON
+cat > "${tmpdir}/grok-review-fixture.json" <<JSON
+{
+  "btih:grokapprovedhash": {
+    "decision": "approve",
+    "reason": "title and destination layout are coherent",
+    "concerns": [],
+    "confidence": 0.95
+  },
+  "btih:grokrejecthash": {
+    "decision": "reject",
+    "reason": "destination title does not look trustworthy",
+    "concerns": ["suspicious title"],
+    "confidence": 0.7
+  }
+}
+JSON
+run_sorter --metadata-json "${tmpdir}/grok-approved.json"
+run_sorter --preflight "btih:grokapprovedhash" --tmdb-fixture-json "${tmpdir}/grok-tmdb-fixture.json" > "${tmpdir}/grok-preflight.json"
+jq -e '.preflight.ok == true and (.plan.operations[0].dest | contains("Grok Approved"))' "${tmpdir}/grok-preflight.json" >/dev/null
+run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/grok-tmdb-fixture.json" --grok-review --xai-fixture-json "${tmpdir}/grok-review-fixture.json"
+assert_samefile "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv" "${films}/Grok Approved/Grok.Approved.2020.1080p.WEBRip.mkv"
+test -f "${queue_root}/done/btih_grokapprovedhash.json"
+jq -e '.grok_review.approved == true and .plan.grok_review_reason == "title and destination layout are coherent" and (.owned_links | length) == 1' "${queue_root}/done/btih_grokapprovedhash.json" >/dev/null
+run_sorter --audit > "${tmpdir}/audit-clean.out"
+grep -q "owned-link findings: 0" "${tmpdir}/audit-clean.out"
+
+rm "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv"
+printf grokapproved-new > "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv"
+set +e
+run_sorter --audit > "${tmpdir}/audit-stale.out"
+audit_stale_rc=$?
+set -e
+[[ "${audit_stale_rc}" -eq 1 ]]
+grep -q "stale-owned-link" "${tmpdir}/audit-stale.out"
+run_sorter --reconcile > "${tmpdir}/reconcile-dry-run.out"
+grep -q "stale-owned-links=1" "${tmpdir}/reconcile-dry-run.out"
+[[ -e "${films}/Grok Approved/Grok.Approved.2020.1080p.WEBRip.mkv" ]]
+run_sorter --reconcile --apply > "${tmpdir}/reconcile-apply.out"
+assert_not_exists "${films}/Grok Approved/Grok.Approved.2020.1080p.WEBRip.mkv"
+[[ -e "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv" ]]
+
+mkdir -p "${downloads}/Grok.Rejected.2020.1080p.WEBRip"
+printf grokrejected > "${downloads}/Grok.Rejected.2020.1080p.WEBRip/Grok.Rejected.2020.1080p.WEBRip.mkv"
+write_jsonrpc_metadata "${tmpdir}/grok-rejected.json" "Grok.Rejected.2020.1080p.WEBRip" "grokrejecthash"
+run_sorter --metadata-json "${tmpdir}/grok-rejected.json"
+run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/grok-tmdb-fixture.json" --grok-review --xai-fixture-json "${tmpdir}/grok-review-fixture.json"
+test -f "${queue_root}/needs-review/btih_grokrejecthash.json"
+jq -e '.reason == "Grok rejected plan: destination title does not look trustworthy" and .grok_review.approved == false' "${queue_root}/needs-review/btih_grokrejecthash.json" >/dev/null
+assert_not_exists "${films}/Grok Rejected/Grok.Rejected.2020.1080p.WEBRip.mkv"
+
 mkdir -p "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]"
 printf perfect > "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 write_jsonrpc_metadata "${tmpdir}/perfect.json" "Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]" "perfecthash"
@@ -538,7 +608,11 @@ mkdir -p "${downloads}/Conflict.S01E01" "${series}/Conflict Show/Season 01"
 printf source > "${downloads}/Conflict.S01E01/Conflict.S01E01.mkv"
 printf different > "${series}/Conflict Show/Season 01/Conflict.S01E01.mkv"
 write_metadata "${tmpdir}/conflict.json" "Conflict.S01E01" '[]' "Conflict.S01E01/Conflict.S01E01.mkv"
+set +e
 run_sorter --metadata-json "${tmpdir}/conflict.json" --label "series:Conflict Show" > "${tmpdir}/conflict.out" 2>&1
+conflict_rc=$?
+set -e
+[[ "${conflict_rc}" -eq 1 ]]
 grep -q "destination conflict" "${tmpdir}/conflict.out"
 [[ "$(cat "${series}/Conflict Show/Season 01/Conflict.S01E01.mkv")" == "different" ]]
 

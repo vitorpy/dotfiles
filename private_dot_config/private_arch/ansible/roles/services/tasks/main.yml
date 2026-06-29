@@ -32,6 +32,16 @@
     mode: "0644"
     directory_mode: "0755"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
+- name: Remove generated media sorter bytecode from installed library
+  ansible.builtin.file:
+    path: "{{ arch_media_sorter_lib_dir }}/media_sorter/__pycache__"
+    state: absent
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install Transmission media sorter hook
   ansible.builtin.copy:
@@ -41,6 +51,8 @@
     group: root
     mode: "0755"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install Transmission tracker updater
   ansible.builtin.copy:
@@ -72,6 +84,8 @@
     group: root
     mode: "0755"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Ensure media sorter environment file exists
   ansible.builtin.copy:
@@ -82,6 +96,8 @@
     group: root
     mode: "0600"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Configure media sorter AcoustID API key
   ansible.builtin.lineinfile:
@@ -96,6 +112,8 @@
   when:
     - arch_transmission_enabled | bool
     - arch_media_sorter_acoustid_api_key | default('') | length > 0
+  tags:
+    - media_sorter
 
 - name: Ensure media sorter queue directories exist
   ansible.builtin.file:
@@ -111,6 +129,8 @@
     - "{{ arch_media_sorter_queue_root }}/needs-review"
     - "{{ arch_media_sorter_queue_root }}/failed"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Allow primary user to read Transmission media sorter queue
   ansible.builtin.user:
@@ -121,6 +141,8 @@
   when:
     - arch_transmission_enabled | bool
     - arch_manage_user | bool
+  tags:
+    - media_sorter
 
 - name: Find media sorter queue records
   ansible.builtin.find:
@@ -133,6 +155,8 @@
     file_type: file
   register: services_media_sorter_queue_records
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Ensure media sorter queue records are group-readable
   ansible.builtin.file:
@@ -143,6 +167,8 @@
     mode: "0640"
   loop: "{{ services_media_sorter_queue_records.files | default([]) }}"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install media sorter queue processor service
   ansible.builtin.template:
@@ -151,6 +177,8 @@
     mode: "0644"
   register: services_media_sorter_process_service
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install media sorter queue processor timer
   ansible.builtin.template:
@@ -159,6 +187,8 @@
     mode: "0644"
   register: services_media_sorter_process_timer
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install Transmission tracker updater service
   ansible.builtin.template:
@@ -194,6 +224,8 @@
   changed_when: false
   failed_when: false
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Stop Transmission before changing daemon-owned settings
   ansible.builtin.systemd:
@@ -203,6 +235,8 @@
     - arch_transmission_enabled | bool
     - not ansible_check_mode
     - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
+  tags:
+    - media_sorter
 
 - name: Enable Transmission done script setting
   ansible.builtin.lineinfile:
@@ -212,6 +246,8 @@
     validate: python3 -m json.tool %s
   register: services_transmission_sorter_enabled
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Configure Transmission done script path
   ansible.builtin.lineinfile:
@@ -221,6 +257,8 @@
     validate: python3 -m json.tool %s
   register: services_transmission_sorter_filename
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Reload systemd after Transmission override changes
   ansible.builtin.systemd:
@@ -228,9 +266,13 @@
   when:
     - arch_transmission_enabled | bool
     - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false)) or (services_transmission_trackers_update_service.changed | default(false)) or (services_transmission_trackers_update_timer.changed | default(false))
+  tags:
+    - media_sorter
 
 - name: Gather service facts
   ansible.builtin.service_facts:
+  tags:
+    - media_sorter
 
 - name: Ensure extra mount points exist
   ansible.builtin.file:
@@ -380,6 +422,8 @@
     - arch_transmission_enabled | bool
     - arch_media_sorter_timer_enabled | bool
     - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
+  tags:
+    - media_sorter
 
 - name: Enable Transmission tracker updater timer
   ansible.builtin.systemd:
@@ -398,6 +442,8 @@
   when:
     - arch_transmission_enabled | bool
     - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
+  tags:
+    - media_sorter
 
 - name: Restart Jellyfin after media config changes
   ansible.builtin.systemd:

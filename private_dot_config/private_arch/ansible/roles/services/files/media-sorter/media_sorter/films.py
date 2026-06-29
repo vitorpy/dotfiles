@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from .constants import MOVIE_EXTRA_VIDEO_PATTERNS, USEFUL_SIDECAR_EXTENSIONS
-from .linker import link_file
 from .media_files import extra_video_folder, is_video
 from .models import FileEntry, MediaLabel
+from .planner import SortPlan, apply_plan, preflight_plan
 from .utils import log, safe_component
 
 
@@ -45,12 +45,12 @@ def movie_extra_folder(entry: FileEntry) -> str | None:
 
 
 
-def sort_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, dry_run: bool) -> bool:
-    ok = True
+def plan_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, torrent_name: str = "") -> SortPlan:
+    plan = SortPlan(label_kind=label.kind, label_title=label.title, torrent_name=torrent_name)
     videos = [entry for entry in entries if is_video(entry)]
     if not videos:
-        log("WARNING", f"no video files found for film={label.title!r}")
-        return True
+        plan.warnings.append(f"no video files found for film={label.title!r}")
+        return plan
 
     dest_dir = films_root / safe_component(label.title)
     primary_video = max(videos, key=entry_size)
@@ -65,17 +65,30 @@ def sort_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, dry
         if video.source in seen:
             continue
         seen.add(video.source)
-        ok = link_file(video.source, video_dest_dir / video.source.name, dry_run) and ok
+        plan.add(video.source, video_dest_dir / video.source.name, "video", required=True)
 
         for sidecar in same_stem_sidecars(video, entries):
             if sidecar.source in seen:
                 continue
             seen.add(sidecar.source)
-            ok = link_file(sidecar.source, video_dest_dir / sidecar.source.name, dry_run, required=False) and ok
+            plan.add(sidecar.source, video_dest_dir / sidecar.source.name, "sidecar", required=False)
 
     for sidecar in film_sidecars(entries):
         if sidecar.source in seen:
             continue
         seen.add(sidecar.source)
-        ok = link_file(sidecar.source, dest_dir / sidecar.source.name, dry_run, required=False) and ok
+        plan.add(sidecar.source, dest_dir / sidecar.source.name, "sidecar", required=False)
+    return plan
+
+
+def sort_film(label: MediaLabel, entries: list[FileEntry], films_root: Path, dry_run: bool) -> bool:
+    plan = plan_film(label, entries, films_root)
+    preflight = preflight_plan(plan, [films_root])
+    for warning in preflight.warnings:
+        log("WARNING", warning)
+    for reason in preflight.reasons:
+        log("ERROR", reason)
+    if not preflight.ok:
+        return False
+    ok, _owned_links = apply_plan(plan, preflight, dry_run)
     return ok

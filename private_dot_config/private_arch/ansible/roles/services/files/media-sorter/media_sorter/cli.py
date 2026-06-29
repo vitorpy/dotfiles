@@ -3,10 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .audit import print_audit, reconcile
 from .backfill import run_backfill
+from .grok import DEFAULT_XAI_RESPONSES_URL, review_plan_with_grok
 from .labels import normalize_labels, parse_label
-from .queue import enqueue_torrent, print_review_queue, process_queue
-from .sorters import sort_entries
+from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
+from .queue import enqueue_torrent, make_queue_record, print_preflight, print_review_queue, process_queue
+from .sorters import plan_entries, sort_entries
 from .transmission import files_from_torrent, load_transmission_metadata, transmission_torrent
 from .utils import log
 
@@ -21,7 +24,7 @@ def run_direct_sort(args: argparse.Namespace) -> int:
     if args.label:
         labels.extend(args.label)
 
-    torrent_name, _download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
+    torrent_name, download_dir, entries = files_from_torrent(torrent, Path(args.source_root) if args.source_root else None)
     label = parse_label(labels)
     if not label:
         log("WARNING", f"needs label, leaving in downloads torrent={torrent_name!r} labels={labels!r}")
@@ -29,6 +32,30 @@ def run_direct_sort(args: argparse.Namespace) -> int:
     if not entries:
         log("WARNING", f"no torrent files found, leaving in downloads torrent={torrent_name!r}")
         return 0
+    if args.grok_review:
+        record = make_queue_record(torrent, torrent_name, download_dir, entries)
+        record["reason"] = "matched via manual label"
+        record["match"] = {"provider": "label", "manual": True}
+        plan = plan_entries(label, torrent_name, entries, args)
+        preflight = preflight_plan(plan, [Path(args.series_root), Path(args.films_root), Path(args.music_root)])
+        record["plan"] = plan_to_record(plan, preflight)
+        record["preflight"] = preflight_to_record(preflight)
+        if not preflight.ok:
+            for reason in preflight.reasons:
+                log("ERROR", reason)
+            return 1
+        try:
+            review = review_plan_with_grok(record, args)
+        except Exception as exc:
+            log("ERROR", f"Grok review failed: {exc}")
+            return 1
+        record["grok_review"] = review
+        record["plan"]["grok_review_reason"] = review["reason"]
+        if not review["approved"]:
+            log("ERROR", f"Grok rejected plan: {review['reason']}")
+            return 1
+        ok, _owned_links = apply_plan(plan, preflight, args.dry_run)
+        return 0 if ok else 1
     return 0 if sort_entries(label, torrent_name, entries, args) else 1
 
 
@@ -63,9 +90,18 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--acoustid-min-tracks", type=int, default=1)
     parser.add_argument("--acoustid-max-tracks", type=int, default=5)
     parser.add_argument("--fpcalc-path", default="fpcalc")
+    parser.add_argument("--grok-review", action="store_true", help="require Grok approval before applying a matched plan")
+    parser.add_argument("--xai-responses-url", default=DEFAULT_XAI_RESPONSES_URL)
+    parser.add_argument("--xai-model", default="grok-4.3")
+    parser.add_argument("--xai-api-key", help="xAI API key; defaults to XAI_API_KEY")
+    parser.add_argument("--xai-timeout", type=float, default=30.0)
+    parser.add_argument("--xai-fixture-json", help="test helper: read Grok review responses from this file")
     parser.add_argument("--label", action="append", default=[], help="manual override label, e.g. series:South Park")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--queue", action="store_true", help="print downloads waiting for human review")
+    parser.add_argument("--preflight", help="print deterministic preflight plan for record path or queue key")
+    parser.add_argument("--audit", action="store_true", help="audit queue counts and owned-link manifests")
+    parser.add_argument("--reconcile", action="store_true", help="remove stale manifest-owned links; dry-run unless --apply is set")
     parser.add_argument("--process-queue", action="store_true")
     parser.add_argument("--backfill-current-downloads", action="store_true")
     parser.add_argument("--apply", action="store_true", help="accepted for explicit backfill apply mode")
@@ -78,6 +114,12 @@ def main() -> int:
     try:
         if args.queue:
             return print_review_queue(args)
+        if args.preflight:
+            return print_preflight(args)
+        if args.audit:
+            return print_audit(args)
+        if args.reconcile:
+            return reconcile(args)
         if args.backfill_current_downloads:
             if not args.apply:
                 args.dry_run = True

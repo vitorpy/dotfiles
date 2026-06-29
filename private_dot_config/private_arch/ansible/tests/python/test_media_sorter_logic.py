@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+from media_sorter.grok import normalize_grok_review
 from media_sorter.labels import parse_label
 from media_sorter.media_files import is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
+from media_sorter.planner import SortPlan, apply_plan, preflight_plan
 from media_sorter.series import jellyfin_series_name
 from media_sorter.tmdb import (
     candidates_matching_preference,
@@ -148,3 +150,51 @@ def test_parse_labels_preserves_existing_cli_contract() -> None:
     assert music.kind == "music"
     assert music.title == "Aphex Twin"
     assert music.album == "Selected Ambient Works 85-92"
+
+
+def test_preflight_blocks_required_conflicts_and_skips_optional_conflicts(tmp_path: Path) -> None:
+    source = tmp_path / "downloads" / "Show.S01E01.mkv"
+    sidecar = tmp_path / "downloads" / "Show.S01E01.srt"
+    series_root = tmp_path / "series"
+    required_dest = series_root / "Show" / "Season 01" / "Show.S01E01.mkv"
+    optional_dest = series_root / "Show" / "Season 01" / "Show.S01E01.srt"
+    source.parent.mkdir(parents=True)
+    required_dest.parent.mkdir(parents=True)
+    source.write_text("source", encoding="utf-8")
+    sidecar.write_text("subs", encoding="utf-8")
+    required_dest.write_text("different", encoding="utf-8")
+    optional_dest.write_text("different subs", encoding="utf-8")
+
+    plan = SortPlan(label_kind="series", label_title="Show", torrent_name="Show.S01E01")
+    plan.add(source, required_dest, "video", required=True)
+    plan.add(sidecar, optional_dest, "sidecar", required=False)
+
+    preflight = preflight_plan(plan, [series_root])
+    assert not preflight.ok
+    assert any("destination conflict" in reason for reason in preflight.reasons)
+    assert preflight.skipped_optional == {1}
+
+
+def test_apply_plan_records_owned_links(tmp_path: Path) -> None:
+    source = tmp_path / "downloads" / "Movie.mkv"
+    dest = tmp_path / "films" / "Movie" / "Movie.mkv"
+    source.parent.mkdir(parents=True)
+    dest.parent.mkdir(parents=True)
+    source.write_text("movie", encoding="utf-8")
+    plan = SortPlan(label_kind="film", label_title="Movie", torrent_name="Movie")
+    plan.add(source, dest, "video", required=True)
+
+    preflight = preflight_plan(plan, [tmp_path / "films"])
+    assert preflight.ok
+    ok, owned_links = apply_plan(plan, preflight)
+
+    assert ok
+    assert dest.exists()
+    assert owned_links[0]["status"] == "created"
+    assert owned_links[0]["source_stat"]["inode"] == owned_links[0]["dest_stat"]["inode"]
+
+
+def test_grok_review_normalization_requires_decision_and_reason() -> None:
+    review = normalize_grok_review({"decision": "approve", "reason": "layout is coherent", "concerns": [], "confidence": 0.9})
+    assert review["approved"]
+    assert review["reason"] == "layout is coherent"

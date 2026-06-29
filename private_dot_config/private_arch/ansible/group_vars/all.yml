@@ -51,6 +51,11 @@ arch_media_sorter_tmdb_env_dir: /etc/media-sorter
 arch_media_sorter_tmdb_env_file: "{{ arch_media_sorter_tmdb_env_dir }}/tmdb.env"
 arch_media_sorter_audiodb_api_key: "123"
 arch_media_sorter_acoustid_api_key: ""
+arch_media_sorter_xai_env_file: /etc/whisper-grok-shim.env
+arch_media_sorter_grok_review_enabled: true
+arch_media_sorter_xai_responses_url: https://api.x.ai/v1/responses
+arch_media_sorter_xai_model: grok-4.3
+arch_media_sorter_xai_timeout: 30
 arch_media_sorter_timer_enabled: true
 arch_nginx_conf_dir: /etc/nginx/conf.d
 arch_nginx_managed_confs: []

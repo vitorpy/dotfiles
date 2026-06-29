@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from .constants import MUSIC_SIDECAR_EXTENSIONS
-from .linker import link_file
 from .media_files import is_audio
 from .models import FileEntry, MediaLabel
+from .planner import SortPlan, apply_plan, preflight_plan
 from .utils import log, safe_component
 
 
@@ -36,15 +36,15 @@ def safe_relative_path(path: Path) -> Path:
 
 
 
-def sort_music(label: MediaLabel, entries: list[FileEntry], music_root: Path, dry_run: bool) -> bool:
-    ok = True
+def plan_music(label: MediaLabel, entries: list[FileEntry], music_root: Path, torrent_name: str = "") -> SortPlan:
+    plan = SortPlan(label_kind=label.kind, label_title=label.title, torrent_name=torrent_name)
     audio = [entry for entry in entries if is_audio(entry)]
     if not audio:
-        log("WARNING", f"no audio files found for music={label.title!r}")
-        return True
+        plan.warnings.append(f"no audio files found for music={label.title!r}")
+        return plan
     if not label.album:
-        log("WARNING", f"needs album label, skipping music artist={label.title!r}")
-        return True
+        plan.errors.append(f"needs album label, skipping music artist={label.title!r}")
+        return plan
 
     dest_dir = music_root / safe_component(label.title) / safe_component(label.album)
     selected = audio + music_sidecars(entries)
@@ -54,5 +54,19 @@ def sort_music(label: MediaLabel, entries: list[FileEntry], music_root: Path, dr
             continue
         seen.add(entry.source)
         dest_relpath = safe_relative_path(strip_common_top_dir(entry, selected))
-        ok = link_file(entry.source, dest_dir / dest_relpath, dry_run) and ok
+        audio_entry = is_audio(entry)
+        plan.add(entry.source, dest_dir / dest_relpath, "audio" if audio_entry else "sidecar", required=audio_entry)
+    return plan
+
+
+def sort_music(label: MediaLabel, entries: list[FileEntry], music_root: Path, dry_run: bool) -> bool:
+    plan = plan_music(label, entries, music_root)
+    preflight = preflight_plan(plan, [music_root])
+    for warning in preflight.warnings:
+        log("WARNING", warning)
+    for reason in preflight.reasons:
+        log("ERROR", reason)
+    if not preflight.ok:
+        return False
+    ok, _owned_links = apply_plan(plan, preflight, dry_run)
     return ok

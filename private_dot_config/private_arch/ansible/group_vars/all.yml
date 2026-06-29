@@ -57,6 +57,14 @@ arch_media_sorter_xai_responses_url: https://api.x.ai/v1/responses
 arch_media_sorter_xai_model: grok-4.3
 arch_media_sorter_xai_timeout: 30
 arch_media_sorter_timer_enabled: true
+arch_hermes_agent_enabled: false
+arch_hermes_agent_home: "{{ arch_primary_user_home }}/.hermes"
+arch_hermes_agent_provider: custom
+arch_hermes_agent_base_url: ""
+arch_hermes_agent_model: ""
+arch_hermes_agent_gateway_platform: telegram
+arch_hermes_agent_telegram_reply_to_mode: first
+arch_hermes_agent_telegram_disable_link_previews: false
 arch_nginx_conf_dir: /etc/nginx/conf.d
 arch_nginx_managed_confs: []
 
@@ -93,6 +101,7 @@ arch_fprintd_polkit_users:
 arch_pacman_packages: []
 arch_aur_packages: []
 arch_host_pacman_packages_extra: []
+arch_host_aur_packages_extra: []
 arch_host_system_services_extra: []
 arch_host_firewall_allowed_tcp_ports_extra: []
 arch_host_firewall_allowed_udp_ports_extra: []

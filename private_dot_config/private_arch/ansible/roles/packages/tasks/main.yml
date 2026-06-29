@@ -2,17 +2,29 @@
 - name: Compute effective pacman package list
   ansible.builtin.set_fact:
     packages_pacman_effective: "{{ (arch_pacman_packages + arch_host_pacman_packages_extra) | unique }}"
+  tags:
+    - packages
+
+- name: Compute effective AUR package list
+  ansible.builtin.set_fact:
+    packages_aur_effective: "{{ (arch_aur_packages + arch_host_aur_packages_extra) | unique }}"
+  tags:
+    - packages
 
 - name: Install pacman packages
   ansible.builtin.package:
     name: "{{ packages_pacman_effective }}"
     state: present
   when: packages_pacman_effective | length > 0
+  tags:
+    - packages
 
 - name: Compute declared package set
   ansible.builtin.set_fact:
-    packages_declared_all: "{{ (packages_pacman_effective + arch_aur_packages + arch_package_prune_exclude) | unique }}"
+    packages_declared_all: "{{ (packages_pacman_effective + packages_aur_effective + arch_package_prune_exclude) | unique }}"
   when: arch_package_prune_explicit | bool
+  tags:
+    - packages
 
 - name: Install yay build prerequisites
   ansible.builtin.package:
@@ -20,22 +32,29 @@
       - base-devel
       - git
     state: present
-  when: arch_aur_packages | length > 0
+  when: packages_aur_effective | length > 0
+  tags:
+    - packages
 
 - name: Check whether yay is installed
   ansible.builtin.stat:
     path: /usr/bin/yay
   register: packages_yay_binary
-  when: arch_aur_packages | length > 0
+  when: packages_aur_effective | length > 0
+  tags:
+    - packages
 
 - name: Check installed AUR package targets
   ansible.builtin.command:
     cmd: "pacman -Q {{ item }}"
-  loop: "{{ arch_aur_packages }}"
+  loop: "{{ packages_aur_effective }}"
   register: packages_aur_query
   failed_when: false
   changed_when: false
-  when: arch_aur_packages | length > 0
+  check_mode: false
+  when: packages_aur_effective | length > 0
+  tags:
+    - packages
 
 - name: Compute missing AUR packages
   ansible.builtin.set_fact:
@@ -46,7 +65,9 @@
         | map(attribute='item')
         | list
       }}
-  when: arch_aur_packages | length > 0
+  when: packages_aur_effective | length > 0
+  tags:
+    - packages
 
 - name: Clone yay build directory
   ansible.builtin.git:
@@ -56,9 +77,11 @@
     force: true
   become: false
   when:
-    - arch_aur_packages | length > 0
+    - packages_aur_effective | length > 0
     - not packages_yay_binary.stat.exists
     - packages_missing_aur | length > 0
+  tags:
+    - packages
 
 - name: Build and install yay
   ansible.builtin.command:
@@ -66,25 +89,31 @@
     chdir: /tmp/yay
   become: false
   when:
-    - arch_aur_packages | length > 0
+    - packages_aur_effective | length > 0
     - not packages_yay_binary.stat.exists
     - packages_missing_aur | length > 0
   changed_when: true
+  tags:
+    - packages
 
 - name: Install AUR packages
   ansible.builtin.command:
     cmd: "yay -S --needed --noconfirm {{ packages_missing_aur | join(' ') }}"
   become: false
   when:
-    - arch_aur_packages | length > 0
+    - packages_aur_effective | length > 0
     - packages_missing_aur | length > 0
   changed_when: true
+  tags:
+    - packages
 
 - name: Query explicitly installed native packages
   ansible.builtin.command: pacman -Qqen
   register: packages_native_explicit_query
   changed_when: false
   when: arch_package_prune_explicit | bool
+  tags:
+    - packages
 
 - name: Query explicitly installed foreign packages
   ansible.builtin.command: pacman -Qqem
@@ -92,16 +121,22 @@
   changed_when: false
   failed_when: false
   when: arch_package_prune_explicit | bool
+  tags:
+    - packages
 
 - name: Compute undeclared explicit native packages
   ansible.builtin.set_fact:
     packages_extra_native: "{{ packages_native_explicit_query.stdout_lines | difference(packages_declared_all) }}"
   when: arch_package_prune_explicit | bool
+  tags:
+    - packages
 
 - name: Compute undeclared explicit foreign packages
   ansible.builtin.set_fact:
     packages_extra_foreign: "{{ packages_foreign_explicit_query.stdout_lines | default([]) | difference(packages_declared_all) }}"
   when: arch_package_prune_explicit | bool
+  tags:
+    - packages
 
 - name: Remove undeclared explicit packages
   ansible.builtin.command:
@@ -110,3 +145,5 @@
     - arch_package_prune_explicit | bool
     - (packages_extra_native + packages_extra_foreign) | length > 0
   changed_when: true
+  tags:
+    - packages

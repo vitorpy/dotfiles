@@ -4,6 +4,8 @@ arch_timezone: Europe/Warsaw
 
 arch_host_pacman_packages_extra:
   - tailscale
+arch_host_aur_packages_extra:
+  - hermes-agent
 arch_host_system_services_extra:
   - tailscaled
 arch_host_firewall_allowed_udp_ports_extra:
@@ -20,3 +22,7 @@ arch_extra_mounts:
     mode: "2775"
 
 arch_transmission_download_dir: /mnt/media/downloads
+
+arch_hermes_agent_enabled: true
+arch_hermes_agent_base_url: https://zoulfgxc.tail246377.ts.net/v1
+arch_hermes_agent_model: gemma-4-26B-A4B-it-uncensored-Q4_K_M.gguf

@@ -1,0 +1,24 @@
+# Managed by Ansible.
+model:
+  default: "{{ arch_hermes_agent_model }}"
+  provider: "{{ arch_hermes_agent_provider }}"
+  base_url: "{{ arch_hermes_agent_base_url }}"
+
+tools:
+  by_platform:
+    telegram:
+      - hermes-telegram
+
+platforms:
+  telegram:
+    reply_to_mode: "{{ arch_hermes_agent_telegram_reply_to_mode }}"
+    extra:
+      disable_link_previews: {{ arch_hermes_agent_telegram_disable_link_previews | bool | to_json }}
+
+terminal:
+  backend: local
+  cwd: "."
+  timeout: 180
+  home_mode: auto
+  docker_mount_cwd_to_workspace: false
+  lifetime_seconds: 300

@@ -269,6 +269,139 @@
   tags:
     - media_sorter
 
+- name: Validate Hermes Agent configuration
+  ansible.builtin.assert:
+    that:
+      - arch_hermes_agent_model | length > 0
+      - arch_hermes_agent_base_url | length > 0
+    fail_msg: "arch_hermes_agent_model and arch_hermes_agent_base_url are required when Hermes Agent is enabled."
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Ensure Hermes Agent config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0700"
+  loop:
+    - "{{ arch_hermes_agent_home }}"
+    - "{{ arch_hermes_agent_home }}/cron"
+    - "{{ arch_hermes_agent_home }}/sessions"
+    - "{{ arch_hermes_agent_home }}/logs"
+    - "{{ arch_hermes_agent_home }}/memories"
+    - "{{ arch_hermes_agent_home }}/skills"
+    - "{{ arch_hermes_agent_home }}/pairing"
+    - "{{ arch_hermes_agent_home }}/hooks"
+    - "{{ arch_hermes_agent_home }}/image_cache"
+    - "{{ arch_hermes_agent_home }}/audio_cache"
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Install Hermes Agent config
+  ansible.builtin.template:
+    src: hermes-config.yaml.j2
+    dest: "{{ arch_hermes_agent_home }}/config.yaml"
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0640"
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Ensure Hermes Agent environment file exists
+  ansible.builtin.copy:
+    dest: "{{ arch_hermes_agent_home }}/.env"
+    content: |
+      # Managed by Ansible. Local llama endpoint and Telegram defaults are configured in config.yaml.
+      # BEGIN ANSIBLE MANAGED HERMES TELEGRAM BRIDGE
+      # Uncomment and set these on the host to enable the Telegram bridge.
+      # TELEGRAM_BOT_TOKEN=
+      # TELEGRAM_ALLOWED_USERS=
+      # TELEGRAM_HOME_CHANNEL=
+      # TELEGRAM_HOME_CHANNEL_NAME=
+      # END ANSIBLE MANAGED HERMES TELEGRAM BRIDGE
+    force: false
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0600"
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Check Hermes Agent environment file
+  ansible.builtin.stat:
+    path: "{{ arch_hermes_agent_home }}/.env"
+  register: services_hermes_agent_env
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Check Hermes Agent bundled skills
+  ansible.builtin.stat:
+    path: /opt/hermes-agent/skills
+  register: services_hermes_agent_bundled_skills
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Install Hermes Agent bundled skills
+  ansible.builtin.copy:
+    src: /opt/hermes-agent/skills/
+    dest: "{{ arch_hermes_agent_home }}/skills/"
+    remote_src: true
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "u=rwX,go="
+    directory_mode: "0700"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - services_hermes_agent_bundled_skills.stat.exists | default(false)
+  tags:
+    - hermes_agent
+
+- name: Ensure Hermes Agent skills directory permissions
+  ansible.builtin.file:
+    path: "{{ arch_hermes_agent_home }}/skills"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0700"
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
+- name: Add Hermes Agent Telegram bridge environment hints
+  ansible.builtin.blockinfile:
+    path: "{{ arch_hermes_agent_home }}/.env"
+    marker: "# {mark} ANSIBLE MANAGED HERMES TELEGRAM BRIDGE"
+    block: |
+      # Uncomment and set these on the host to enable the Telegram bridge.
+      # TELEGRAM_BOT_TOKEN=
+      # TELEGRAM_ALLOWED_USERS=
+      # TELEGRAM_HOME_CHANNEL=
+      # TELEGRAM_HOME_CHANNEL_NAME=
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0600"
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_gateway_platform == 'telegram'
+    - not ansible_check_mode or services_hermes_agent_env.stat.exists | default(false)
+  tags:
+    - hermes_agent
+
+- name: Remove Hermes Agent WhatsApp bridge link
+  ansible.builtin.file:
+    path: "{{ arch_hermes_agent_home }}/whatsapp-bridge"
+    state: absent
+  when: arch_hermes_agent_enabled | bool
+  tags:
+    - hermes_agent
+
 - name: Gather service facts
   ansible.builtin.service_facts:
   tags:

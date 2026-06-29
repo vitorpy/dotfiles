@@ -281,6 +281,20 @@ assert_not_exists "${series}/Stargate Universe/Season 01/Stargate Universe Seaso
 assert_not_exists "${series}/Stargate Universe/Season 01/Kino 01 - Get Outta Here.avi"
 assert_not_exists "${series}/Stargate Universe/Season 01/SGU Interviews 01.avi"
 
+mkdir -p "${downloads}/Os normais/1a Temporada" "${downloads}/Os normais/2a Temporada" "${downloads}/Os normais/3a Temporada"
+printf osn1 > "${downloads}/Os normais/1a Temporada/Os.Normais.01x01.avi"
+printf osn2 > "${downloads}/Os normais/2a Temporada/Os.Normais.2x01 - Tudo normal como antes.avi"
+printf osn3 > "${downloads}/Os normais/3a Temporada/301 Os Normais - A Volta Dos Que Não Foram.avi"
+write_metadata "${tmpdir}/os-normais.json" "Os normais" '[]' \
+  "Os normais/1a Temporada/Os.Normais.01x01.avi" \
+  "Os normais/2a Temporada/Os.Normais.2x01 - Tudo normal como antes.avi" \
+  "Os normais/3a Temporada/301 Os Normais - A Volta Dos Que Não Foram.avi"
+run_sorter --metadata-json "${tmpdir}/os-normais.json" --label "series:Os Normais"
+assert_samefile "${downloads}/Os normais/1a Temporada/Os.Normais.01x01.avi" "${series}/Os Normais/Season 01/Os.Normais.S01E01.avi"
+assert_samefile "${downloads}/Os normais/2a Temporada/Os.Normais.2x01 - Tudo normal como antes.avi" "${series}/Os Normais/Season 02/Os.Normais.S02E01 - Tudo normal como antes.avi"
+assert_samefile "${downloads}/Os normais/3a Temporada/301 Os Normais - A Volta Dos Que Não Foram.avi" "${series}/Os Normais/Season 03/S03E01 Os Normais - A Volta Dos Que Não Foram.avi"
+assert_not_exists "${series}/Os Normais/Season 01/S01E301 Os Normais - A Volta Dos Que Não Foram.avi"
+
 mkdir -p "${downloads}/Star Trek Enterprise S01"
 printf enterprise > "${downloads}/Star Trek Enterprise S01/Star Trek Enterprise S01E01E02 Broken Bow.mkv"
 write_metadata "${tmpdir}/multi-episode-file.json" "Star Trek Enterprise S01" '[]' \

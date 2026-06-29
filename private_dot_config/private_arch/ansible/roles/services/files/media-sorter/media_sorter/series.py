@@ -36,12 +36,20 @@ def jellyfin_series_name(filename: str, season: int | None = None) -> str:
     if season is None:
         return filename
     filename = re.sub(
+        r"(?i)^(\d{1,2})(\d{2})(?=[ ._-])",
+        lambda match: f"S{season:02d}E{int(match.group(2)):02d}"
+        if int(match.group(1)) == season
+        else match.group(0),
+        filename,
+        count=1,
+    )
+    filename = re.sub(
         r"(?i)(?<![A-Z0-9-])E(\d{1,3})(?![A-Z0-9])",
         lambda match: f"S{season:02d}E{int(match.group(1)):02d}",
         filename,
     )
     return re.sub(
-        r"(?i)(^|[ ._]*-[ ._]*)(\d{1,3})(?![A-Z0-9])",
+        r"(?i)([ ._]*-[ ._]*)(\d{1,3})(?![A-Z0-9])",
         lambda match: f"{match.group(1)}S{season:02d}E{int(match.group(2)):02d}",
         filename,
         count=1,

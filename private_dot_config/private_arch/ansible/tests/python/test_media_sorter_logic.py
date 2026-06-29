@@ -32,6 +32,7 @@ def queue_record(name: str, *files: dict[str, str]) -> dict[str, object]:
 def test_parse_season_variants() -> None:
     assert parse_season("Show.S01E02.1080p.WEBRip") == 1
     assert parse_season("Show Season 12 Episode 03") == 12
+    assert parse_season("3a Temporada") == 3
     assert parse_season("Show 3x04") == 3
     assert parse_season("Show E04") is None
 
@@ -51,6 +52,8 @@ def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:
     assert jellyfin_series_name("Show S01E01E02 Pilot.mkv", 1) == "Show S01E01-E02 Pilot.mkv"
     assert jellyfin_series_name("Show 5x01 Title.mkv") == "Show S05E01 Title.mkv"
     assert jellyfin_series_name("Show - 01 Title.mkv", 1) == "Show - S01E01 Title.mkv"
+    assert jellyfin_series_name("301 Show Title.avi", 3) == "S03E01 Show Title.avi"
+    assert jellyfin_series_name("301 Show Title.avi", 1) == "301 Show Title.avi"
 
 
 def test_episode_range_pack_can_infer_season_one() -> None:

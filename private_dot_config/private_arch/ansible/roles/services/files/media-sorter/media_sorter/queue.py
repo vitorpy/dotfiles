@@ -113,6 +113,10 @@ def enqueue_torrent(args: argparse.Namespace) -> int:
         record["created_at"] = existing.get("created_at", record["created_at"])
     atomic_write_json(queue_path, record)
     log("INFO", f"queued torrent={name!r} key={record['download_key']} path={queue_path}")
+    
+    # Send Telegram notification
+    send_telegram_notification(f"📥 Download complete: {name}")
+    
     return 0
 
 

@@ -4,17 +4,38 @@ import re
 import sys
 import time
 import unicodedata
-
+import urllib.request
+import json
+import os
 
 def log(level: str, message: str) -> None:
     stream = sys.stderr if level in {"ERROR", "WARNING"} else sys.stdout
     print(f"{level}: media-sort-transmission: {message}", file=stream, flush=True)
 
 
+def send_telegram_notification(message: str) -> None:
+    """Sends a notification to the configured Telegram bot."""
+    token = os.environ.get("TELEGRAM_BOT_token")
+    chat_id = os.environ.get("TELEGRAM_CHAT_id")
+    
+    if not token or not chat_id:
+        log("WARNING", "Telegram credentials missing (TELEGRAM_BOT_token or TELEGRAM_CHAT_id)")
+        return
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = json.dumps({"chat_id": chat_id, "text": message}).encode("utf-8")
+    
+    try:
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status != 200:
+                log("ERROR", f"Telegram API returned status {response.status}")
+    except Exception as e:
+        log("ERROR", f"Failed to send Telegram notification: {e}")
+
 
 def now_ts() -> int:
     return int(time.time())
-
 
 
 def safe_component(value: str) -> str:
@@ -24,7 +45,6 @@ def safe_component(value: str) -> str:
     if not cleaned or cleaned == "..":
         raise ValueError(f"unsafe path component: {value!r}")
     return cleaned
-
 
 
 def parse_season(value: str) -> int | None:
@@ -45,13 +65,11 @@ def parse_season(value: str) -> int | None:
     return None
 
 
-
 def first_not_none(*values: int | None) -> int | None:
     for value in values:
         if value is not None:
             return value
     return None
-
 
 
 def normalize_title(value: str) -> str:
@@ -62,12 +80,10 @@ def normalize_title(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-
 def display_title(value: str) -> str:
     value = re.sub(r"[\._]+", " ", value)
     value = re.sub(r"\s+", " ", value).strip(" -_.")
     return safe_component(" ".join(word[:1].upper() + word[1:].lower() for word in value.split()))
-
 
 
 def strip_bracketed(value: str) -> str:

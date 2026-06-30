@@ -8,10 +8,10 @@ from .backfill import run_backfill
 from .grok import DEFAULT_XAI_RESPONSES_URL, review_plan_with_grok
 from .labels import normalize_labels, parse_label
 from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
-from .queue import enqueue_torrent, make_queue_record, print_preflight, print_review_queue, process_queue
+from .queue import enqueue_torrent, make_queue_record, print_preflight, print_review_queue, process_queue, transmission_torrent
 from .sorters import plan_entries, sort_entries
 from .transmission import files_from_torrent, load_transmission_metadata, transmission_torrent
-from .utils import log
+from .utils import log, send_telegram_notification
 
 
 DESCRIPTION = "Transmission media sorter hook and queue processor."

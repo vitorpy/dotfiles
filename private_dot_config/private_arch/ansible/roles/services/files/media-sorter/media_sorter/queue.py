@@ -16,7 +16,7 @@ from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_re
 from .sorters import plan_entries
 from .tmdb import tmdb_match
 from .transmission import download_key, files_from_torrent, load_transmission_metadata, torrent_hash, transmission_torrent
-from .utils import log, now_ts
+from .utils import log, now_ts, send_telegram_notification
 
 
 def key_filename(key: str) -> str:
@@ -113,10 +113,7 @@ def enqueue_torrent(args: argparse.Namespace) -> int:
         record["created_at"] = existing.get("created_at", record["created_at"])
     atomic_write_json(queue_path, record)
     log("INFO", f"queued torrent={name!r} key={record['download_key']} path={queue_path}")
-    
-    # Send Telegram notification
-    send_telegram_notification(f"📥 Download complete: {name}")
-    
+    send_telegram_notification(f"Download complete: {name}")
     return 0
 
 

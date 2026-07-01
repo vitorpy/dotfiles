@@ -49,6 +49,7 @@ arch_media_sorter_lib_dir: /usr/local/lib/media-sorter
 arch_media_sorter_queue_root: /var/lib/transmission/media-sorter
 arch_media_sorter_tmdb_env_dir: /etc/media-sorter
 arch_media_sorter_tmdb_env_file: "{{ arch_media_sorter_tmdb_env_dir }}/tmdb.env"
+arch_media_sorter_telegram_env_file: "{{ arch_media_sorter_tmdb_env_dir }}/telegram.env"
 arch_media_sorter_audiodb_api_key: "123"
 arch_media_sorter_acoustid_api_key: ""
 arch_media_sorter_xai_env_file: /etc/whisper-grok-shim.env

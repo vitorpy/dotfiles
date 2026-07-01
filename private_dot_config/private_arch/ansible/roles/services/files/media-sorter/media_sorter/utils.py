@@ -1,37 +1,85 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 import sys
 import time
 import unicodedata
+import urllib.error
+import urllib.parse
 import urllib.request
-import json
-import os
+from pathlib import Path
 
 def log(level: str, message: str) -> None:
     stream = sys.stderr if level in {"ERROR", "WARNING"} else sys.stdout
     print(f"{level}: media-sort-transmission: {message}", file=stream, flush=True)
 
 
+def read_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return values
+    except OSError as exc:
+        log("WARNING", f"could not read env file {path}: {exc}")
+        return values
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def telegram_config() -> tuple[str | None, str | None]:
+    env_file = Path(os.environ.get("MEDIA_SORTER_TELEGRAM_ENV_FILE", "/etc/media-sorter/telegram.env"))
+    env_values = read_env_file(env_file)
+
+    def value(*names: str) -> str | None:
+        for name in names:
+            candidate = os.environ.get(name)
+            if candidate:
+                return candidate
+        for name in names:
+            candidate = env_values.get(name)
+            if candidate:
+                return candidate
+        return None
+
+    token = value("MEDIA_SORTER_TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_TOKEN")
+    chat_id = value("MEDIA_SORTER_TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID")
+    if not chat_id:
+        allowed_users = value("TELEGRAM_ALLOWED_USERS")
+        if allowed_users and "," not in allowed_users:
+            chat_id = allowed_users
+    return token, chat_id
+
+
 def send_telegram_notification(message: str) -> None:
-    """Sends a notification to the configured Telegram bot."""
-    token = os.environ.get("TELEGRAM_BOT_token")
-    chat_id = os.environ.get("TELEGRAM_CHAT_id")
-    
+    token, chat_id = telegram_config()
     if not token or not chat_id:
-        log("WARNING", "Telegram credentials missing (TELEGRAM_BOT_token or TELEGRAM_CHAT_id)")
         return
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = json.dumps({"chat_id": chat_id, "text": message}).encode("utf-8")
-    
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": message}).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
     try:
-        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(request, timeout=10) as response:
             if response.status != 200:
-                log("ERROR", f"Telegram API returned status {response.status}")
-    except Exception as e:
-        log("ERROR", f"Failed to send Telegram notification: {e}")
+                log("WARNING", f"telegram notification returned status={response.status}")
+    except urllib.error.HTTPError as exc:
+        log("WARNING", f"telegram notification failed status={exc.code}")
+    except urllib.error.URLError as exc:
+        log("WARNING", f"telegram notification failed reason={exc.reason}")
+    except OSError as exc:
+        log("WARNING", f"telegram notification failed: {exc}")
 
 
 def now_ts() -> int:

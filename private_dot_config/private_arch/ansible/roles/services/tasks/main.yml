@@ -14,6 +14,8 @@
     state: directory
     mode: "0755"
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Configure Transmission daemon for LAN web access
   ansible.builtin.template:
@@ -22,6 +24,8 @@
     mode: "0644"
   register: services_transmission_override
   when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
 
 - name: Install Transmission media sorter library
   ansible.builtin.copy:
@@ -45,7 +49,16 @@
 
 - name: Install Transmission media sorter hook
   ansible.builtin.copy:
-    src: media-sort-transmission
+    src: >-
+      {{
+        lookup(
+          'ansible.builtin.first_found',
+          {
+            'files': ['media-sort-transmission', 'executable_media-sort-transmission'],
+            'paths': [role_path ~ '/files']
+          }
+        )
+      }}
     dest: "{{ arch_media_sorter_path }}"
     owner: root
     group: root
@@ -95,6 +108,21 @@
     owner: root
     group: root
     mode: "0600"
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
+- name: Ensure media sorter Telegram environment file exists
+  ansible.builtin.copy:
+    dest: "{{ arch_media_sorter_telegram_env_file }}"
+    content: |
+      # MEDIA_SORTER_TELEGRAM_BOT_TOKEN=
+      # MEDIA_SORTER_TELEGRAM_CHAT_ID=
+    force: false
+    owner: root
+    group: transmission
+    mode: "0640"
+  no_log: true
   when: arch_transmission_enabled | bool
   tags:
     - media_sorter

@@ -1,3 +1,5 @@
 [Service]
+EnvironmentFile=-{{ arch_media_sorter_telegram_env_file }}
+Environment=MEDIA_SORTER_TELEGRAM_ENV_FILE={{ arch_media_sorter_telegram_env_file }}
 ExecStart=
 ExecStart=/usr/bin/transmission-daemon --foreground --log-error --config-dir /var/lib/transmission/.config/transmission-daemon --port {{ arch_transmission_rpc_port }} --allowed "{{ arch_transmission_rpc_allowed }}" {{ '--auth' if arch_transmission_rpc_auth_required | bool else '--no-auth' }} --download-dir {{ arch_transmission_download_dir }}

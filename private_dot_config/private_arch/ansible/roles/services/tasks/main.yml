@@ -336,6 +336,7 @@
     owner: "{{ arch_primary_user }}"
     group: "{{ arch_primary_user }}"
     mode: "0640"
+  register: services_hermes_agent_config
   when: arch_hermes_agent_enabled | bool
   tags:
     - hermes_agent
@@ -344,8 +345,14 @@
   ansible.builtin.copy:
     dest: "{{ arch_hermes_agent_home }}/.env"
     content: |
-      # Managed by Ansible. Local llama endpoint and Telegram defaults are configured in config.yaml.
+      # Managed by Ansible. Model provider and Telegram defaults are configured in config.yaml.
+      # Set XAI_API_KEY=<token> in this file on the host to enable the xAI/Grok provider.
       # Set TELEGRAM_BOT_TOKEN=<token> in this file on the host to enable the Telegram bridge.
+      # BEGIN ANSIBLE MANAGED HERMES XAI PROVIDER
+      # Optional xAI/Grok provider settings. Set real secrets outside this managed block.
+      # XAI_API_KEY=
+      # XAI_BASE_URL=
+      # END ANSIBLE MANAGED HERMES XAI PROVIDER
       # BEGIN ANSIBLE MANAGED HERMES TELEGRAM BRIDGE
       # Optional Telegram bridge settings.
       # TELEGRAM_ALLOWED_USERS=
@@ -356,6 +363,7 @@
     owner: "{{ arch_primary_user }}"
     group: "{{ arch_primary_user }}"
     mode: "0600"
+  register: services_hermes_agent_env_file
   no_log: true
   when: arch_hermes_agent_enabled | bool
   tags:
@@ -415,10 +423,31 @@
     owner: "{{ arch_primary_user }}"
     group: "{{ arch_primary_user }}"
     mode: "0600"
+  register: services_hermes_agent_telegram_env_hints
   no_log: true
   when:
     - arch_hermes_agent_enabled | bool
     - arch_hermes_agent_gateway_platform == 'telegram'
+    - not ansible_check_mode or services_hermes_agent_env.stat.exists | default(false)
+  tags:
+    - hermes_agent
+
+- name: Add Hermes Agent xAI provider environment hints
+  ansible.builtin.blockinfile:
+    path: "{{ arch_hermes_agent_home }}/.env"
+    marker: "# {mark} ANSIBLE MANAGED HERMES XAI PROVIDER"
+    block: |
+      # Optional xAI/Grok provider settings. Set real secrets outside this managed block.
+      # XAI_API_KEY=
+      # XAI_BASE_URL=
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0600"
+  register: services_hermes_agent_xai_env_hints
+  no_log: true
+  when:
+    - arch_hermes_agent_enabled | bool
+    - arch_hermes_agent_provider == 'xai'
     - not ansible_check_mode or services_hermes_agent_env.stat.exists | default(false)
   tags:
     - hermes_agent
@@ -522,7 +551,7 @@
   tags:
     - hermes_agent
 
-- name: Restart Hermes Agent gateway user service after unit changes
+- name: Restart Hermes Agent gateway user service after unit or config changes
   ansible.builtin.systemd:
     name: hermes-gateway.service
     state: restarted
@@ -535,7 +564,12 @@
   when:
     - arch_hermes_agent_enabled | bool
     - arch_hermes_agent_gateway_service_enabled | bool
-    - services_hermes_agent_gateway_service.changed | default(false)
+    - >-
+      services_hermes_agent_gateway_service.changed | default(false)
+      or services_hermes_agent_config.changed | default(false)
+      or services_hermes_agent_env_file.changed | default(false)
+      or services_hermes_agent_telegram_env_hints.changed | default(false)
+      or services_hermes_agent_xai_env_hints.changed | default(false)
     - not ansible_check_mode
   tags:
     - hermes_agent

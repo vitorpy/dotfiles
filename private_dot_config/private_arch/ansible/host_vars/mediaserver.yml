@@ -24,6 +24,7 @@ arch_extra_mounts:
 arch_transmission_download_dir: /mnt/media/downloads
 
 arch_hermes_agent_enabled: true
-arch_hermes_agent_base_url: https://zoulfgxc.tail246377.ts.net/v1
-arch_hermes_agent_model: gemma-4-26B-A4B-it-uncensored-Q4_K_M.gguf
+arch_hermes_agent_provider: xai
+arch_hermes_agent_base_url: https://api.x.ai/v1
+arch_hermes_agent_model: grok-4.3
 arch_hermes_agent_gateway_service_enabled: true

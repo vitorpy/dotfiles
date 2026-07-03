@@ -142,6 +142,13 @@ EXTRA_VIDEO_PATTERNS = (
     (re.compile(r"(?i)(?:^|[ ._-])interviews?[ ._-]*\d{1,3}(?:\b|[ ._-])"), "interviews"),
     (re.compile(r"(?i)(?:^|[ ._-])interviews?(?:\b|[ ._-])"), "interviews"),
     (re.compile(r"(?i)(?:^|[ ._-])featurettes?(?:\b|[ ._-])"), "featurettes"),
+    (re.compile(r"(?i)(?:^|[ ._-])trailers?(?:\b|[ ._-])"), "trailers"),
+    (re.compile(r"(?i)(?:^|[ ._-])teasers?(?:\b|[ ._-])"), "trailers"),
+    (re.compile(r"(?i)(?:^|[ ._-])promos?(?:\b|[ ._-])"), "clips"),
+    (re.compile(r"(?i)(?:^|[ ._-])slogans?(?:\b|[ ._-])"), "clips"),
+    (re.compile(r"(?i)(?:^|[ ._-])clips?(?:\b|[ ._-])"), "clips"),
+    (re.compile(r"(?i)(?:^|[ ._-])samples?(?:\b|[ ._-])"), "samples"),
+    (re.compile(r"(?i)(?:^|[ ._-])shorts?(?:\b|[ ._-])"), "shorts"),
     (re.compile(r"(?i)(?:^|[ ._-])extras?(?:\b|[ ._-])"), "extras"),
 )
 
@@ -155,11 +162,17 @@ MOVIE_EXTRA_VIDEO_PATTERNS = (
 
 GENERIC_METADATA_FOLDER_TITLES = {
     "behind the scenes",
+    "backdrops",
+    "clips",
     "deleted scenes",
     "extras",
     "featurettes",
     "interviews",
+    "other",
+    "samples",
+    "scenes",
     "shorts",
     "specials",
+    "theme-music",
     "trailers",
 }

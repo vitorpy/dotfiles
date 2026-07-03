@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from media_sorter.grok import normalize_grok_review
 from media_sorter.labels import parse_label
-from media_sorter.media_files import is_special_video, season_from_entry
+from media_sorter.media_files import extra_video_folder, is_episode_zero_video, is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
 from media_sorter.planner import SortPlan, apply_plan, preflight_plan
@@ -46,6 +46,25 @@ def test_special_opening_videos_are_detected_without_season() -> None:
     )
     assert is_special_video(clean_op)
     assert season_from_entry(clean_op) is None
+
+
+def test_episode_zero_and_promos_use_specials_and_extra_folders() -> None:
+    episode_zero = FileEntry(
+        relpath=Path("Danger.5.S01/Danger.5.S01E00.The.Diamond.Girls.mp4"),
+        source=Path("/tmp/downloads/Danger.5.S01/Danger.5.S01E00.The.Diamond.Girls.mp4"),
+    )
+    trailer = FileEntry(
+        relpath=Path("Danger.5.S01/1Danger.5.Trailer.Show.mp4"),
+        source=Path("/tmp/downloads/Danger.5.S01/1Danger.5.Trailer.Show.mp4"),
+    )
+    slogan = FileEntry(
+        relpath=Path("Danger.5.S01/1KABLAM!!!-Slogan.avi"),
+        source=Path("/tmp/downloads/Danger.5.S01/1KABLAM!!!-Slogan.avi"),
+    )
+
+    assert is_episode_zero_video(episode_zero)
+    assert extra_video_folder(trailer) == "trailers"
+    assert extra_video_folder(slogan) == "clips"
 
 
 def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:

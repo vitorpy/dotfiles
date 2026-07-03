@@ -431,6 +431,13 @@ printf seasonless01 > "${downloads}/Seasonless Anime/Seasonless Anime E01.mkv"
 printf seasonless02 > "${downloads}/Seasonless Anime/Seasonless Anime E02.mkv"
 write_jsonrpc_metadata "${tmpdir}/seasonless-anime.json" "Seasonless Anime" "seasonlessanimehash"
 
+mkdir -p "${downloads}/Danger.5.S01"
+printf dangertrailer > "${downloads}/Danger.5.S01/1Danger.5.Trailer.Show.WEBRip.x264-mOt.mp4"
+printf dangerslogan > "${downloads}/Danger.5.S01/1KABLAM!!!-Slogan.avi"
+printf dangerspecial > "${downloads}/Danger.5.S01/Danger.5.S01E00.WS.WEBRip.x264-mOt.The.Diamond.Girls.mp4"
+printf danger01 > "${downloads}/Danger.5.S01/Danger.5.S01E01.HDTV.XviD-tellymad.I.Danced.for.Hitler.avi"
+write_jsonrpc_metadata "${tmpdir}/danger-5.json" "Danger.5.S01" "danger5hash"
+
 cat > "${tmpdir}/tmdb-fixture.json" <<JSON
 {
   "movie": {
@@ -513,6 +520,11 @@ cat > "${tmpdir}/tmdb-fixture.json" <<JSON
         {"id": 65337, "name": "Long Riders!", "first_air_date": "2016-10-08", "vote_count": 5, "popularity": 2.5}
       ]
     },
+    "Danger 5": {
+      "results": [
+        {"id": 43199, "name": "Danger 5", "first_air_date": "2012-02-27", "vote_count": 70, "popularity": 2.1811}
+      ]
+    },
     "Seasonless Anime": {
       "results": [
         {"id": 424242, "name": "Seasonless Anime", "first_air_date": "2020-01-01"}
@@ -540,6 +552,7 @@ run_sorter --metadata-json "${tmpdir}/love-letter.json"
 run_sorter --metadata-json "${tmpdir}/initial-d.json"
 run_sorter --metadata-json "${tmpdir}/long-riders.json"
 run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
+run_sorter --metadata-json "${tmpdir}/danger-5.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
@@ -557,6 +570,13 @@ assert_not_exists "${films}/Fury"
 assert_not_exists "${films}/Initial D"
 assert_samefile "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/[SNSbu] Long Riders! - 01 (BD 1920x1080 HEVC FLAC).mkv" "${series}/Long Riders!/Season 01/[SNSbu] Long Riders! - S01E01 (BD 1920x1080 HEVC FLAC).mkv"
 assert_samefile "${downloads}/[SNSbu] Long Riders! (BD 1920x1080 HEVC FLAC)/Extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv" "${series}/Long Riders!/Season 01/extras/[SNSbu] Long Riders! - NCOP 01 (BD 1920x1080 HEVC FLAC).mkv"
+assert_samefile "${downloads}/Danger.5.S01/Danger.5.S01E01.HDTV.XviD-tellymad.I.Danced.for.Hitler.avi" "${series}/Danger 5/Season 01/Danger.5.S01E01.HDTV.XviD-tellymad.I.Danced.for.Hitler.avi"
+assert_samefile "${downloads}/Danger.5.S01/Danger.5.S01E00.WS.WEBRip.x264-mOt.The.Diamond.Girls.mp4" "${series}/Danger 5/Season 00/Danger.5.S01E00.WS.WEBRip.x264-mOt.The.Diamond.Girls.mp4"
+assert_samefile "${downloads}/Danger.5.S01/1Danger.5.Trailer.Show.WEBRip.x264-mOt.mp4" "${series}/Danger 5/Season 01/trailers/1Danger.5.Trailer.Show.WEBRip.x264-mOt.mp4"
+assert_samefile "${downloads}/Danger.5.S01/1KABLAM!!!-Slogan.avi" "${series}/Danger 5/Season 01/clips/1KABLAM!!!-Slogan.avi"
+assert_not_exists "${series}/Danger 5/Season 01/Danger.5.S01E00.WS.WEBRip.x264-mOt.The.Diamond.Girls.mp4"
+assert_not_exists "${series}/Danger 5/Season 01/1Danger.5.Trailer.Show.WEBRip.x264-mOt.mp4"
+assert_not_exists "${series}/Danger 5/Season 01/1KABLAM!!!-Slogan.avi"
 assert_not_exists "${series}/Extras"
 assert_not_exists "${series}/Seasonless Anime"
 test -f "${queue_root}/needs-review/btih_seasonlessanimehash.json"
@@ -572,12 +592,14 @@ test -f "${queue_root}/done/btih_stalkerhash.json"
 test -f "${queue_root}/done/btih_loveletterhash.json"
 test -f "${queue_root}/done/btih_initialdhash.json"
 test -f "${queue_root}/done/btih_longridershash.json"
+test -f "${queue_root}/done/btih_danger5hash.json"
 jq -e '.match.query == "Serial Experiments Lain" and .match.hints.season == 1' "${queue_root}/done/btih_lainhash.json" >/dev/null
 jq -e '.match.selected.matched_title_source == "alternative_title" and .match.selected.provider_id == 31056' "${queue_root}/done/btih_russianmoviehash.json" >/dev/null
 jq -e '.match.query == "Stalker" and .match.selected.query_source == "file-stem" and .match.selected.provider_id == 1398' "${queue_root}/done/btih_stalkerhash.json" >/dev/null
 jq -e '.match.selected.provider_id == 47002 and .match.tie_breaker.type == "vote_count" and .match.tie_breaker.vote_gap == 265' "${queue_root}/done/btih_loveletterhash.json" >/dev/null
 jq -e '.match.selected.media_type == "tv" and .match.selected.provider_id == 40424' "${queue_root}/done/btih_initialdhash.json" >/dev/null
 jq -e '.match.query == "Long Riders!" and .match.selected.provider_id == 65337 and .match.hints.season == 1' "${queue_root}/done/btih_longridershash.json" >/dev/null
+jq -e '.match.query == "Danger 5" and .match.selected.provider_id == 43199 and .match.hints.season == 1' "${queue_root}/done/btih_danger5hash.json" >/dev/null
 
 mkdir -p "${downloads}/Ambiguous.2020.1080p.WEBRip"
 printf ambiguous > "${downloads}/Ambiguous.2020.1080p.WEBRip/Ambiguous.2020.1080p.WEBRip.mkv"

@@ -195,6 +195,16 @@ This applies to:
 
 Replace "Your commit message" with a description of your changes.
 
+## Media Sorter / Jellyfin Library Layout
+
+When changing the Transmission-to-Jellyfin media sorter under `arch/ansible/roles/services/files/media-sorter`, keep the generated library layout aligned with Jellyfin's media docs:
+
+- Shows belong under `/mnt/media/series/<Series Name>/Season NN/`. Use `Season 00` for specials. Do not put normal episodes directly in the show root, and do not use abbreviated season folder names like `S01`.
+- Show extras may be under the series folder or a season folder using Jellyfin-supported subfolders such as `extras`, `trailers`, `featurettes`, `interviews`, `shorts`, `clips`, `samples`, `behind the scenes`, `deleted scenes`, `scenes`, `other`, `theme-music`, and `backdrops`.
+- Movies belong under `/mnt/media/films/<Movie Name>/`, preferably one folder per movie. When feasible, movie video files should use the same base name as the folder; sidecar subtitle/audio files should share the video stem and use Jellyfin suffix flags.
+- For sorter behavior, keep Transmission seeding paths intact and create hardlinks into Jellyfin libraries. Do not move or copy torrent payloads. If a show special, trailer, promo, sample, or other extra is detected, route it to `Season 00` or the matching extras folder instead of the normal season root.
+- Reference docs: https://jellyfin.org/docs/general/server/media/shows/ and https://jellyfin.org/docs/general/server/media/movies/
+
 ## Documentation
 
 After making changes:

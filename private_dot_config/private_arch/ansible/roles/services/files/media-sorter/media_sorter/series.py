@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from .constants import USEFUL_SIDECAR_EXTENSIONS
-from .media_files import extra_video_folder, is_special_video, is_video, season_from_entry
+from .media_files import extra_video_folder, is_episode_zero_video, is_special_video, is_video, season_from_entry
 from .models import FileEntry, MediaLabel
 from .planner import SortPlan, apply_plan, preflight_plan
 from .utils import first_not_none, log, parse_season, safe_component
@@ -66,10 +66,15 @@ def plan_series(label: MediaLabel, torrent_name: str, entries: list[FileEntry], 
 
     for video in videos:
         special_video = is_special_video(video)
+        episode_zero_video = is_episode_zero_video(video)
         extra_folder = extra_video_folder(video)
         if special_video:
             extra_folder = "extras"
-        season = first_not_none(season_from_entry(video), parse_season(torrent_name), label.season)
+        season = (
+            0
+            if episode_zero_video
+            else first_not_none(season_from_entry(video), parse_season(torrent_name), label.season)
+        )
         if season is None and not special_video:
             plan.errors.append(f"needs season label, skipping source={video.source} series={label.title!r}")
             continue

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,15 @@ def is_audio(entry: FileEntry) -> bool:
 def is_special_video(entry: FileEntry) -> bool:
     name = entry.source.stem
     return any(pattern.search(name) for pattern in SPECIAL_VIDEO_PATTERNS)
+
+
+def is_episode_zero_video(entry: FileEntry) -> bool:
+    name = entry.source.stem
+    patterns = (
+        r"(?i)(?:^|[^a-z0-9])s\d{1,2}e0{1,3}(?:[^a-z0-9]|$)",
+        r"(?i)(?:^|[^a-z0-9])\d{1,2}x0{1,3}(?:[^a-z0-9]|$)",
+    )
+    return any(re.search(pattern, name) for pattern in patterns)
 
 
 

@@ -1,6 +1,6 @@
 ---
 arch_system_services: "{{ arch_server_system_services + ['NetworkManager', 'jellyfin', 'transmission'] }}"
-arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8096, 9091, 51413] }}"
+arch_firewall_allowed_tcp_ports: "{{ arch_server_firewall_allowed_tcp_ports + [8096, 9091, 51413, 6767] }}"
 arch_firewall_allowed_udp_ports: "{{ [51413] + arch_host_firewall_allowed_udp_ports_extra }}"
 arch_firewall_trusted_interfaces: "{{ arch_host_firewall_trusted_interfaces_extra }}"
 

@@ -3,9 +3,19 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
+# Load media-sorter Telegram env so notifications work from the Transmission hook
+ENV_FILE = Path("/etc/media-sorter/telegram.env")
+if ENV_FILE.exists():
+    with open(ENV_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
 
 LOCAL_LIB = Path(__file__).resolve().parent / "media-sorter"
 if LOCAL_LIB.exists():
@@ -14,7 +24,6 @@ else:
     sys.path.insert(0, "/usr/local/lib/media-sorter")
 
 from media_sorter.cli import main
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -67,6 +67,22 @@
   tags:
     - media_sorter
 
+- name: Install ffsubsync (AUR) for subtitle-sync skill
+  ansible.builtin.command:
+    argv:
+      - yay
+      - -S
+      - --needed
+      - --noconfirm
+      - ffsubsync
+  register: services_ffsubsync_install
+  changed_when: "'installing' in (services_ffsubsync_install.stdout | default('')) or 'upgrading' in (services_ffsubsync_install.stdout | default(''))"
+  failed_when: services_ffsubsync_install.rc != 0
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+    - subtitles
+
 - name: Install Transmission tracker updater
   ansible.builtin.copy:
     src: transmission-update-trackers

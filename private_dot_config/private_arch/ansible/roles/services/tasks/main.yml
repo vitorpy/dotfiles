@@ -171,6 +171,7 @@
     - "{{ arch_media_sorter_queue_root }}/queue"
     - "{{ arch_media_sorter_queue_root }}/done"
     - "{{ arch_media_sorter_queue_root }}/needs-review"
+    - "{{ arch_media_sorter_queue_root }}/ignored"
     - "{{ arch_media_sorter_queue_root }}/failed"
   when: arch_transmission_enabled | bool
   tags:
@@ -194,6 +195,7 @@
       - "{{ arch_media_sorter_queue_root }}/queue"
       - "{{ arch_media_sorter_queue_root }}/done"
       - "{{ arch_media_sorter_queue_root }}/needs-review"
+      - "{{ arch_media_sorter_queue_root }}/ignored"
       - "{{ arch_media_sorter_queue_root }}/failed"
     patterns: "*.json"
     file_type: file

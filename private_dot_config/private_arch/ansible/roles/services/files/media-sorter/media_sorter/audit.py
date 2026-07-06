@@ -68,7 +68,7 @@ def collect_audit(args: argparse.Namespace) -> tuple[dict[str, int], list[dict[s
 def print_audit(args: argparse.Namespace) -> int:
     counts, findings = collect_audit(args)
     print("queue counts:")
-    for name in ("queue", "done", "needs_review", "failed"):
+    for name in ("queue", "done", "needs_review", "ignored", "failed"):
         print(f"  {name}: {counts.get(name, 0)}")
     print(f"owned-link findings: {len(findings)}")
     for finding in findings:

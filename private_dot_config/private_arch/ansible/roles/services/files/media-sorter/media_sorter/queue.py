@@ -29,6 +29,7 @@ def queue_dirs(queue_root: Path) -> dict[str, Path]:
         "queue": queue_root / "queue",
         "done": queue_root / "done",
         "needs_review": queue_root / "needs-review",
+        "ignored": queue_root / "ignored",
         "failed": queue_root / "failed",
     }
 
@@ -123,9 +124,16 @@ def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any
     record["updated_at"] = now_ts()
     target_dir = queue_dirs(queue_root)[status]
     target = target_dir / path.name
+    if path == target:
+        atomic_write_json(target, record)
+        return
     atomic_write_json(target, record)
     if path.exists():
         path.unlink()
+
+
+def has_sortable_media(record: dict[str, Any]) -> bool:
+    return any(record_item_kind(item) in {"video", "audio"} for item in record.get("files", []))
 
 
 def match_record(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
@@ -163,46 +171,82 @@ def candidate_summary(candidate: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def print_queue_record(path: Path, *, include_other: bool = False, max_files: int = 20) -> None:
+    record = json.loads(path.read_text(encoding="utf-8"))
+    torrent = record.get("torrent", {})
+    match = record.get("match") or {}
+    files = record.get("files", [])
+    printable_files = [
+        item
+        for item in files
+        if include_other or record_item_kind(item) in {"video", "audio", "sidecar"}
+    ]
+    sortable_count = sum(1 for item in files if record_item_kind(item) in {"video", "audio"})
+
+    print(f"- record: {path}")
+    print(f"  key: {record.get('download_key', '')}")
+    print(f"  torrent: {torrent.get('name', '')}")
+    print(f"  download_dir: {torrent.get('download_dir', '')}")
+    print(f"  reason: {record.get('reason') or 'needs review'}")
+    if match.get("query"):
+        print(f"  query: {match['query']}")
+    if torrent.get("labels"):
+        print(f"  labels: {', '.join(normalize_labels(torrent.get('labels')))}")
+
+    candidates = match.get("candidates") or []
+    if candidates:
+        print("  candidates:")
+        for candidate in candidates:
+            print(f"    - {candidate_summary(candidate)}")
+
+    shown_files = printable_files[:max_files]
+    suffix = f", showing {len(shown_files)}" if len(printable_files) > len(shown_files) else ""
+    print(f"  files ({sortable_count} sortable / {len(files)} total{suffix}):")
+    for item in shown_files:
+        print(f"    - [{record_item_kind(item)}] {item.get('path', '')}")
+
+
 
 def print_review_queue(args: argparse.Namespace) -> int:
     queue_root = Path(args.queue_root)
     review_dir = queue_dirs(queue_root)["needs_review"]
+    ignored_dir = queue_dirs(queue_root)["ignored"]
     review_paths = sorted(review_dir.glob("*.json")) if review_dir.exists() else []
+    ignored_paths = sorted(ignored_dir.glob("*.json")) if ignored_dir.exists() else []
 
     if not review_paths:
         print("needs-review queue is empty")
-        return 0
+    else:
+        print(f"needs-review: {len(review_paths)} item(s)")
+        for index, path in enumerate(review_paths):
+            if index:
+                print()
+            print_queue_record(path)
 
-    print(f"needs-review: {len(review_paths)} item(s)")
-    for index, path in enumerate(review_paths):
-        if index:
+    if ignored_paths:
+        if review_paths:
             print()
+        print(f"ignored: {len(ignored_paths)} item(s)")
+        for index, path in enumerate(ignored_paths):
+            if index:
+                print()
+            print_queue_record(path, include_other=True)
+    return 0
 
-        record = json.loads(path.read_text(encoding="utf-8"))
-        torrent = record.get("torrent", {})
-        match = record.get("match") or {}
-        files = record.get("files", [])
-        media_files = [item for item in files if record_item_kind(item) in {"video", "audio", "sidecar"}]
 
-        print(f"- record: {path}")
-        print(f"  key: {record.get('download_key', '')}")
-        print(f"  torrent: {torrent.get('name', '')}")
-        print(f"  download_dir: {torrent.get('download_dir', '')}")
-        print(f"  reason: {record.get('reason') or 'needs review'}")
-        if match.get("query"):
-            print(f"  query: {match['query']}")
-        if torrent.get("labels"):
-            print(f"  labels: {', '.join(normalize_labels(torrent.get('labels')))}")
+def ignore_record(args: argparse.Namespace) -> int:
+    if not args.ignore:
+        raise RuntimeError("--ignore requires a record path or queue key")
 
-        candidates = match.get("candidates") or []
-        if candidates:
-            print("  candidates:")
-            for candidate in candidates:
-                print(f"    - {candidate_summary(candidate)}")
-
-        print(f"  files ({len(media_files)} media / {len(files)} total):")
-        for item in media_files:
-            print(f"    - [{record_item_kind(item)}] {item.get('path', '')}")
+    queue_root = Path(args.queue_root)
+    ensure_queue_dirs(queue_root)
+    path = record_path(queue_root, args.ignore)
+    record = load_record(path)
+    reason = args.ignore_reason or "manually ignored"
+    record["reason"] = reason
+    record["match"] = record.get("match") or {"provider": "manual", "ignored": True}
+    move_record(path, queue_root, "ignored", record)
+    log("INFO", f"ignored key={record.get('download_key', '')} reason={reason}")
     return 0
 
 
@@ -244,6 +288,14 @@ def process_queue(args: argparse.Namespace) -> int:
     for path in queue_paths:
         record = load_record(path)
         entries = entries_from_record(record)
+        if not has_sortable_media(record):
+            record["reason"] = "no sortable video or audio files"
+            record["match"] = {"provider": "none", "ignored": True}
+            log("INFO", f"ignored key={record['download_key']} reason={record['reason']}")
+            if not args.dry_run:
+                move_record(path, queue_root, "ignored", record)
+            continue
+
         try:
             decision = match_record(record, args)
         except Exception as exc:

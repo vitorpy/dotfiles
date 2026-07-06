@@ -8,7 +8,7 @@ from .backfill import run_backfill
 from .grok import DEFAULT_XAI_RESPONSES_URL, review_plan_with_grok
 from .labels import normalize_labels, parse_label
 from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
-from .queue import enqueue_torrent, make_queue_record, print_preflight, print_review_queue, process_queue
+from .queue import enqueue_torrent, ignore_record, make_queue_record, print_preflight, print_review_queue, process_queue
 from .sorters import plan_entries, sort_entries
 from .transmission import files_from_torrent, load_transmission_metadata, transmission_torrent
 from .utils import log
@@ -99,6 +99,8 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--label", action="append", default=[], help="manual override label, e.g. series:South Park")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--queue", action="store_true", help="print downloads waiting for human review")
+    parser.add_argument("--ignore", help="move a record path or queue key to the ignored category")
+    parser.add_argument("--ignore-reason", help="reason to store when moving a record to ignored")
     parser.add_argument("--preflight", help="print deterministic preflight plan for record path or queue key")
     parser.add_argument("--audit", action="store_true", help="audit queue counts and owned-link manifests")
     parser.add_argument("--reconcile", action="store_true", help="remove stale manifest-owned links; dry-run unless --apply is set")
@@ -114,6 +116,8 @@ def main() -> int:
     try:
         if args.queue:
             return print_review_queue(args)
+        if args.ignore:
+            return ignore_record(args)
         if args.preflight:
             return print_preflight(args)
         if args.audit:

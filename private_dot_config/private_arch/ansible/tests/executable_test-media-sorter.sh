@@ -313,6 +313,22 @@ test -f "${queue_root}/queue/btih_abc123.json"
 [[ "$(stat -c '%a' "${queue_root}/queue/btih_abc123.json")" == "640" ]]
 run_sorter --metadata-json "${tmpdir}/queued.json"
 [[ "$(find "${queue_root}/queue" -name 'btih_abc123.json' | wc -l)" -eq 1 ]]
+run_sorter --ignore "btih:abc123" --ignore-reason "not part of the Jellyfin libraries"
+test -f "${queue_root}/ignored/btih_abc123.json"
+jq -e '.status == "ignored" and .reason == "not part of the Jellyfin libraries"' "${queue_root}/ignored/btih_abc123.json" >/dev/null
+
+mkdir -p "${downloads}/Magazine PDF Pack"
+printf pdf > "${downloads}/Magazine PDF Pack/Issue 001.pdf"
+printf cover > "${downloads}/Magazine PDF Pack/Cover.jpg"
+write_jsonrpc_metadata "${tmpdir}/magazine-pack.json" "Magazine PDF Pack" "magazinepackhash"
+run_sorter --metadata-json "${tmpdir}/magazine-pack.json"
+TMDB_API_TOKEN= run_sorter --process-queue
+test -f "${queue_root}/ignored/btih_magazinepackhash.json"
+jq -e '.status == "ignored" and .reason == "no sortable video or audio files"' "${queue_root}/ignored/btih_magazinepackhash.json" >/dev/null
+run_sorter --queue > "${tmpdir}/ignored-queue.out"
+grep -q "ignored: 2 item(s)" "${tmpdir}/ignored-queue.out"
+grep -q "\\[other\\] Magazine PDF Pack/Issue 001.pdf" "${tmpdir}/ignored-queue.out"
+grep -q "\\[sidecar\\] Magazine PDF Pack/Cover.jpg" "${tmpdir}/ignored-queue.out"
 
 mkdir -p "${downloads}/Grok.Approved.2020.1080p.WEBRip"
 printf grokapproved > "${downloads}/Grok.Approved.2020.1080p.WEBRip/Grok.Approved.2020.1080p.WEBRip.mkv"

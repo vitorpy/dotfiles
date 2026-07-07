@@ -31,6 +31,9 @@ arch_extra_mounts:
     mode: "2775"
 
 arch_transmission_download_dir: /mnt/media/downloads
+arch_transmission_download_categories:
+  - radarr
+  - tv-sonarr
 
 arch_hermes_agent_enabled: true
 arch_hermes_agent_provider: xai

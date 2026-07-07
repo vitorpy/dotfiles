@@ -31,6 +31,7 @@ arch_nsswitch_hosts_line: >-
 arch_printers: []
 arch_transmission_enabled: false
 arch_transmission_download_dir: /var/lib/transmission/Downloads
+arch_transmission_download_categories: []
 arch_transmission_umask: 2
 arch_transmission_rpc_allowed: "127.0.0.1,::1"
 arch_transmission_rpc_port: 9091

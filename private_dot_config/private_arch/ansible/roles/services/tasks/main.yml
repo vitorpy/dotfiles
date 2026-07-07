@@ -689,6 +689,16 @@
   register: services_transmission_download_dir
   when: arch_transmission_enabled | bool
 
+- name: Ensure Transmission category download directories exist
+  ansible.builtin.file:
+    path: "{{ arch_transmission_download_dir }}/{{ item }}"
+    state: directory
+    owner: transmission
+    group: transmission
+    mode: "2775"
+  loop: "{{ arch_transmission_download_categories }}"
+  when: arch_transmission_enabled | bool
+
 - name: Ensure Jellyfin media library directories exist
   ansible.builtin.file:
     path: "{{ item }}"

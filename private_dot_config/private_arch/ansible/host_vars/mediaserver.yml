@@ -4,6 +4,7 @@ arch_timezone: Europe/Warsaw
 
 arch_host_pacman_packages_extra:
   - tailscale
+  - uv
 arch_host_aur_packages_extra:
   - bazarr
   - hermes-agent

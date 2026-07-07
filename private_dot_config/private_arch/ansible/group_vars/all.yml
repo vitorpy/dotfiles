@@ -31,6 +31,7 @@ arch_nsswitch_hosts_line: >-
 arch_printers: []
 arch_transmission_enabled: false
 arch_transmission_download_dir: /var/lib/transmission/Downloads
+arch_transmission_umask: 2
 arch_transmission_rpc_allowed: "127.0.0.1,::1"
 arch_transmission_rpc_port: 9091
 arch_transmission_rpc_auth_required: false
@@ -57,6 +58,7 @@ arch_media_sorter_grok_review_enabled: true
 arch_media_sorter_xai_responses_url: https://api.x.ai/v1/responses
 arch_media_sorter_xai_model: grok-4.3
 arch_media_sorter_xai_timeout: 30
+arch_media_sorter_enabled: true
 arch_media_sorter_timer_enabled: true
 arch_hermes_agent_enabled: false
 arch_hermes_agent_home: "{{ arch_primary_user_home }}/.hermes"
@@ -102,6 +104,8 @@ arch_fprintd_polkit_users:
 
 arch_pacman_packages: []
 arch_aur_packages: []
+arch_aur_makepkg_disable_debug: true
+arch_aur_makepkg_no_debug_conf: /tmp/ansible-makepkg-no-debug.conf
 arch_host_pacman_packages_extra: []
 arch_host_aur_packages_extra: []
 arch_host_system_services_extra: []

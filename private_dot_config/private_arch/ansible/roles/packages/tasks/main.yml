@@ -96,9 +96,39 @@
   tags:
     - packages
 
+- name: Configure no-debug makepkg settings for AUR installs
+  ansible.builtin.copy:
+    dest: "{{ arch_aur_makepkg_no_debug_conf }}"
+    content: |
+      # Managed by Ansible. Source system makepkg defaults, but avoid split debug packages.
+      source /etc/makepkg.conf
+
+      _ansible_options=()
+      for option in "${OPTIONS[@]}"; do
+        if [[ "$option" == "debug" || "$option" == "!debug" ]]; then
+          continue
+        fi
+        _ansible_options+=("$option")
+      done
+      OPTIONS=("${_ansible_options[@]}" "!debug")
+      unset _ansible_options option
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - packages_aur_effective | length > 0
+    - packages_missing_aur | length > 0
+    - arch_aur_makepkg_disable_debug | bool
+  tags:
+    - packages
+
 - name: Install AUR packages
   ansible.builtin.command:
-    cmd: "yay -S --needed --noconfirm {{ packages_missing_aur | join(' ') }}"
+    cmd: >-
+      yay -S --needed --noconfirm
+      {{ '--rebuild' if arch_aur_makepkg_disable_debug | bool else '' }}
+      {{ ('--makepkgconf ' ~ arch_aur_makepkg_no_debug_conf) if arch_aur_makepkg_disable_debug | bool else '' }}
+      {{ packages_missing_aur | join(' ') }}
   become: false
   when:
     - packages_aur_effective | length > 0

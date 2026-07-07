@@ -67,22 +67,6 @@
   tags:
     - media_sorter
 
-- name: Install ffsubsync (AUR) for subtitle-sync skill
-  ansible.builtin.command:
-    argv:
-      - yay
-      - -S
-      - --needed
-      - --noconfirm
-      - ffsubsync
-  register: services_ffsubsync_install
-  changed_when: "'installing' in (services_ffsubsync_install.stdout | default('')) or 'upgrading' in (services_ffsubsync_install.stdout | default(''))"
-  failed_when: services_ffsubsync_install.rc != 0
-  when: arch_transmission_enabled | bool
-  tags:
-    - media_sorter
-    - subtitles
-
 - name: Install Transmission tracker updater
   ansible.builtin.copy:
     src: transmission-update-trackers
@@ -256,7 +240,7 @@
     - arch_transmission_enabled | bool
     - arch_transmission_tracker_updater_enabled | bool
 
-- name: Check Transmission media sorter settings
+- name: Check Transmission managed settings
   ansible.builtin.command:
     argv:
       - python3
@@ -264,11 +248,16 @@
       - >-
         import json;
         data = json.load(open("/var/lib/transmission/.config/transmission-daemon/settings.json"));
-        print("ok" if data.get("script-torrent-done-enabled") is True
-        and data.get("script-torrent-done-filename") == "{{ arch_media_sorter_path }}" else "changed")
+        desired_sorter = {{ arch_media_sorter_enabled | bool | ternary('True', 'False') }};
+        desired_umask = {{ ("%03o" | format(arch_transmission_umask | int)) | to_json }};
+        sorter_ok = data.get("script-torrent-done-enabled") is desired_sorter;
+        path_ok = (not desired_sorter) or data.get("script-torrent-done-filename") == {{ arch_media_sorter_path | to_json }};
+        umask_ok = data.get("umask") in ({{ arch_transmission_umask | int }}, desired_umask);
+        print("ok" if sorter_ok and path_ok and umask_ok else "changed")
   register: services_transmission_sorter_settings
   changed_when: false
   failed_when: false
+  check_mode: false
   when: arch_transmission_enabled | bool
   tags:
     - media_sorter
@@ -284,14 +273,29 @@
   tags:
     - media_sorter
 
-- name: Enable Transmission done script setting
+- name: Configure Transmission group-writable umask
+  ansible.builtin.lineinfile:
+    path: /var/lib/transmission/.config/transmission-daemon/settings.json
+    regexp: '^\s*"umask"\s*:'
+    line: '    "umask": {{ ("%03o" | format(arch_transmission_umask | int)) | to_json }},'
+    validate: python3 -m json.tool %s
+  register: services_transmission_umask
+  when:
+    - arch_transmission_enabled | bool
+    - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
+  tags:
+    - media_sorter
+
+- name: Configure Transmission done script enabled setting
   ansible.builtin.lineinfile:
     path: /var/lib/transmission/.config/transmission-daemon/settings.json
     regexp: '^\s*"script-torrent-done-enabled"\s*:'
-    line: '    "script-torrent-done-enabled": true,'
+    line: '    "script-torrent-done-enabled": {{ "true" if arch_media_sorter_enabled | bool else "false" }},'
     validate: python3 -m json.tool %s
   register: services_transmission_sorter_enabled
-  when: arch_transmission_enabled | bool
+  when:
+    - arch_transmission_enabled | bool
+    - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
   tags:
     - media_sorter
 
@@ -302,7 +306,10 @@
     line: '    "script-torrent-done-filename": {{ arch_media_sorter_path | to_json }},'
     validate: python3 -m json.tool %s
   register: services_transmission_sorter_filename
-  when: arch_transmission_enabled | bool
+  when:
+    - arch_transmission_enabled | bool
+    - arch_media_sorter_enabled | bool
+    - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
   tags:
     - media_sorter
 
@@ -633,16 +640,35 @@
   loop: "{{ arch_extra_mounts }}"
   when: item.enabled | default(true) | bool
 
-- name: Allow Jellyfin to write shared media
-  ansible.builtin.user:
-    name: jellyfin
-    groups:
-      - render
-      - transmission
-      - video
-    append: true
-  register: services_jellyfin_media_group
+- name: Check media service users
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ item }}"
+  loop:
+    - jellyfin
+    - bazarr
+    - sonarr
+    - radarr
+  register: services_media_user_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
   when: arch_transmission_enabled | bool
+
+- name: Allow media services to write shared media
+  ansible.builtin.user:
+    name: "{{ item.item }}"
+    groups: "{{ ['render', 'transmission', 'video'] if item.item == 'jellyfin' else ['transmission'] }}"
+    append: true
+  loop: "{{ services_media_user_query.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: services_media_group_users
+  when:
+    - arch_transmission_enabled | bool
+    - item.rc == 0
 
 - name: Ensure media root is group writable
   ansible.builtin.file:
@@ -676,25 +702,33 @@
     - "{{ arch_media_music_dir }}"
   when: arch_transmission_enabled | bool
 
-- name: Find existing Jellyfin media library directories
-  ansible.builtin.find:
-    paths:
-      - "{{ arch_media_series_dir }}"
-      - "{{ arch_media_films_dir }}"
-      - "{{ arch_media_music_dir }}"
-    file_type: directory
-    recurse: true
-  register: services_jellyfin_media_directories
-  when: arch_transmission_enabled | bool
-
 - name: Ensure existing Jellyfin media directories are group writable
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: transmission
-    group: transmission
-    mode: "2775"
-  loop: "{{ services_jellyfin_media_directories.files | default([]) }}"
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      check={{ ansible_check_mode | ternary('1', '0') }}
+
+      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }}; do
+        [ -d "$path" ] || continue
+        while IFS= read -r -d '' directory; do
+          changed=1
+          if [ "$check" -eq 0 ]; then
+            chown transmission:transmission "$directory"
+            chmod 2775 "$directory"
+          fi
+        done < <(find "$path" -type d \( ! -user transmission -o ! -group transmission -o ! -perm 2775 \) -print0)
+      done
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      else
+        echo ok
+      fi
+    executable: /bin/bash
+  register: services_jellyfin_media_directories
+  changed_when: services_jellyfin_media_directories.stdout == "changed"
+  check_mode: false
   when: arch_transmission_enabled | bool
 
 - name: Enable and start core services
@@ -705,6 +739,19 @@
   loop: "{{ (arch_system_services + arch_host_system_services_extra) | unique | difference(['nftables']) }}"
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
+
+- name: Restart media manager services after group changes
+  ansible.builtin.systemd:
+    name: "{{ item.item.item }}"
+    state: restarted
+  loop: "{{ services_media_group_users.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  when:
+    - item.changed | default(false)
+    - item.item.item in ['bazarr', 'radarr', 'sonarr']
+    - not ansible_check_mode
+    - (item.item.item ~ '.service') in ansible_facts.services
 
 - name: Ensure nginx conf.d directory exists
   ansible.builtin.file:
@@ -761,7 +808,20 @@
     state: started
   when:
     - arch_transmission_enabled | bool
+    - arch_media_sorter_enabled | bool
     - arch_media_sorter_timer_enabled | bool
+    - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
+  tags:
+    - media_sorter
+
+- name: Disable media sorter queue processor timer
+  ansible.builtin.systemd:
+    name: media-sorter-process.timer
+    enabled: false
+    state: stopped
+  when:
+    - arch_transmission_enabled | bool
+    - (not arch_media_sorter_enabled | bool) or (not arch_media_sorter_timer_enabled | bool)
     - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
   tags:
     - media_sorter
@@ -782,7 +842,7 @@
     state: restarted
   when:
     - arch_transmission_enabled | bool
-    - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
+    - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_umask.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
   tags:
     - media_sorter
 
@@ -792,7 +852,7 @@
     state: restarted
   when:
     - "'jellyfin' in arch_system_services"
-    - (services_jellyfin_media_group.changed | default(false)) or (services_jellyfin_disable_av1_encoding.changed | default(false))
+    - (services_media_group_users.changed | default(false)) or (services_jellyfin_disable_av1_encoding.changed | default(false))
 
 - name: Enable nftables service
   ansible.builtin.systemd:

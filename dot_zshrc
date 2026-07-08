@@ -44,6 +44,7 @@ if [[ $- == *i* ]]; then
     alias grok-full='codex --model grok-4-latest --config model_provider="xai"'
     alias codex-local='codex --oss'
     alias codex-deepseek='codex --model deepseek/deepseek-v3.2 --config model_provider="openrouter"'
+    alias mosh='mosh --no-init'
 
     # VPN aliases
     alias vpn-on='sudo systemctl start openvpn-client@rejewski'
@@ -102,3 +103,6 @@ fi
 
 # Ensure truecolor works over mosh
 export COLORTERM=truecolor
+
+# OpenClaw Completion
+source "/home/vitorpy/.openclaw/completions/openclaw.zsh"

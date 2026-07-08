@@ -23,5 +23,7 @@
     "workbench.tabs.experimental.fontSize": 16,
     "terminal.integrated.fontSize": 16,
     "lldb.suppressUpdateNotifications": true,
-    "remote.autoForwardPortsSource": "hybrid"
+    "remote.autoForwardPortsSource": "hybrid",
+    "workbench.experimental.fontSize": 16,
+    "workbench.statusBar.experimental.fontSize": 14
 }

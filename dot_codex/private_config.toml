@@ -1,5 +1,9 @@
-model = "gpt-5.4"
-model_reasoning_effort = "high"
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+service_tier = "fast"
+oss_provider = "ollama"
+plan_mode_reasoning_effort = "xhigh"
+
 [projects."/home/vitorpy/src/zyga"]
 trust_level = "trusted"
 
@@ -27,6 +31,69 @@ trust_level = "trusted"
 [projects."/home/vitorpy/.codex"]
 trust_level = "trusted"
 
+[projects."/home/vitorpy/tmp"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/trading-monorepo"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/agave"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/llama.cpp"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/tmp/houdini-dd"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/Downloads"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/shipweek"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/landing"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/jito-solana"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/polish-solana-addresses"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/Hyprland"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/sak-solana"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/models/diffusers"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/gspreadsheet-publicfeed"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/zyga-swap"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/thedailystatusupdate"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/zyga_intents"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/umbra"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/stakewiz-api"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/src/whisper-grok-shim"]
+trust_level = "trusted"
+
+[projects."/home/vitorpy/.codex/rules"]
+trust_level = "trusted"
+
 [notice]
 hide_rate_limit_model_nudge = true
 
@@ -35,9 +102,36 @@ hide_rate_limit_model_nudge = true
 
 [features]
 prevent_idle_sleep = true
+memories = true
 
 [plugins."gmail@openai-curated"]
 enabled = true
 
 [plugins."github@openai-curated"]
 enabled = true
+
+[profiles.local]
+model = "gemma-4-26B-A4B-it-uncensored-Q4_K_M"
+model_provider = "llamacpp"
+web_search = "disabled"
+include_environment_context = false
+include_apps_instructions = false
+include_permissions_instructions = false
+tool_output_token_limit = 4000
+model_context_window = 32768
+model_auto_compact_token_limit = 24000
+
+[profiles.local.features]
+apps = false
+image_generation = false
+
+[model_providers.llamacpp]
+name = "gemma-4-26B-A4B-it-uncensored-Q4_K_M"
+base_url = "http://127.0.0.1:8080/v1"
+wire_api = "responses"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_create_pull_request]
+approval_mode = "approve"

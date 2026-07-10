@@ -1,0 +1,745 @@
+#!/usr/bin/env python3
+"""Safely remove a media entry from the local media stack.
+
+The command is dry-run by default. It deletes only paths under the configured
+media roots, removes matching Sonarr/Radarr records, removes matching
+Transmission torrents with local data, and asks Jellyfin to rescan after files
+are gone.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+DEFAULT_DOWNLOAD_ROOT = Path("/mnt/media/downloads")
+DEFAULT_SERIES_ROOT = Path("/mnt/media/series")
+DEFAULT_FILMS_ROOT = Path("/mnt/media/films")
+DEFAULT_MUSIC_ROOT = Path("/mnt/media/music")
+DEFAULT_QUEUE_ROOT = Path("/var/lib/transmission/media-sorter")
+DEFAULT_SONARR_CONFIG = Path("/var/lib/sonarr/config.xml")
+DEFAULT_RADARR_CONFIG = Path("/var/lib/radarr/config.xml")
+DEFAULT_JELLYFIN_ENV = Path("/etc/media-sorter/jellyfin.env")
+DEFAULT_TRANSMISSION_URL = "http://127.0.0.1:9091/transmission/rpc"
+DEFAULT_SONARR_URL = "http://127.0.0.1:8989/api/v3"
+DEFAULT_RADARR_URL = "http://127.0.0.1:7878/api/v3"
+DEFAULT_JELLYFIN_URL = "http://127.0.0.1:8096"
+
+
+@dataclass(frozen=True)
+class AppItem:
+    app: str
+    id: int
+    title: str
+    path: Path | None
+
+
+@dataclass(frozen=True)
+class TorrentItem:
+    id: int
+    name: str
+    hash_string: str
+    download_dir: Path
+    files: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class Candidate:
+    source: str
+    label: str
+    path: Path | None
+    app_item: AppItem | None = None
+    torrent: TorrentItem | None = None
+
+
+@dataclass
+class Plan:
+    selected: list[Candidate] = field(default_factory=list)
+    sonarr: list[AppItem] = field(default_factory=list)
+    radarr: list[AppItem] = field(default_factory=list)
+    torrents: list[TorrentItem] = field(default_factory=list)
+    delete_paths: dict[Path, str] = field(default_factory=dict)
+    queue_records: list[Path] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    jellyfin_refresh: bool = False
+
+
+class TransmissionRpc:
+    def __init__(self, url: str, timeout: int) -> None:
+        self.url = url
+        self.timeout = timeout
+        self.session_id: str | None = None
+
+    def call(self, method: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = json.dumps({"method": method, "arguments": arguments or {}}).encode("utf-8")
+        for _ in range(2):
+            headers = {"Content-Type": "application/json"}
+            if self.session_id:
+                headers["X-Transmission-Session-Id"] = self.session_id
+            request = urllib.request.Request(self.url, data=payload, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                if exc.code == 409:
+                    self.session_id = exc.headers.get("X-Transmission-Session-Id")
+                    if self.session_id:
+                        continue
+                raise
+            if result.get("result") != "success":
+                raise RuntimeError(f"Transmission RPC {method} failed: {result!r}")
+            return result
+        raise RuntimeError("Transmission RPC session-id handshake failed")
+
+    def torrents(self) -> list[TorrentItem]:
+        fields = ["id", "name", "hashString", "hash_string", "downloadDir", "download_dir", "files"]
+        result = self.call("torrent-get", {"fields": fields})
+        items = result.get("arguments", {}).get("torrents", [])
+        torrents: list[TorrentItem] = []
+        for item in items:
+            download_dir = Path(str(item.get("downloadDir") or item.get("download_dir") or "."))
+            files = []
+            for file_item in item.get("files") or []:
+                if isinstance(file_item, str):
+                    relpath = file_item
+                else:
+                    relpath = str(file_item.get("name") or "")
+                if relpath:
+                    files.append(download_dir / relpath)
+            torrents.append(
+                TorrentItem(
+                    id=int(item["id"]),
+                    name=str(item.get("name") or item["id"]),
+                    hash_string=str(item.get("hashString") or item.get("hash_string") or "").lower(),
+                    download_dir=download_dir,
+                    files=tuple(files),
+                )
+            )
+        return torrents
+
+    def remove(self, torrent_id: int) -> None:
+        self.call("torrent-remove", {"ids": [torrent_id], "delete-local-data": True})
+
+
+def casefold(value: object) -> str:
+    return str(value).casefold()
+
+
+def is_under(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+        return True
+    except ValueError:
+        return False
+
+
+def managed_roots(args: argparse.Namespace) -> list[Path]:
+    return [Path(args.download_root), Path(args.series_root), Path(args.films_root), Path(args.music_root)]
+
+
+def path_allowed(path: Path, roots: list[Path]) -> bool:
+    resolved = path.resolve(strict=False)
+    for root in roots:
+        root_resolved = root.resolve(strict=False)
+        if resolved == root_resolved:
+            return False
+        if is_under(resolved, root_resolved):
+            return True
+    return False
+
+
+def read_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip().strip("'\"")
+    return values
+
+
+def api_key_from_config(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    try:
+        return ET.parse(path).getroot().findtext("ApiKey")
+    except (ET.ParseError, OSError):
+        return None
+
+
+def http_json(
+    url: str,
+    *,
+    method: str = "GET",
+    api_key: str | None = None,
+    data: bytes | None = None,
+    timeout: int = 20,
+) -> Any:
+    headers = {"Accept": "application/json"}
+    if api_key:
+        headers["X-Api-Key"] = api_key
+        headers["X-Emby-Token"] = api_key
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=data, method=method, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        body = response.read()
+    if not body:
+        return None
+    return json.loads(body.decode("utf-8"))
+
+
+def arr_items(app: str, base_url: str, config_path: Path, timeout: int, warnings: list[str]) -> list[AppItem]:
+    api_key = api_key_from_config(config_path)
+    if not api_key:
+        warnings.append(f"{app}: API key not available from {config_path}")
+        return []
+
+    endpoint = "series" if app == "sonarr" else "movie"
+    try:
+        data = http_json(f"{base_url.rstrip('/')}/{endpoint}", api_key=api_key, timeout=timeout)
+    except Exception as exc:
+        warnings.append(f"{app}: could not list items: {exc}")
+        return []
+
+    items: list[AppItem] = []
+    for item in data or []:
+        path = Path(item["path"]) if item.get("path") else None
+        title = str(item.get("title") or item.get("sortTitle") or item.get("id"))
+        items.append(AppItem(app=app, id=int(item["id"]), title=title, path=path))
+    return items
+
+
+def delete_arr_item(item: AppItem, args: argparse.Namespace) -> None:
+    if item.app == "sonarr":
+        api_key = api_key_from_config(Path(args.sonarr_config))
+        if not api_key:
+            raise RuntimeError("Sonarr API key unavailable")
+        query = urllib.parse.urlencode({"deleteFiles": "true", "addImportListExclusion": "false"})
+        http_json(f"{args.sonarr_url.rstrip('/')}/series/{item.id}?{query}", method="DELETE", api_key=api_key, timeout=args.timeout)
+    elif item.app == "radarr":
+        api_key = api_key_from_config(Path(args.radarr_config))
+        if not api_key:
+            raise RuntimeError("Radarr API key unavailable")
+        query = urllib.parse.urlencode({"deleteFiles": "true", "addImportExclusion": "false"})
+        http_json(f"{args.radarr_url.rstrip('/')}/movie/{item.id}?{query}", method="DELETE", api_key=api_key, timeout=args.timeout)
+
+
+def list_top_level_paths(roots: list[Path]) -> list[Path]:
+    paths: list[Path] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        try:
+            paths.extend(sorted(item for item in root.iterdir() if item.name))
+        except OSError:
+            continue
+    return paths
+
+
+def load_queue_records(queue_root: Path, warnings: list[str]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for directory_name in ("queue", "done", "needs-review", "ignored", "failed"):
+        directory = queue_root / directory_name
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                warnings.append(f"queue: could not read {path}: {exc}")
+                continue
+            record["_record_path"] = str(path)
+            records.append(record)
+    return records
+
+
+def candidate_key(candidate: Candidate) -> str:
+    if candidate.path is not None:
+        return f"path:{candidate.path.resolve(strict=False)}"
+    if candidate.app_item:
+        return f"{candidate.app_item.app}:{candidate.app_item.id}"
+    if candidate.torrent:
+        return f"transmission:{candidate.torrent.id}"
+    return f"{candidate.source}:{candidate.label}"
+
+
+def selection_key(candidate: Candidate) -> str:
+    if candidate.app_item:
+        return f"{candidate.app_item.app}:{candidate.app_item.id}"
+    if candidate.torrent:
+        return f"transmission:{candidate.torrent.id}"
+    if candidate.path is not None:
+        return f"path:{candidate.path.resolve(strict=False)}"
+    return f"{candidate.source}:{candidate.label}"
+
+
+def candidate_matches_query(candidate: Candidate, query: str) -> bool:
+    needle = casefold(query)
+    values = [candidate.label]
+    if candidate.path is not None:
+        values.append(str(candidate.path))
+    if candidate.app_item:
+        values.extend([candidate.app_item.app, str(candidate.app_item.id), candidate.app_item.title])
+    if candidate.torrent:
+        values.extend(["transmission", str(candidate.torrent.id), candidate.torrent.hash_string, candidate.torrent.name])
+    return any(needle in casefold(value) for value in values if value)
+
+
+def build_candidates(
+    args: argparse.Namespace,
+    sonarr: list[AppItem],
+    radarr: list[AppItem],
+    torrents: list[TorrentItem],
+    roots: list[Path],
+) -> list[Candidate]:
+    candidates: list[Candidate] = []
+    for item in sonarr:
+        candidates.append(Candidate("sonarr", f"sonarr:{item.id} {item.title}", item.path, app_item=item))
+    for item in radarr:
+        candidates.append(Candidate("radarr", f"radarr:{item.id} {item.title}", item.path, app_item=item))
+    for torrent in torrents:
+        path = common_torrent_path(torrent)
+        candidates.append(Candidate("transmission", f"transmission:{torrent.id} {torrent.name}", path, torrent=torrent))
+    for path in list_top_level_paths(roots):
+        candidates.append(Candidate("path", str(path), path))
+    return candidates
+
+
+def common_torrent_path(torrent: TorrentItem) -> Path | None:
+    existing = [path for path in torrent.files if path.exists()]
+    if not existing:
+        guess = torrent.download_dir / torrent.name
+        return guess if guess.exists() else None
+    try:
+        common = Path(os.path.commonpath([str(path) for path in existing]))
+    except ValueError:
+        return torrent.download_dir
+    return common if common.exists() else common.parent
+
+
+def resolve_selection(candidates: list[Candidate], args: argparse.Namespace, roots: list[Path]) -> list[Candidate]:
+    selected: list[Candidate] = []
+    for raw_path in args.path or []:
+        path = Path(raw_path)
+        if not path.is_absolute():
+            raise RuntimeError(f"--path requires an absolute path: {raw_path}")
+        if not path_allowed(path, roots):
+            raise RuntimeError(f"refusing unmanaged or root path: {path}")
+        selected.append(Candidate("path", str(path), path))
+
+    for wanted_id in args.sonarr_id or []:
+        matches = [candidate for candidate in candidates if candidate.app_item and candidate.app_item.app == "sonarr" and candidate.app_item.id == wanted_id]
+        if not matches:
+            raise RuntimeError(f"Sonarr series not found: id={wanted_id}")
+        selected.extend(matches)
+
+    for wanted_id in args.radarr_id or []:
+        matches = [candidate for candidate in candidates if candidate.app_item and candidate.app_item.app == "radarr" and candidate.app_item.id == wanted_id]
+        if not matches:
+            raise RuntimeError(f"Radarr movie not found: id={wanted_id}")
+        selected.extend(matches)
+
+    for wanted_id in args.transmission_id or []:
+        matches = [candidate for candidate in candidates if candidate.torrent and candidate.torrent.id == wanted_id]
+        if not matches:
+            raise RuntimeError(f"Transmission torrent not found: id={wanted_id}")
+        selected.extend(matches)
+
+    if args.query:
+        matches = [candidate for candidate in candidates if candidate_matches_query(candidate, args.query)]
+        grouped: dict[str, list[Candidate]] = {}
+        for candidate in matches:
+            grouped.setdefault(candidate_key(candidate), []).append(candidate)
+        if not grouped:
+            raise RuntimeError(f"no media entry matched query: {args.query!r}")
+        if len(grouped) > 1 and not args.allow_multiple:
+            lines = ["multiple media entries matched; refine with --path/--sonarr-id/--radarr-id/--transmission-id or pass --allow-multiple:"]
+            for group in grouped.values():
+                sample = group[0]
+                path = f" path={sample.path}" if sample.path else ""
+                lines.append(f"  - {sample.label}{path}")
+            raise RuntimeError("\n".join(lines))
+        for group in grouped.values():
+            selected.extend(group)
+
+    if not selected:
+        raise RuntimeError("provide a query or one of --path/--sonarr-id/--radarr-id/--transmission-id")
+
+    deduped: dict[str, Candidate] = {}
+    for candidate in selected:
+        deduped[selection_key(candidate)] = candidate
+    return list(deduped.values())
+
+
+def selected_container_matches_path(selected_path: Path, item_path: Path) -> bool:
+    selected_resolved = selected_path.resolve(strict=False)
+    item_resolved = item_path.resolve(strict=False)
+    return selected_resolved == item_resolved or is_under(item_resolved, selected_resolved)
+
+
+def paths_related(left: Path, right: Path) -> bool:
+    left_resolved = left.resolve(strict=False)
+    right_resolved = right.resolve(strict=False)
+    return left_resolved == right_resolved or is_under(left_resolved, right_resolved) or is_under(right_resolved, left_resolved)
+
+
+def file_paths_under(path: Path) -> list[Path]:
+    if not path.exists():
+        return []
+    if path.is_file():
+        return [path]
+    files: list[Path] = []
+    for dirpath, _dirnames, filenames in os.walk(path):
+        base = Path(dirpath)
+        for filename in filenames:
+            files.append(base / filename)
+    return files
+
+
+def hardlink_peers(seed_paths: list[Path], scan_roots: list[Path], allowed_roots: list[Path]) -> dict[Path, str]:
+    inodes: set[tuple[int, int]] = set()
+    seed_resolved = {path.resolve(strict=False) for path in seed_paths}
+    for path in seed_paths:
+        for file_path in file_paths_under(path):
+            try:
+                stat = file_path.stat()
+            except OSError:
+                continue
+            if stat.st_nlink > 1:
+                inodes.add((stat.st_dev, stat.st_ino))
+
+    if not inodes:
+        return {}
+
+    peers: dict[Path, str] = {}
+    for root in scan_roots:
+        if not root.exists():
+            continue
+        for dirpath, _dirnames, filenames in os.walk(root):
+            base = Path(dirpath)
+            for filename in filenames:
+                path = base / filename
+                if path.resolve(strict=False) in seed_resolved:
+                    continue
+                if not path_allowed(path, allowed_roots):
+                    continue
+                try:
+                    stat = path.stat()
+                except OSError:
+                    continue
+                if (stat.st_dev, stat.st_ino) in inodes:
+                    peers[path] = "hardlink-peer"
+    return peers
+
+
+def collapse_delete_paths(paths: dict[Path, str]) -> dict[Path, str]:
+    collapsed: dict[Path, str] = {}
+    for path in sorted(paths, key=lambda value: len(value.parts)):
+        if any(path.resolve(strict=False) != parent.resolve(strict=False) and is_under(path, parent) for parent in collapsed):
+            continue
+        collapsed[path] = paths[path]
+    return collapsed
+
+
+def queue_related_paths(records: list[dict[str, Any]], selected_paths: list[Path], query: str | None) -> tuple[dict[Path, str], list[Path]]:
+    paths: dict[Path, str] = {}
+    matched_records: list[Path] = []
+    needle = casefold(query) if query else None
+
+    for record in records:
+        record_path = Path(record["_record_path"])
+        torrent = record.get("torrent") or {}
+        labels = [torrent.get("name"), record.get("download_key"), record.get("reason")]
+        query_match = bool(needle and any(needle in casefold(value) for value in labels if value))
+        path_match = False
+        for link in record.get("owned_links") or []:
+            for key in ("source", "dest"):
+                value = link.get(key)
+                if not value:
+                    continue
+                path = Path(value)
+                if query_match or any(paths_related(path, selected) for selected in selected_paths):
+                    paths[path] = f"queue-{key}"
+                    path_match = True
+        if query_match or path_match:
+            matched_records.append(record_path)
+    return paths, matched_records
+
+
+def build_plan(args: argparse.Namespace) -> Plan:
+    warnings: list[str] = []
+    roots = managed_roots(args)
+
+    sonarr = [] if args.no_sonarr else arr_items("sonarr", args.sonarr_url, Path(args.sonarr_config), args.timeout, warnings)
+    radarr = [] if args.no_radarr else arr_items("radarr", args.radarr_url, Path(args.radarr_config), args.timeout, warnings)
+    if args.no_transmission:
+        torrents: list[TorrentItem] = []
+    else:
+        try:
+            torrents = TransmissionRpc(args.transmission_url, args.timeout).torrents()
+        except Exception as exc:
+            warnings.append(f"transmission: could not list torrents: {exc}")
+            torrents = []
+
+    candidates = build_candidates(args, sonarr, radarr, torrents, roots)
+    selected = resolve_selection(candidates, args, roots)
+    plan = Plan(selected=selected, warnings=warnings)
+
+    selected_paths = [candidate.path for candidate in selected if candidate.path is not None]
+    for candidate in selected:
+        if candidate.path is not None:
+            plan.delete_paths[candidate.path] = candidate.source
+        if candidate.app_item:
+            target = plan.sonarr if candidate.app_item.app == "sonarr" else plan.radarr
+            if candidate.app_item not in target:
+                target.append(candidate.app_item)
+        if candidate.torrent and candidate.torrent not in plan.torrents:
+            plan.torrents.append(candidate.torrent)
+
+    for item in sonarr + radarr:
+        if item.path and any(selected_container_matches_path(selected_path, item.path) for selected_path in selected_paths):
+            target = plan.sonarr if item.app == "sonarr" else plan.radarr
+            if item not in target:
+                target.append(item)
+            plan.delete_paths.setdefault(item.path, item.app)
+
+    for torrent in torrents:
+        common_path = common_torrent_path(torrent)
+        if common_path and any(selected_container_matches_path(selected_path, common_path) for selected_path in selected_paths):
+            if torrent not in plan.torrents:
+                plan.torrents.append(torrent)
+
+    queue_paths, queue_records = queue_related_paths(load_queue_records(Path(args.queue_root), plan.warnings), selected_paths, args.query)
+    for path, reason in queue_paths.items():
+        plan.delete_paths.setdefault(path, reason)
+    plan.queue_records = queue_records
+
+    if not args.no_hardlink_scan:
+        for path, reason in hardlink_peers(list(plan.delete_paths), roots, roots).items():
+            plan.delete_paths.setdefault(path, reason)
+
+    plan.delete_paths = collapse_delete_paths(plan.delete_paths)
+    for path in list(plan.delete_paths):
+        if not path_allowed(path, roots):
+            raise RuntimeError(f"refusing unmanaged or root path in plan: {path}")
+
+    env_values = read_env_file(Path(args.jellyfin_env))
+    jellyfin_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    plan.jellyfin_refresh = bool(jellyfin_key and not args.no_jellyfin)
+    if not plan.jellyfin_refresh and not args.no_jellyfin:
+        plan.warnings.append("jellyfin: JELLYFIN_API_KEY not configured; filesystem deletes will be picked up on the next library scan")
+    return plan
+
+
+def inode_free_estimate(paths: list[Path]) -> dict[str, int]:
+    by_inode: dict[tuple[int, int], dict[str, int]] = {}
+    for path in paths:
+        for file_path in file_paths_under(path):
+            try:
+                stat = file_path.stat()
+            except OSError:
+                continue
+            key = (stat.st_dev, stat.st_ino)
+            entry = by_inode.setdefault(key, {"size": stat.st_size, "links_seen": 0, "nlink": stat.st_nlink})
+            entry["links_seen"] += 1
+    selected = sum(entry["size"] for entry in by_inode.values())
+    likely_freed = sum(entry["size"] for entry in by_inode.values() if entry["links_seen"] >= entry["nlink"])
+    return {"selected_bytes": selected, "likely_freed_bytes": likely_freed}
+
+
+def plan_record(plan: Plan, apply: bool) -> dict[str, Any]:
+    paths = sorted(plan.delete_paths)
+    estimate = inode_free_estimate(paths)
+    return {
+        "mode": "apply" if apply else "dry-run",
+        "selected": [
+            {
+                "source": candidate.source,
+                "label": candidate.label,
+                "path": str(candidate.path) if candidate.path else None,
+            }
+            for candidate in plan.selected
+        ],
+        "sonarr": [item.__dict__ | {"path": str(item.path) if item.path else None} for item in plan.sonarr],
+        "radarr": [item.__dict__ | {"path": str(item.path) if item.path else None} for item in plan.radarr],
+        "transmission": [
+            {
+                "id": torrent.id,
+                "name": torrent.name,
+                "hash_string": torrent.hash_string,
+                "download_dir": str(torrent.download_dir),
+            }
+            for torrent in plan.torrents
+        ],
+        "delete_paths": [
+            {
+                "path": str(path),
+                "reason": plan.delete_paths[path],
+                "exists": path.exists(),
+                "type": "dir" if path.is_dir() else "file" if path.is_file() else "missing",
+            }
+            for path in paths
+        ],
+        "queue_records_used": [str(path) for path in plan.queue_records],
+        "jellyfin_refresh": plan.jellyfin_refresh,
+        "estimate": estimate,
+        "warnings": plan.warnings,
+    }
+
+
+def print_human(record: dict[str, Any]) -> None:
+    print(f"mode: {record['mode'].upper()}")
+    print("selected:")
+    for item in record["selected"]:
+        path = f" path={item['path']}" if item["path"] else ""
+        print(f"  - {item['label']} ({item['source']}){path}")
+    if record["sonarr"]:
+        print("sonarr deletes:")
+        for item in record["sonarr"]:
+            print(f"  - id={item['id']} title={item['title']!r} path={item['path']}")
+    if record["radarr"]:
+        print("radarr deletes:")
+        for item in record["radarr"]:
+            print(f"  - id={item['id']} title={item['title']!r} path={item['path']}")
+    if record["transmission"]:
+        print("transmission deletes:")
+        for item in record["transmission"]:
+            print(f"  - id={item['id']} name={item['name']!r} delete-local-data=true")
+    print("filesystem deletes:")
+    for item in record["delete_paths"]:
+        print(f"  - [{item['type']}] {item['path']} ({item['reason']})")
+    if record["queue_records_used"]:
+        print("queue records used for source/destination discovery:")
+        for path in record["queue_records_used"]:
+            print(f"  - {path}")
+    estimate = record["estimate"]
+    print(f"estimated selected bytes: {estimate['selected_bytes']}")
+    print(f"estimated bytes freed after hardlink accounting: {estimate['likely_freed_bytes']}")
+    print(f"jellyfin refresh: {'yes' if record['jellyfin_refresh'] else 'no'}")
+    for warning in record["warnings"]:
+        print(f"WARNING: {warning}", file=sys.stderr)
+    if record["mode"] == "dry-run":
+        print("dry run only; pass --apply to remove these entries")
+
+
+def remove_path(path: Path) -> None:
+    if not path.exists():
+        return
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
+def prune_empty_parents(paths: list[Path], roots: list[Path]) -> None:
+    root_resolved = {root.resolve(strict=False) for root in roots}
+    for path in paths:
+        current = path.parent
+        while current.resolve(strict=False) not in root_resolved and any(is_under(current, root) for root in roots):
+            try:
+                current.rmdir()
+            except OSError:
+                break
+            current = current.parent
+
+
+def refresh_jellyfin(args: argparse.Namespace) -> None:
+    env_values = read_env_file(Path(args.jellyfin_env))
+    api_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    if not api_key or args.no_jellyfin:
+        return
+    http_json(f"{args.jellyfin_url.rstrip('/')}/Library/Refresh", method="POST", api_key=api_key, data=b"", timeout=args.timeout)
+
+
+def apply_plan(plan: Plan, args: argparse.Namespace) -> None:
+    roots = managed_roots(args)
+    for torrent in plan.torrents:
+        TransmissionRpc(args.transmission_url, args.timeout).remove(torrent.id)
+        print(f"removed transmission torrent id={torrent.id} name={torrent.name!r}")
+    for item in plan.sonarr:
+        delete_arr_item(item, args)
+        print(f"removed sonarr series id={item.id} title={item.title!r}")
+    for item in plan.radarr:
+        delete_arr_item(item, args)
+        print(f"removed radarr movie id={item.id} title={item.title!r}")
+    deleted_paths = sorted(plan.delete_paths, key=lambda path: len(path.parts), reverse=True)
+    for path in deleted_paths:
+        if not path_allowed(path, roots):
+            raise RuntimeError(f"refusing unmanaged or root path during apply: {path}")
+        if path.exists():
+            remove_path(path)
+            print(f"deleted path={path}")
+    prune_empty_parents(deleted_paths, roots)
+    refresh_jellyfin(args)
+    if plan.jellyfin_refresh:
+        print("requested Jellyfin library refresh")
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Remove one media entry from Arr apps, Transmission, Jellyfin-visible libraries, and download hardlinks.",
+    )
+    parser.add_argument("query", nargs="?", help="Title/path/id substring to search. Refine ambiguous matches with explicit selectors.")
+    parser.add_argument("--path", action="append", help="Absolute media path to remove. Can be repeated.")
+    parser.add_argument("--sonarr-id", type=int, action="append", help="Sonarr series id to remove. Can be repeated.")
+    parser.add_argument("--radarr-id", type=int, action="append", help="Radarr movie id to remove. Can be repeated.")
+    parser.add_argument("--transmission-id", type=int, action="append", help="Transmission torrent id to remove. Can be repeated.")
+    parser.add_argument("--allow-multiple", action="store_true", help="Allow a query to select multiple distinct entries.")
+    parser.add_argument("--apply", action="store_true", help="Actually delete records/files. Default is dry-run.")
+    parser.add_argument("--json", action="store_true", help="Print the removal plan as JSON.")
+    parser.add_argument("--download-root", default=str(DEFAULT_DOWNLOAD_ROOT))
+    parser.add_argument("--series-root", default=str(DEFAULT_SERIES_ROOT))
+    parser.add_argument("--films-root", default=str(DEFAULT_FILMS_ROOT))
+    parser.add_argument("--music-root", default=str(DEFAULT_MUSIC_ROOT))
+    parser.add_argument("--queue-root", default=str(DEFAULT_QUEUE_ROOT))
+    parser.add_argument("--sonarr-url", default=DEFAULT_SONARR_URL)
+    parser.add_argument("--radarr-url", default=DEFAULT_RADARR_URL)
+    parser.add_argument("--transmission-url", default=DEFAULT_TRANSMISSION_URL)
+    parser.add_argument("--jellyfin-url", default=DEFAULT_JELLYFIN_URL)
+    parser.add_argument("--sonarr-config", default=str(DEFAULT_SONARR_CONFIG))
+    parser.add_argument("--radarr-config", default=str(DEFAULT_RADARR_CONFIG))
+    parser.add_argument("--jellyfin-env", default=str(DEFAULT_JELLYFIN_ENV))
+    parser.add_argument("--jellyfin-api-key", default=None)
+    parser.add_argument("--timeout", type=int, default=20)
+    parser.add_argument("--no-sonarr", action="store_true")
+    parser.add_argument("--no-radarr", action="store_true")
+    parser.add_argument("--no-transmission", action="store_true")
+    parser.add_argument("--no-jellyfin", action="store_true")
+    parser.add_argument("--no-hardlink-scan", action="store_true")
+    return parser
+
+
+def main() -> int:
+    args = build_arg_parser().parse_args()
+    plan = build_plan(args)
+    record = plan_record(plan, args.apply)
+    if args.json:
+        print(json.dumps(record, indent=2, sort_keys=True))
+    else:
+        print_human(record)
+    if args.apply:
+        apply_plan(plan, args)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1)

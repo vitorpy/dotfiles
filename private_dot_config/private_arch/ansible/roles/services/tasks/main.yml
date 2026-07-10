@@ -67,6 +67,17 @@
   tags:
     - media_sorter
 
+- name: Install media library removal tool
+  ansible.builtin.copy:
+    src: media-library-remove
+    dest: "{{ arch_media_library_remove_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
 - name: Install Transmission tracker updater
   ansible.builtin.copy:
     src: transmission-update-trackers
@@ -118,6 +129,20 @@
     content: |
       # MEDIA_SORTER_TELEGRAM_BOT_TOKEN=
       # MEDIA_SORTER_TELEGRAM_CHAT_ID=
+    force: false
+    owner: root
+    group: transmission
+    mode: "0640"
+  no_log: true
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
+- name: Ensure Jellyfin API environment file exists
+  ansible.builtin.copy:
+    dest: "{{ arch_media_sorter_tmdb_env_dir }}/jellyfin.env"
+    content: |
+      # JELLYFIN_API_KEY=
     force: false
     owner: root
     group: transmission

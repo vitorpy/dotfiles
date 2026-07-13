@@ -1,0 +1,10 @@
+[Unit]
+Description=Run media library boundary audit
+
+[Timer]
+OnCalendar={{ arch_media_library_audit_calendar }}
+Persistent=true
+Unit=media-library-audit.service
+
+[Install]
+WantedBy=timers.target

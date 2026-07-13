@@ -8,6 +8,7 @@ from .backfill import run_backfill
 from .grok import DEFAULT_XAI_RESPONSES_URL, review_plan_with_grok
 from .labels import normalize_labels, parse_label
 from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
+from .raw_ignore import write_raw_ignore
 from .queue import enqueue_torrent, ignore_record, make_queue_record, print_preflight, print_review_queue, process_queue
 from .sorters import plan_entries, sort_entries
 from .transmission import files_from_torrent, load_transmission_metadata, transmission_torrent
@@ -55,6 +56,8 @@ def run_direct_sort(args: argparse.Namespace) -> int:
             log("ERROR", f"Grok rejected plan: {review['reason']}")
             return 1
         ok, _owned_links = apply_plan(plan, preflight, args.dry_run)
+        if ok:
+            write_raw_ignore(entries, Path(args.source_root), args.dry_run)
         return 0 if ok else 1
     return 0 if sort_entries(label, torrent_name, entries, args) else 1
 

@@ -13,6 +13,7 @@ from .media_files import entries_from_record, file_records, record_item_kind
 from .models import FileEntry, MatchDecision
 from .music import music_match
 from .planner import apply_plan, plan_to_record, preflight_plan, preflight_to_record
+from .raw_ignore import write_raw_ignore
 from .sorters import plan_entries
 from .tmdb import tmdb_match
 from .transmission import download_key, files_from_torrent, load_transmission_metadata, torrent_hash, transmission_torrent
@@ -356,6 +357,9 @@ def process_queue(args: argparse.Namespace) -> int:
         sorted_ok, owned_links = apply_plan(plan, preflight, args.dry_run)
         record["owned_links"] = owned_links
         if sorted_ok:
+            raw_ignore = write_raw_ignore(entries, Path(args.source_root), args.dry_run)
+            if raw_ignore is not None:
+                record["raw_ignore"] = raw_ignore
             record["reason"] = decision.reason
             if not args.dry_run:
                 move_record(path, queue_root, "done", record)

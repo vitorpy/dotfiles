@@ -1,0 +1,447 @@
+#!/usr/bin/env python3
+"""Audit the local media library boundary between downloads, Arr, and Jellyfin."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Any
+
+
+DEFAULT_DOWNLOAD_ROOT = Path("/mnt/media/downloads")
+DEFAULT_SERIES_ROOT = Path("/mnt/media/series")
+DEFAULT_FILMS_ROOT = Path("/mnt/media/films")
+DEFAULT_MUSIC_ROOT = Path("/mnt/media/music")
+DEFAULT_QUEUE_ROOT = Path("/var/lib/transmission/media-sorter")
+DEFAULT_SONARR_CONFIG = Path("/var/lib/sonarr/config.xml")
+DEFAULT_RADARR_CONFIG = Path("/var/lib/radarr/config.xml")
+DEFAULT_JELLYFIN_ENV = Path("/etc/media-sorter/jellyfin.env")
+DEFAULT_TELEGRAM_ENV = Path("/etc/media-sorter/telegram.env")
+DEFAULT_SONARR_URL = "http://127.0.0.1:8989/api/v3"
+DEFAULT_RADARR_URL = "http://127.0.0.1:7878/api/v3"
+DEFAULT_JELLYFIN_URL = "http://127.0.0.1:8096"
+VIDEO_EXTENSIONS = {".avi", ".m2ts", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".webm", ".wmv"}
+PROVIDER_KEYS = ("Tmdb", "Imdb", "Tvdb")
+
+
+def read_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip().strip("'\"")
+    return values
+
+
+def api_key_from_config(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    try:
+        return ET.parse(path).getroot().findtext("ApiKey")
+    except (ET.ParseError, OSError):
+        return None
+
+
+def http_json(url: str, *, api_key: str | None = None, timeout: int = 20) -> Any:
+    headers = {"Accept": "application/json"}
+    if api_key:
+        headers["X-Api-Key"] = api_key
+        headers["X-Emby-Token"] = api_key
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        body = response.read()
+    return json.loads(body.decode("utf-8")) if body else None
+
+
+def load_fixture(path: str | None) -> Any | None:
+    if not path:
+        return None
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def is_under(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+        return True
+    except ValueError:
+        return False
+
+
+def path_under_any(path: str | None, roots: list[Path]) -> bool:
+    if not path:
+        return False
+    candidate = Path(path)
+    return any(is_under(candidate, root) for root in roots)
+
+
+def item_paths(item: dict[str, Any]) -> list[str]:
+    paths = []
+    if item.get("Path"):
+        paths.append(str(item["Path"]))
+    for source in item.get("MediaSources") or []:
+        if source.get("Path"):
+            paths.append(str(source["Path"]))
+    return sorted(set(paths))
+
+
+def has_star_ignore(path: Path) -> bool:
+    ignore = path / ".ignore"
+    if not ignore.exists():
+        return False
+    try:
+        return any(line.strip() == "*" for line in ignore.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
+
+
+def directory_has_video(path: Path) -> bool:
+    try:
+        for item in path.rglob("*"):
+            if item.is_file() and item.suffix.lower() in VIDEO_EXTENSIONS:
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def add_finding(findings: list[dict[str, Any]], finding_type: str, message: str, **details: Any) -> None:
+    finding = {"type": finding_type, "message": message}
+    finding.update(details)
+    findings.append(finding)
+
+
+def jellyfin_items(args: argparse.Namespace, warnings: list[str]) -> list[dict[str, Any]]:
+    fixture = load_fixture(args.jellyfin_items_json)
+    if fixture is not None:
+        return fixture.get("Items", fixture) if isinstance(fixture, dict) else fixture
+    if args.no_jellyfin:
+        return []
+
+    env_values = read_env_file(Path(args.jellyfin_env))
+    api_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    if not api_key:
+        warnings.append(f"jellyfin: API key not configured in {args.jellyfin_env}")
+        return []
+
+    query = urllib.parse.urlencode(
+        {
+            "Recursive": "true",
+            "IncludeItemTypes": "Movie,Series,Episode",
+            "Fields": "ProviderIds,Path,Overview,MediaSources",
+            "Limit": "50000",
+        }
+    )
+    try:
+        data = http_json(f"{args.jellyfin_url.rstrip('/')}/Items?{query}", api_key=api_key, timeout=args.timeout)
+    except Exception as exc:
+        warnings.append(f"jellyfin: could not list items: {exc}")
+        return []
+    return data.get("Items", []) if isinstance(data, dict) else []
+
+
+def jellyfin_virtual_folders(args: argparse.Namespace, warnings: list[str]) -> list[dict[str, Any]]:
+    fixture = load_fixture(args.jellyfin_virtual_folders_json)
+    if fixture is not None:
+        return fixture
+    if args.no_jellyfin:
+        return []
+
+    env_values = read_env_file(Path(args.jellyfin_env))
+    api_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    if not api_key:
+        return []
+    try:
+        data = http_json(f"{args.jellyfin_url.rstrip('/')}/Library/VirtualFolders", api_key=api_key, timeout=args.timeout)
+    except Exception as exc:
+        warnings.append(f"jellyfin: could not list virtual folders: {exc}")
+        return []
+    return data or []
+
+
+def active_jellyfin_locations(folders: list[dict[str, Any]]) -> list[Path]:
+    locations: list[Path] = []
+    for folder in folders:
+        for location in folder.get("Locations") or folder.get("locations") or []:
+            locations.append(Path(str(location)))
+    return locations
+
+
+def item_is_in_active_library(paths: list[str], active_locations: list[Path]) -> bool:
+    if not active_locations:
+        return True
+    return any(path_under_any(path, active_locations) for path in paths)
+
+
+def arr_items(app: str, args: argparse.Namespace, warnings: list[str]) -> list[dict[str, Any]]:
+    fixture_path = args.sonarr_series_json if app == "sonarr" else args.radarr_movies_json
+    fixture = load_fixture(fixture_path)
+    if fixture is not None:
+        return fixture
+    if args.no_arr:
+        return []
+
+    if app == "sonarr":
+        api_key = api_key_from_config(Path(args.sonarr_config))
+        url = f"{args.sonarr_url.rstrip('/')}/series"
+    else:
+        api_key = api_key_from_config(Path(args.radarr_config))
+        url = f"{args.radarr_url.rstrip('/')}/movie"
+    if not api_key:
+        warnings.append(f"{app}: API key not available")
+        return []
+    try:
+        data = http_json(url, api_key=api_key, timeout=args.timeout)
+    except Exception as exc:
+        warnings.append(f"{app}: could not list items: {exc}")
+        return []
+    return data or []
+
+
+def audit_jellyfin(items: list[dict[str, Any]], active_locations: list[Path], args: argparse.Namespace, findings: list[dict[str, Any]]) -> None:
+    download_roots = [Path(args.download_root)]
+    canonical_roots = [Path(args.films_root), Path(args.series_root)]
+    duplicates: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+
+    for item in items:
+        item_type = str(item.get("Type") or "")
+        paths = item_paths(item)
+        in_active_library = item_is_in_active_library(paths, active_locations)
+        for path in paths:
+            if in_active_library and path_under_any(path, download_roots):
+                add_finding(
+                    findings,
+                    "jellyfin_download_path",
+                    "Jellyfin item is backed by a raw download path",
+                    item_id=item.get("Id"),
+                    name=item.get("Name"),
+                    item_type=item_type,
+                    path=path,
+                )
+
+        has_canonical_file = in_active_library and item_type in {"Movie", "Episode"} and any(path_under_any(path, canonical_roots) for path in paths)
+        if has_canonical_file and not item.get("ProviderIds"):
+            add_finding(
+                findings,
+                "jellyfin_missing_provider_ids",
+                "Jellyfin media file has no provider IDs",
+                item_id=item.get("Id"),
+                name=item.get("Name"),
+                item_type=item_type,
+                paths=paths,
+            )
+        if has_canonical_file and not item.get("Overview"):
+            add_finding(
+                findings,
+                "jellyfin_missing_overview",
+                "Jellyfin media file has no overview",
+                item_id=item.get("Id"),
+                name=item.get("Name"),
+                item_type=item_type,
+                paths=paths,
+            )
+
+        if in_active_library and item_type in {"Movie", "Series"}:
+            provider_ids = item.get("ProviderIds") or {}
+            for provider in PROVIDER_KEYS:
+                value = provider_ids.get(provider)
+                if value:
+                    duplicates.setdefault((item_type, provider, str(value)), []).append(item)
+
+    for (item_type, provider, value), matching in sorted(duplicates.items()):
+        ids = sorted(str(item.get("Id") or item.get("Name") or "") for item in matching)
+        unique_ids = set(ids)
+        if len(unique_ids) > 1:
+            add_finding(
+                findings,
+                "jellyfin_duplicate_provider_id",
+                "Multiple Jellyfin items share the same provider ID",
+                item_type=item_type,
+                provider=provider,
+                provider_id=value,
+                items=[
+                    {
+                        "id": item.get("Id"),
+                        "name": item.get("Name"),
+                        "paths": item_paths(item),
+                    }
+                    for item in matching
+                ],
+            )
+
+
+def audit_arr(app: str, items: list[dict[str, Any]], args: argparse.Namespace, findings: list[dict[str, Any]]) -> None:
+    download_roots = [Path(args.download_root)]
+    for item in items:
+        path = item.get("path") or item.get("Path")
+        if path and path_under_any(str(path), download_roots):
+            add_finding(
+                findings,
+                f"{app}_download_path",
+                f"{app.title()} item points at a raw download path",
+                id=item.get("id") or item.get("Id"),
+                title=item.get("title") or item.get("Title"),
+                path=path,
+            )
+
+
+def audit_raw_download_ignores(args: argparse.Namespace, findings: list[dict[str, Any]], warnings: list[str]) -> None:
+    if args.no_download_scan:
+        return
+    category_roots = [Path(path) for path in args.download_category_root] if args.download_category_root else [
+        Path(args.download_root) / "radarr",
+        Path(args.download_root) / "tv-sonarr",
+    ]
+    for root in category_roots:
+        if not root.exists():
+            continue
+        try:
+            children = sorted(root.iterdir())
+        except OSError as exc:
+            warnings.append(f"download-scan: cannot list {root}: {exc}")
+            continue
+        for child in children:
+            if not child.is_dir() or child.name.startswith("."):
+                continue
+            if directory_has_video(child) and not has_star_ignore(child):
+                add_finding(
+                    findings,
+                    "raw_download_missing_ignore",
+                    "Raw completed download folder has video files but no .ignore guard",
+                    path=str(child),
+                )
+
+
+def audit_queue(args: argparse.Namespace, findings: list[dict[str, Any]]) -> dict[str, int]:
+    root = Path(args.queue_root)
+    counts: dict[str, int] = {}
+    for name in ("queue", "done", "needs-review", "ignored", "failed"):
+        path = root / name
+        counts[name] = len(list(path.glob("*.json"))) if path.exists() else 0
+    for name in ("needs-review", "failed"):
+        if counts[name] > 0:
+            add_finding(
+                findings,
+                "media_sorter_queue_attention",
+                f"Media sorter queue has {name} records",
+                queue=name,
+                count=counts[name],
+            )
+    return counts
+
+
+def send_notification(args: argparse.Namespace, report: dict[str, Any], warnings: list[str]) -> None:
+    if not args.notify or not report["findings"]:
+        return
+    env = read_env_file(Path(args.telegram_env))
+    token = os.environ.get("MEDIA_SORTER_TELEGRAM_BOT_TOKEN") or env.get("MEDIA_SORTER_TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("MEDIA_SORTER_TELEGRAM_CHAT_ID") or env.get("MEDIA_SORTER_TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        warnings.append("telegram: notification requested but bot token/chat id are not configured")
+        return
+    text = f"media-library-audit found {len(report['findings'])} issue(s)"
+    payload = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
+    request = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=payload)
+    try:
+        with urllib.request.urlopen(request, timeout=args.timeout) as response:
+            response.read()
+    except Exception as exc:
+        warnings.append(f"telegram: notification failed: {exc}")
+
+
+def collect_report(args: argparse.Namespace) -> dict[str, Any]:
+    findings: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    jellyfin = jellyfin_items(args, warnings)
+    virtual_folders = jellyfin_virtual_folders(args, warnings)
+    active_locations = active_jellyfin_locations(virtual_folders)
+    sonarr = arr_items("sonarr", args, warnings)
+    radarr = arr_items("radarr", args, warnings)
+
+    audit_jellyfin(jellyfin, active_locations, args, findings)
+    audit_arr("sonarr", sonarr, args, findings)
+    audit_arr("radarr", radarr, args, findings)
+    audit_raw_download_ignores(args, findings, warnings)
+    queue_counts = audit_queue(args, findings)
+
+    report = {
+        "counts": {
+            "findings": len(findings),
+            "warnings": len(warnings),
+            "jellyfinItems": len(jellyfin),
+            "jellyfinVirtualFolders": len(virtual_folders),
+            "sonarrItems": len(sonarr),
+            "radarrItems": len(radarr),
+            "queue": queue_counts,
+        },
+        "findings": findings,
+        "warnings": warnings,
+    }
+    send_notification(args, report, warnings)
+    report["counts"]["warnings"] = len(warnings)
+    return report
+
+
+def print_human(report: dict[str, Any]) -> None:
+    print(f"media library audit: findings={report['counts']['findings']} warnings={report['counts']['warnings']}")
+    queue = report["counts"]["queue"]
+    print(f"queue: queue={queue['queue']} needs-review={queue['needs-review']} failed={queue['failed']} done={queue['done']} ignored={queue['ignored']}")
+    for finding in report["findings"]:
+        print(f"- {finding['type']}: {finding['message']}")
+        for key in ("path", "name", "title", "provider", "provider_id", "queue", "count"):
+            if key in finding:
+                print(f"  {key}: {finding[key]}")
+    for warning in report["warnings"]:
+        print(f"WARNING: {warning}")
+
+
+def parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--download-root", default=str(DEFAULT_DOWNLOAD_ROOT))
+    parser.add_argument("--series-root", default=str(DEFAULT_SERIES_ROOT))
+    parser.add_argument("--films-root", default=str(DEFAULT_FILMS_ROOT))
+    parser.add_argument("--music-root", default=str(DEFAULT_MUSIC_ROOT))
+    parser.add_argument("--queue-root", default=str(DEFAULT_QUEUE_ROOT))
+    parser.add_argument("--download-category-root", action="append", default=[])
+    parser.add_argument("--sonarr-url", default=DEFAULT_SONARR_URL)
+    parser.add_argument("--radarr-url", default=DEFAULT_RADARR_URL)
+    parser.add_argument("--jellyfin-url", default=DEFAULT_JELLYFIN_URL)
+    parser.add_argument("--sonarr-config", default=str(DEFAULT_SONARR_CONFIG))
+    parser.add_argument("--radarr-config", default=str(DEFAULT_RADARR_CONFIG))
+    parser.add_argument("--jellyfin-env", default=str(DEFAULT_JELLYFIN_ENV))
+    parser.add_argument("--telegram-env", default=str(DEFAULT_TELEGRAM_ENV))
+    parser.add_argument("--jellyfin-api-key", default=None)
+    parser.add_argument("--timeout", type=int, default=20)
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--notify", action="store_true")
+    parser.add_argument("--no-jellyfin", action="store_true")
+    parser.add_argument("--no-arr", action="store_true")
+    parser.add_argument("--no-download-scan", action="store_true")
+    parser.add_argument("--jellyfin-items-json", help=argparse.SUPPRESS)
+    parser.add_argument("--sonarr-series-json", help=argparse.SUPPRESS)
+    parser.add_argument("--radarr-movies-json", help=argparse.SUPPRESS)
+    parser.add_argument("--jellyfin-virtual-folders-json", help=argparse.SUPPRESS)
+    return parser
+
+
+def main() -> int:
+    args = parser().parse_args()
+    report = collect_report(args)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print_human(report)
+    return 1 if report["findings"] else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

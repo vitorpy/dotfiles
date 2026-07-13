@@ -101,6 +101,7 @@ run_sorter --metadata-json "${tmpdir}/movie.json" --label "film:Ewoks The Battle
 assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks The Battle for Endor/Ewoks.mkv"
 assert_samefile "${downloads}/EwoksPack/Ewoks.srt" "${films}/Ewoks The Battle for Endor/Ewoks.srt"
 assert_not_exists "${films}/Ewoks The Battle for Endor/tracker.txt"
+grep -qx '\*' "${downloads}/EwoksPack/.ignore"
 
 mkdir -p "${downloads}/NasuExtras"
 printf main-feature-video > "${downloads}/NasuExtras/Nasu Summer in Andalusia.mkv"
@@ -571,6 +572,7 @@ run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
 run_sorter --metadata-json "${tmpdir}/danger-5.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
+grep -qx '\*' "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/.ignore"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - S01E01 [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/extras/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
@@ -601,6 +603,7 @@ assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial 
 assert_not_exists "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain NCOP [BD][1080p][AAC].mp4"
 assert_not_exists "${series}/Serial Experiments Lain/Season 00"
 test -f "${queue_root}/done/btih_perfecthash.json"
+jq -e '.raw_ignore.status == "created" and (.raw_ignore.path | endswith("/.ignore"))' "${queue_root}/done/btih_perfecthash.json" >/dev/null
 test -f "${queue_root}/done/btih_patriothash.json"
 test -f "${queue_root}/done/btih_lainhash.json"
 test -f "${queue_root}/done/btih_russianmoviehash.json"
@@ -625,6 +628,7 @@ run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 test -f "${queue_root}/needs-review/btih_ambiguoushash.json"
 [[ "$(stat -c '%a' "${queue_root}/needs-review/btih_ambiguoushash.json")" == "640" ]]
 assert_not_exists "${films}/Ambiguous"
+assert_not_exists "${downloads}/Ambiguous.2020.1080p.WEBRip/.ignore"
 run_sorter --queue > "${tmpdir}/queue-review.out"
 grep -q "needs-review:" "${tmpdir}/queue-review.out"
 grep -q "btih_ambiguoushash.json" "${tmpdir}/queue-review.out"
@@ -663,5 +667,6 @@ grep -q "would hardlink" "${tmpdir}/backfill-dry-run.out"
 assert_not_exists "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 run_sorter --backfill-current-downloads --apply
 assert_samefile "${downloads}/Corporate.S01/Corporate.S01E01.mkv" "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
+grep -qx '\*' "${downloads}/Corporate.S01/.ignore"
 
 echo "media sorter tests passed"

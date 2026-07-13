@@ -78,6 +78,17 @@
   tags:
     - media_sorter
 
+- name: Install media library audit tool
+  ansible.builtin.copy:
+    src: media-library-audit
+    dest: "{{ arch_media_library_audit_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
 - name: Install Transmission tracker updater
   ansible.builtin.copy:
     src: transmission-update-trackers
@@ -245,6 +256,26 @@
   tags:
     - media_sorter
 
+- name: Install media library audit service
+  ansible.builtin.template:
+    src: media-library-audit.service.j2
+    dest: /etc/systemd/system/media-library-audit.service
+    mode: "0644"
+  register: services_media_library_audit_service
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
+- name: Install media library audit timer
+  ansible.builtin.template:
+    src: media-library-audit.timer.j2
+    dest: /etc/systemd/system/media-library-audit.timer
+    mode: "0644"
+  register: services_media_library_audit_timer
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
 - name: Install Transmission tracker updater service
   ansible.builtin.template:
     src: transmission-trackers-update.service.j2
@@ -343,7 +374,7 @@
     daemon_reload: true
   when:
     - arch_transmission_enabled | bool
-    - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false)) or (services_transmission_trackers_update_service.changed | default(false)) or (services_transmission_trackers_update_timer.changed | default(false))
+    - (services_transmission_override.changed | default(false)) or (services_media_sorter_process_service.changed | default(false)) or (services_media_sorter_process_timer.changed | default(false)) or (services_media_library_audit_service.changed | default(false)) or (services_media_library_audit_timer.changed | default(false)) or (services_transmission_trackers_update_service.changed | default(false)) or (services_transmission_trackers_update_timer.changed | default(false))
   tags:
     - media_sorter
 
@@ -766,6 +797,43 @@
   check_mode: false
   when: arch_transmission_enabled | bool
 
+- name: Ensure Jellyfin media directories inherit transmission group write ACLs
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      check={{ ansible_check_mode | ternary('1', '0') }}
+
+      if ! command -v setfacl >/dev/null 2>&1 || ! command -v getfacl >/dev/null 2>&1; then
+        echo ok
+        exit 0
+      fi
+
+      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }}; do
+        [ -d "$path" ] || continue
+        while IFS= read -r -d '' directory; do
+          acl="$(getfacl -cp "$directory")"
+          if ! grep -qx 'group:transmission:rwx' <<<"$acl" || ! grep -qx 'default:group:transmission:rwx' <<<"$acl"; then
+            changed=1
+            if [ "$check" -eq 0 ]; then
+              setfacl -m g:transmission:rwx,d:g:transmission:rwx "$directory"
+            fi
+          fi
+        done < <(find "$path" -type d -print0)
+      done
+
+      if [ "$changed" -eq 1 ]; then
+        echo changed
+      else
+        echo ok
+      fi
+    executable: /bin/bash
+  register: services_jellyfin_media_acls
+  changed_when: services_jellyfin_media_acls.stdout == "changed"
+  when: arch_transmission_enabled | bool
+  tags:
+    - media_sorter
+
 - name: Enable and start core services
   ansible.builtin.systemd:
     name: "{{ item }}"
@@ -858,6 +926,30 @@
     - arch_transmission_enabled | bool
     - (not arch_media_sorter_enabled | bool) or (not arch_media_sorter_timer_enabled | bool)
     - not ansible_check_mode or 'media-sorter-process.timer' in ansible_facts.services
+  tags:
+    - media_sorter
+
+- name: Enable media library audit timer
+  ansible.builtin.systemd:
+    name: media-library-audit.timer
+    enabled: true
+    state: started
+  when:
+    - arch_transmission_enabled | bool
+    - arch_media_library_audit_enabled | bool
+    - not ansible_check_mode or 'media-library-audit.timer' in ansible_facts.services
+  tags:
+    - media_sorter
+
+- name: Disable media library audit timer
+  ansible.builtin.systemd:
+    name: media-library-audit.timer
+    enabled: false
+    state: stopped
+  when:
+    - arch_transmission_enabled | bool
+    - not (arch_media_library_audit_enabled | bool)
+    - not ansible_check_mode or 'media-library-audit.timer' in ansible_facts.services
   tags:
     - media_sorter
 

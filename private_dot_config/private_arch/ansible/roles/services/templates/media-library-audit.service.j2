@@ -1,0 +1,8 @@
+[Unit]
+Description=Audit Jellyfin, Arr, and Transmission media library boundaries
+After=network-online.target jellyfin.service sonarr.service radarr.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ arch_media_library_audit_path }} --json --notify

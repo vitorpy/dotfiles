@@ -13,8 +13,13 @@ films="${tmpdir}/films"
 music="${tmpdir}/music"
 queue_root="${tmpdir}/queue-root"
 mkdir -p "${downloads}/radarr/Raw.Movie" "${downloads}/radarr/Ignored.Movie" "${downloads}/tv-sonarr" "${series}/Example/Season 01" "${films}/Clean Movie" "${music}" "${queue_root}/failed"
+mkdir -p "${downloads}/radarr/Shin" "${films}/Shin Godzilla"
 printf raw > "${downloads}/radarr/Raw.Movie/Raw.Movie.mkv"
 printf ignored > "${downloads}/radarr/Ignored.Movie/Ignored.Movie.mkv"
+printf shin-raw > "${downloads}/radarr/Shin/Shin.mkv"
+printf shin-canonical > "${films}/Shin Godzilla/Shin.mkv"
+printf episode > "${series}/Example/Season 01/Example.S01E01.mkv"
+printf clean > "${films}/Clean Movie/Clean Movie.mkv"
 printf '*\n' > "${downloads}/radarr/Ignored.Movie/.ignore"
 printf '{}' > "${queue_root}/failed/example.json"
 
@@ -46,6 +51,15 @@ cat > "${tmpdir}/jellyfin-dirty.json" <<JSON
     "ProviderIds": {},
     "Overview": "",
     "MediaSources": [{"Path": "${series}/Example/Season 01/Example.S01E01.mkv"}]
+  },
+  {
+    "Id": "stale-video",
+    "Name": "Missing Video",
+    "Type": "Video",
+    "Path": "${series}/Missing/Missing.mkv",
+    "ProviderIds": {},
+    "Overview": "ok",
+    "MediaSources": [{"Path": "${series}/Missing/Missing.mkv"}]
   }
 ]
 JSON
@@ -81,6 +95,7 @@ jq -e '[.findings[].type] | index("jellyfin_download_path")' "${tmpdir}/dirty.ou
 jq -e '[.findings[].type] | index("jellyfin_duplicate_provider_id")' "${tmpdir}/dirty.out" >/dev/null
 jq -e '[.findings[].type] | index("jellyfin_missing_provider_ids")' "${tmpdir}/dirty.out" >/dev/null
 jq -e '[.findings[].type] | index("jellyfin_missing_overview")' "${tmpdir}/dirty.out" >/dev/null
+jq -e '[.findings[].type] | index("jellyfin_missing_path")' "${tmpdir}/dirty.out" >/dev/null
 jq -e '[.findings[].type] | index("sonarr_download_path")' "${tmpdir}/dirty.out" >/dev/null
 jq -e '[.findings[].type] | index("radarr_download_path")' "${tmpdir}/dirty.out" >/dev/null
 jq -e '[.findings[].type] | index("raw_download_missing_ignore")' "${tmpdir}/dirty.out" >/dev/null
@@ -89,6 +104,7 @@ jq -e '[.findings[].type] | index("media_sorter_queue_attention")' "${tmpdir}/di
 clean_queue="${tmpdir}/clean-queue"
 mkdir -p "${clean_queue}"
 printf '*\n' > "${downloads}/radarr/Raw.Movie/.ignore"
+printf '*\n' > "${downloads}/radarr/Shin/.ignore"
 cat > "${tmpdir}/jellyfin-clean.json" <<JSON
 [
   {

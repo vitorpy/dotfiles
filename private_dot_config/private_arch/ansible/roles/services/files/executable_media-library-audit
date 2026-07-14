@@ -136,7 +136,7 @@ def jellyfin_items(args: argparse.Namespace, warnings: list[str]) -> list[dict[s
     query = urllib.parse.urlencode(
         {
             "Recursive": "true",
-            "IncludeItemTypes": "Movie,Series,Episode",
+            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder",
             "Fields": "ProviderIds,Path,Overview,MediaSources",
             "Limit": "50000",
         }
@@ -217,6 +217,16 @@ def audit_jellyfin(items: list[dict[str, Any]], active_locations: list[Path], ar
         paths = item_paths(item)
         in_active_library = item_is_in_active_library(paths, active_locations)
         for path in paths:
+            if in_active_library and path_under_any(path, download_roots + canonical_roots) and not Path(path).exists():
+                add_finding(
+                    findings,
+                    "jellyfin_missing_path",
+                    "Jellyfin item points at a missing filesystem path",
+                    item_id=item.get("Id"),
+                    name=item.get("Name"),
+                    item_type=item_type,
+                    path=path,
+                )
             if in_active_library and path_under_any(path, download_roots):
                 add_finding(
                     findings,

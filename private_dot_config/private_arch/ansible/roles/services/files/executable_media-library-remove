@@ -55,6 +55,15 @@ class TorrentItem:
 
 
 @dataclass(frozen=True)
+class JellyfinItem:
+    id: str
+    name: str
+    type: str
+    paths: tuple[Path, ...]
+    can_delete: bool | None
+
+
+@dataclass(frozen=True)
 class Candidate:
     source: str
     label: str
@@ -69,10 +78,13 @@ class Plan:
     sonarr: list[AppItem] = field(default_factory=list)
     radarr: list[AppItem] = field(default_factory=list)
     torrents: list[TorrentItem] = field(default_factory=list)
+    jellyfin_items: list[JellyfinItem] = field(default_factory=list)
     delete_paths: dict[Path, str] = field(default_factory=dict)
     queue_records: list[Path] = field(default_factory=list)
+    preflight: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     jellyfin_refresh: bool = False
+    jellyfin_delete: bool = False
 
 
 class TransmissionRpc:
@@ -172,6 +184,23 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def load_fixture(path: str | None) -> Any | None:
+    if not path:
+        return None
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def save_fixture(path: str | None, data: Any) -> None:
+    if path:
+        Path(path).write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def append_log(path: str | None, line: str) -> None:
+    if path:
+        with Path(path).open("a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+
+
 def api_key_from_config(path: Path) -> str | None:
     if not path.exists():
         return None
@@ -203,7 +232,120 @@ def http_json(
     return json.loads(body.decode("utf-8"))
 
 
-def arr_items(app: str, base_url: str, config_path: Path, timeout: int, warnings: list[str]) -> list[AppItem]:
+def http_status(
+    url: str,
+    *,
+    method: str = "GET",
+    api_key: str | None = None,
+    data: bytes | None = None,
+    timeout: int = 20,
+) -> tuple[int, str]:
+    headers = {"Accept": "application/json"}
+    if api_key:
+        headers["X-Api-Key"] = api_key
+        headers["X-Emby-Token"] = api_key
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.status, response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", "replace")
+
+
+def jellyfin_api_key(args: argparse.Namespace) -> str | None:
+    env_values = read_env_file(Path(args.jellyfin_env))
+    return args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+
+
+def item_paths(item: dict[str, Any]) -> tuple[Path, ...]:
+    paths: list[Path] = []
+    if item.get("Path"):
+        paths.append(Path(str(item["Path"])))
+    for source in item.get("MediaSources") or []:
+        if source.get("Path"):
+            paths.append(Path(str(source["Path"])))
+    deduped: dict[str, Path] = {}
+    for path in paths:
+        deduped[str(path)] = path
+    return tuple(deduped.values())
+
+
+def jellyfin_items(args: argparse.Namespace, warnings: list[str]) -> list[JellyfinItem]:
+    fixture = load_fixture(args.jellyfin_items_json)
+    if fixture is not None:
+        raw_items = fixture.get("Items", fixture) if isinstance(fixture, dict) else fixture
+        return [
+            JellyfinItem(
+                id=str(item.get("Id") or ""),
+                name=str(item.get("Name") or item.get("Id") or ""),
+                type=str(item.get("Type") or ""),
+                paths=item_paths(item),
+                can_delete=item.get("CanDelete") if isinstance(item.get("CanDelete"), bool) else None,
+            )
+            for item in raw_items
+            if item_paths(item)
+        ]
+    if args.no_jellyfin:
+        return []
+    api_key = jellyfin_api_key(args)
+    if not api_key:
+        warnings.append(f"jellyfin: API key not configured in {args.jellyfin_env}")
+        return []
+    query = urllib.parse.urlencode(
+        {
+            "Recursive": "true",
+            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder",
+            "Fields": "Path,MediaSources,CanDelete",
+            "Limit": "50000",
+        }
+    )
+    try:
+        data = http_json(f"{args.jellyfin_url.rstrip('/')}/Items?{query}", api_key=api_key, timeout=args.timeout)
+    except Exception as exc:
+        warnings.append(f"jellyfin: could not list items: {exc}")
+        return []
+
+    items: list[JellyfinItem] = []
+    raw_items = data.get("Items", []) if isinstance(data, dict) else []
+    for item in raw_items:
+        paths = item_paths(item)
+        if not paths:
+            continue
+        items.append(
+            JellyfinItem(
+                id=str(item.get("Id") or ""),
+                name=str(item.get("Name") or item.get("Id") or ""),
+                type=str(item.get("Type") or ""),
+                paths=paths,
+                can_delete=item.get("CanDelete") if isinstance(item.get("CanDelete"), bool) else None,
+            )
+        )
+    return items
+
+
+def jellyfin_items_under_paths(items: list[JellyfinItem], targets: list[Path]) -> list[JellyfinItem]:
+    matched: dict[str, JellyfinItem] = {}
+    for item in items:
+        if any(selected_container_matches_path(target, path) for target in targets for path in item.paths):
+            matched[item.id] = item
+    return list(matched.values())
+
+
+def arr_items(app: str, base_url: str, config_path: Path, timeout: int, warnings: list[str], fixture_path: str | None = None) -> list[AppItem]:
+    fixture = load_fixture(fixture_path)
+    if fixture is not None:
+        data = fixture.get("Items", fixture) if isinstance(fixture, dict) else fixture
+        return [
+            AppItem(
+                app=app,
+                id=int(item["id"] if "id" in item else item["Id"]),
+                title=str(item.get("title") or item.get("Title") or item.get("sortTitle") or item.get("id") or item.get("Id")),
+                path=Path(str(item.get("path") or item.get("Path"))) if item.get("path") or item.get("Path") else None,
+            )
+            for item in data
+        ]
     api_key = api_key_from_config(config_path)
     if not api_key:
         warnings.append(f"{app}: API key not available from {config_path}")
@@ -225,17 +367,32 @@ def arr_items(app: str, base_url: str, config_path: Path, timeout: int, warnings
 
 
 def delete_arr_item(item: AppItem, args: argparse.Namespace) -> None:
+    delete_files = "true" if args.arr_delete_files else "false"
     if item.app == "sonarr":
+        if args.sonarr_series_json:
+            data = load_fixture(args.sonarr_series_json) or []
+            rows = data.get("Items", data) if isinstance(data, dict) else data
+            rows = [row for row in rows if int(row.get("id", row.get("Id"))) != item.id]
+            save_fixture(args.sonarr_series_json, {"Items": rows} if isinstance(data, dict) else rows)
+            append_log(args.sonarr_delete_log, f"sonarr {item.id} deleteFiles={delete_files}")
+            return
         api_key = api_key_from_config(Path(args.sonarr_config))
         if not api_key:
             raise RuntimeError("Sonarr API key unavailable")
-        query = urllib.parse.urlencode({"deleteFiles": "true", "addImportListExclusion": "false"})
+        query = urllib.parse.urlencode({"deleteFiles": delete_files, "addImportListExclusion": "false"})
         http_json(f"{args.sonarr_url.rstrip('/')}/series/{item.id}?{query}", method="DELETE", api_key=api_key, timeout=args.timeout)
     elif item.app == "radarr":
+        if args.radarr_movies_json:
+            data = load_fixture(args.radarr_movies_json) or []
+            rows = data.get("Items", data) if isinstance(data, dict) else data
+            rows = [row for row in rows if int(row.get("id", row.get("Id"))) != item.id]
+            save_fixture(args.radarr_movies_json, {"Items": rows} if isinstance(data, dict) else rows)
+            append_log(args.radarr_delete_log, f"radarr {item.id} deleteFiles={delete_files}")
+            return
         api_key = api_key_from_config(Path(args.radarr_config))
         if not api_key:
             raise RuntimeError("Radarr API key unavailable")
-        query = urllib.parse.urlencode({"deleteFiles": "true", "addImportExclusion": "false"})
+        query = urllib.parse.urlencode({"deleteFiles": delete_files, "addImportExclusion": "false"})
         http_json(f"{args.radarr_url.rstrip('/')}/movie/{item.id}?{query}", method="DELETE", api_key=api_key, timeout=args.timeout)
 
 
@@ -411,6 +568,70 @@ def file_paths_under(path: Path) -> list[Path]:
     return files
 
 
+def deletion_permission_issues(path: Path) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    if not path.exists():
+        return issues
+
+    def add(path_value: Path, issue: str) -> None:
+        issues.append({"path": str(path_value), "issue": issue, "remediated_by_jellyfin": False})
+
+    parent = path.parent
+    if not os.access(parent, os.W_OK | os.X_OK):
+        add(parent, "parent directory is not writable/traversable")
+
+    if path.is_file() or path.is_symlink():
+        return issues
+
+    if not os.access(path, os.R_OK | os.X_OK):
+        add(path, "directory is not readable/traversable")
+
+    def onerror(exc: OSError) -> None:
+        add(Path(exc.filename), str(exc))
+
+    for dirpath, dirnames, filenames in os.walk(path, onerror=onerror):
+        base = Path(dirpath)
+        if not os.access(base, os.R_OK | os.X_OK):
+            add(base, "directory is not readable/traversable")
+            dirnames[:] = []
+            continue
+        if not os.access(base, os.W_OK | os.X_OK):
+            add(base, "directory is not writable/traversable")
+        for dirname in dirnames:
+            child = base / dirname
+            if not os.access(child, os.R_OK | os.X_OK):
+                add(child, "directory is not readable/traversable")
+        for filename in filenames:
+            child = base / filename
+            if not os.access(base, os.W_OK | os.X_OK):
+                add(child, "parent directory is not writable/traversable")
+    return issues
+
+
+def preflight_delete_paths(paths: list[Path], jellyfin_items: list[JellyfinItem], jellyfin_delete: bool) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    targets_with_jellyfin = [
+        target
+        for target in paths
+        if any(selected_container_matches_path(target, item_path) for item in jellyfin_items for item_path in item.paths)
+    ]
+    for path in paths:
+        for issue in deletion_permission_issues(path):
+            issue_path = Path(str(issue["path"]))
+            if jellyfin_delete and any(selected_container_matches_path(target, issue_path) for target in targets_with_jellyfin):
+                issue["remediated_by_jellyfin"] = True
+            issues.append(issue)
+    return issues
+
+
+def assert_preflight_ok(plan: Plan) -> None:
+    blocking = [issue for issue in plan.preflight if not issue.get("remediated_by_jellyfin")]
+    if not blocking:
+        return
+    sample = "; ".join(f"{issue['path']}: {issue['issue']}" for issue in blocking[:5])
+    raise RuntimeError(f"preflight failed; refusing to mutate before path permissions are fixed: {sample}")
+
+
 def hardlink_peers(seed_paths: list[Path], scan_roots: list[Path], allowed_roots: list[Path]) -> dict[Path, str]:
     inodes: set[tuple[int, int]] = set()
     seed_resolved = {path.resolve(strict=False) for path in seed_paths}
@@ -485,8 +706,8 @@ def build_plan(args: argparse.Namespace) -> Plan:
     warnings: list[str] = []
     roots = managed_roots(args)
 
-    sonarr = [] if args.no_sonarr else arr_items("sonarr", args.sonarr_url, Path(args.sonarr_config), args.timeout, warnings)
-    radarr = [] if args.no_radarr else arr_items("radarr", args.radarr_url, Path(args.radarr_config), args.timeout, warnings)
+    sonarr = [] if args.no_sonarr else arr_items("sonarr", args.sonarr_url, Path(args.sonarr_config), args.timeout, warnings, args.sonarr_series_json)
+    radarr = [] if args.no_radarr else arr_items("radarr", args.radarr_url, Path(args.radarr_config), args.timeout, warnings, args.radarr_movies_json)
     if args.no_transmission:
         torrents: list[TorrentItem] = []
     else:
@@ -538,11 +759,14 @@ def build_plan(args: argparse.Namespace) -> Plan:
         if not path_allowed(path, roots):
             raise RuntimeError(f"refusing unmanaged or root path in plan: {path}")
 
-    env_values = read_env_file(Path(args.jellyfin_env))
-    jellyfin_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    jellyfin_key = jellyfin_api_key(args)
     plan.jellyfin_refresh = bool(jellyfin_key and not args.no_jellyfin)
+    plan.jellyfin_delete = bool(jellyfin_key and not args.no_jellyfin and not args.no_jellyfin_delete)
+    if jellyfin_key and not args.no_jellyfin:
+        plan.jellyfin_items = jellyfin_items_under_paths(jellyfin_items(args, plan.warnings), list(plan.delete_paths))
     if not plan.jellyfin_refresh and not args.no_jellyfin:
         plan.warnings.append("jellyfin: JELLYFIN_API_KEY not configured; filesystem deletes will be picked up on the next library scan")
+    plan.preflight = preflight_delete_paths(list(plan.delete_paths), plan.jellyfin_items, plan.jellyfin_delete)
     return plan
 
 
@@ -562,11 +786,11 @@ def inode_free_estimate(paths: list[Path]) -> dict[str, int]:
     return {"selected_bytes": selected, "likely_freed_bytes": likely_freed}
 
 
-def plan_record(plan: Plan, apply: bool) -> dict[str, Any]:
+def plan_record(plan: Plan, args: argparse.Namespace) -> dict[str, Any]:
     paths = sorted(plan.delete_paths)
     estimate = inode_free_estimate(paths)
     return {
-        "mode": "apply" if apply else "dry-run",
+        "mode": "apply" if args.apply else "dry-run",
         "selected": [
             {
                 "source": candidate.source,
@@ -586,6 +810,17 @@ def plan_record(plan: Plan, apply: bool) -> dict[str, Any]:
             }
             for torrent in plan.torrents
         ],
+        "jellyfin_items": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "type": item.type,
+                "path": str(item.paths[0]) if item.paths else None,
+                "paths": [str(path) for path in item.paths],
+                "can_delete": item.can_delete,
+            }
+            for item in plan.jellyfin_items
+        ],
         "delete_paths": [
             {
                 "path": str(path),
@@ -596,7 +831,10 @@ def plan_record(plan: Plan, apply: bool) -> dict[str, Any]:
             for path in paths
         ],
         "queue_records_used": [str(path) for path in plan.queue_records],
+        "preflight": plan.preflight,
         "jellyfin_refresh": plan.jellyfin_refresh,
+        "jellyfin_delete": plan.jellyfin_delete,
+        "arr_delete_files": bool(args.arr_delete_files),
         "estimate": estimate,
         "warnings": plan.warnings,
     }
@@ -611,18 +849,28 @@ def print_human(record: dict[str, Any]) -> None:
     if record["sonarr"]:
         print("sonarr deletes:")
         for item in record["sonarr"]:
-            print(f"  - id={item['id']} title={item['title']!r} path={item['path']}")
+            print(f"  - id={item['id']} title={item['title']!r} path={item['path']} deleteFiles={str(record['arr_delete_files']).lower()}")
     if record["radarr"]:
         print("radarr deletes:")
         for item in record["radarr"]:
-            print(f"  - id={item['id']} title={item['title']!r} path={item['path']}")
+            print(f"  - id={item['id']} title={item['title']!r} path={item['path']} deleteFiles={str(record['arr_delete_files']).lower()}")
     if record["transmission"]:
         print("transmission deletes:")
         for item in record["transmission"]:
             print(f"  - id={item['id']} name={item['name']!r} delete-local-data=true")
+    if record["jellyfin_items"]:
+        action = "delete" if record["jellyfin_delete"] else "refresh-only"
+        print(f"jellyfin items ({action}):")
+        for item in record["jellyfin_items"]:
+            print(f"  - id={item['id']} type={item['type']} name={item['name']!r} path={item['path']}")
     print("filesystem deletes:")
     for item in record["delete_paths"]:
         print(f"  - [{item['type']}] {item['path']} ({item['reason']})")
+    if record["preflight"]:
+        print("preflight:")
+        for item in record["preflight"]:
+            suffix = " remediated_by_jellyfin=true" if item.get("remediated_by_jellyfin") else ""
+            print(f"  - {item['path']}: {item['issue']}{suffix}")
     if record["queue_records_used"]:
         print("queue records used for source/destination discovery:")
         for path in record["queue_records_used"]:
@@ -658,16 +906,188 @@ def prune_empty_parents(paths: list[Path], roots: list[Path]) -> None:
             current = current.parent
 
 
+def item_paths_exist(item: JellyfinItem) -> bool:
+    return any(path.exists() for path in item.paths)
+
+
+def delete_jellyfin_item(item: JellyfinItem, args: argparse.Namespace) -> tuple[int, str]:
+    if args.jellyfin_items_json:
+        data = load_fixture(args.jellyfin_items_json) or []
+        rows = data.get("Items", data) if isinstance(data, dict) else data
+        raw_item = next((row for row in rows if str(row.get("Id") or "") == item.id), None)
+        if raw_item is None:
+            return 404, "fixture item not found"
+        raw_paths = item_paths(raw_item)
+        if raw_item.get("FailWhenMissing") and not any(path.exists() for path in raw_paths):
+            return 500, "missing backing file"
+        rows = [row for row in rows if str(row.get("Id") or "") != item.id]
+        save_fixture(args.jellyfin_items_json, {"Items": rows} if isinstance(data, dict) else rows)
+        append_log(args.jellyfin_delete_log, f"jellyfin {item.id}")
+        return 204, ""
+    api_key = jellyfin_api_key(args)
+    if not api_key:
+        return 0, "Jellyfin API key unavailable"
+    return http_status(f"{args.jellyfin_url.rstrip('/')}/Items/{item.id}", method="DELETE", api_key=api_key, timeout=args.timeout)
+
+
+def delete_jellyfin_items(plan: Plan, args: argparse.Namespace) -> None:
+    if not plan.jellyfin_delete:
+        return
+    for item in plan.jellyfin_items:
+        status, body = delete_jellyfin_item(item, args)
+        if 200 <= status < 300:
+            print(f"deleted jellyfin item id={item.id} name={item.name!r}")
+            continue
+        if item_paths_exist(item):
+            raise RuntimeError(f"jellyfin delete failed id={item.id} name={item.name!r} status={status}: {body[:200]}")
+        plan.warnings.append(f"jellyfin: stale item delete deferred id={item.id} status={status}")
+
+
+def create_placeholder_paths(item: JellyfinItem, roots: list[Path]) -> tuple[list[Path], list[Path]]:
+    created_files: list[Path] = []
+    created_dirs: list[Path] = []
+    for path in item.paths:
+        if not path_allowed(path, roots):
+            continue
+        missing_dirs: list[Path] = []
+        current = path.parent
+        while not current.exists() and path_allowed(current, roots):
+            missing_dirs.append(current)
+            current = current.parent
+        path.parent.mkdir(parents=True, exist_ok=True)
+        for directory in reversed(missing_dirs):
+            created_dirs.append(directory)
+            os.chmod(directory, 0o777)
+        if not path.exists():
+            path.touch()
+            os.chmod(path, 0o666)
+            created_files.append(path)
+    return created_files, created_dirs
+
+
+def cleanup_placeholders(files: list[Path], directories: list[Path]) -> None:
+    for path in files:
+        try:
+            if path.exists() and path.stat().st_size == 0:
+                path.unlink()
+        except OSError:
+            pass
+    for directory in sorted(directories, key=lambda value: len(value.parts), reverse=True):
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
+
+
+def cleanup_stale_jellyfin_items(targets: list[Path], args: argparse.Namespace, roots: list[Path]) -> None:
+    if args.no_jellyfin or args.no_jellyfin_delete:
+        return
+    warnings: list[str] = []
+    stale_items = jellyfin_items_under_paths(jellyfin_items(args, warnings), targets)
+    for warning in warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
+    for item in stale_items:
+        status, body = delete_jellyfin_item(item, args)
+        if 200 <= status < 300:
+            print(f"deleted stale jellyfin item id={item.id} name={item.name!r}")
+            continue
+        if item_paths_exist(item):
+            continue
+        created_files, created_dirs = create_placeholder_paths(item, roots)
+        try:
+            status, body = delete_jellyfin_item(item, args)
+            if 200 <= status < 300:
+                print(f"deleted stale jellyfin item with placeholder id={item.id} name={item.name!r}")
+            else:
+                print(f"WARNING: jellyfin stale delete failed id={item.id} status={status}: {body[:200]}", file=sys.stderr)
+        finally:
+            cleanup_placeholders(created_files, created_dirs)
+
+
 def refresh_jellyfin(args: argparse.Namespace) -> None:
-    env_values = read_env_file(Path(args.jellyfin_env))
-    api_key = args.jellyfin_api_key or os.environ.get("JELLYFIN_API_KEY") or env_values.get("JELLYFIN_API_KEY")
+    if args.jellyfin_items_json:
+        append_log(args.jellyfin_delete_log, "jellyfin refresh")
+        return
+    api_key = jellyfin_api_key(args)
     if not api_key or args.no_jellyfin:
         return
     http_json(f"{args.jellyfin_url.rstrip('/')}/Library/Refresh", method="POST", api_key=api_key, data=b"", timeout=args.timeout)
 
 
+def verification_report(plan: Plan, args: argparse.Namespace) -> dict[str, Any]:
+    roots = managed_roots(args)
+    targets = sorted(plan.delete_paths)
+    report: dict[str, Any] = {
+        "paths": [str(path) for path in targets if path.exists()],
+        "sonarr": [],
+        "radarr": [],
+        "transmission": [],
+        "jellyfin": [],
+        "warnings": [],
+    }
+
+    def arr_residuals(app: str, planned: list[AppItem]) -> list[dict[str, Any]]:
+        if (app == "sonarr" and args.no_sonarr) or (app == "radarr" and args.no_radarr):
+            return []
+        base_url = args.sonarr_url if app == "sonarr" else args.radarr_url
+        config = Path(args.sonarr_config if app == "sonarr" else args.radarr_config)
+        fixture_path = args.sonarr_series_json if app == "sonarr" else args.radarr_movies_json
+        warnings: list[str] = []
+        items = arr_items(app, base_url, config, args.timeout, warnings, fixture_path)
+        report["warnings"].extend(warnings)
+        planned_ids = {item.id for item in planned}
+        residuals = []
+        for item in items:
+            if item.id in planned_ids or (item.path and any(selected_container_matches_path(target, item.path) for target in targets)):
+                residuals.append({"id": item.id, "title": item.title, "path": str(item.path) if item.path else None})
+        return residuals
+
+    report["sonarr"] = arr_residuals("sonarr", plan.sonarr)
+    report["radarr"] = arr_residuals("radarr", plan.radarr)
+
+    if not args.no_transmission:
+        try:
+            torrents = TransmissionRpc(args.transmission_url, args.timeout).torrents()
+            planned_ids = {torrent.id for torrent in plan.torrents}
+            for torrent in torrents:
+                common_path = common_torrent_path(torrent)
+                if torrent.id in planned_ids or (common_path and any(selected_container_matches_path(target, common_path) for target in targets)):
+                    report["transmission"].append({"id": torrent.id, "name": torrent.name, "hash_string": torrent.hash_string})
+        except Exception as exc:
+            report["warnings"].append(f"transmission: could not verify torrents: {exc}")
+
+    if not args.no_jellyfin and jellyfin_api_key(args):
+        warnings: list[str] = []
+        for item in jellyfin_items_under_paths(jellyfin_items(args, warnings), targets):
+            report["jellyfin"].append(
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "type": item.type,
+                    "paths": [str(path) for path in item.paths],
+                }
+            )
+        report["warnings"].extend(warnings)
+
+    return report
+
+
+def verification_failed(report: dict[str, Any]) -> bool:
+    return any(report[key] for key in ("paths", "sonarr", "radarr", "transmission", "jellyfin"))
+
+
+def print_verification(report: dict[str, Any]) -> None:
+    print("verification:")
+    for key in ("paths", "sonarr", "radarr", "transmission", "jellyfin"):
+        print(f"  {key}: {len(report[key])}")
+    for warning in report["warnings"]:
+        print(f"WARNING: {warning}", file=sys.stderr)
+
+
 def apply_plan(plan: Plan, args: argparse.Namespace) -> None:
     roots = managed_roots(args)
+    assert_preflight_ok(plan)
+    delete_jellyfin_items(plan, args)
     for torrent in plan.torrents:
         TransmissionRpc(args.transmission_url, args.timeout).remove(torrent.id)
         print(f"removed transmission torrent id={torrent.id} name={torrent.name!r}")
@@ -688,6 +1108,12 @@ def apply_plan(plan: Plan, args: argparse.Namespace) -> None:
     refresh_jellyfin(args)
     if plan.jellyfin_refresh:
         print("requested Jellyfin library refresh")
+    if not args.no_verify:
+        cleanup_stale_jellyfin_items(deleted_paths, args, roots)
+        report = verification_report(plan, args)
+        print_verification(report)
+        if verification_failed(report):
+            raise RuntimeError("post-delete verification failed; residual media references remain")
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -701,6 +1127,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--transmission-id", type=int, action="append", help="Transmission torrent id to remove. Can be repeated.")
     parser.add_argument("--allow-multiple", action="store_true", help="Allow a query to select multiple distinct entries.")
     parser.add_argument("--apply", action="store_true", help="Actually delete records/files. Default is dry-run.")
+    parser.add_argument("--arr-delete-files", action="store_true", help="Ask Sonarr/Radarr to delete files too. Default leaves file deletion to this tool.")
     parser.add_argument("--json", action="store_true", help="Print the removal plan as JSON.")
     parser.add_argument("--download-root", default=str(DEFAULT_DOWNLOAD_ROOT))
     parser.add_argument("--series-root", default=str(DEFAULT_SERIES_ROOT))
@@ -720,14 +1147,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-radarr", action="store_true")
     parser.add_argument("--no-transmission", action="store_true")
     parser.add_argument("--no-jellyfin", action="store_true")
+    parser.add_argument("--no-jellyfin-delete", action="store_true", help="Only refresh Jellyfin; do not delete matched Jellyfin items first.")
     parser.add_argument("--no-hardlink-scan", action="store_true")
+    parser.add_argument("--no-verify", action="store_true", help="Skip post-apply verification.")
+    parser.add_argument("--jellyfin-items-json", help=argparse.SUPPRESS)
+    parser.add_argument("--jellyfin-delete-log", help=argparse.SUPPRESS)
+    parser.add_argument("--sonarr-series-json", help=argparse.SUPPRESS)
+    parser.add_argument("--sonarr-delete-log", help=argparse.SUPPRESS)
+    parser.add_argument("--radarr-movies-json", help=argparse.SUPPRESS)
+    parser.add_argument("--radarr-delete-log", help=argparse.SUPPRESS)
     return parser
 
 
 def main() -> int:
     args = build_arg_parser().parse_args()
     plan = build_plan(args)
-    record = plan_record(plan, args.apply)
+    record = plan_record(plan, args)
     if args.json:
         print(json.dumps(record, indent=2, sort_keys=True))
     else:

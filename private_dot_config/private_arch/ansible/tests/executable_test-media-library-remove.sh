@@ -106,6 +106,38 @@ grep -q "  jellyfin: 0" "${tmpdir}/jellyfin-apply.out"
 grep -q "jellyfin jf-episode" "${api_log}"
 assert_not_exists "${jelly_show}"
 
+defer_show="${series}/Deferred Show"
+mkdir -p "${defer_show}"
+printf episode > "${defer_show}/Deferred.mkv"
+cat > "${jellyfin_items_json}" <<JSON
+{
+  "Items": [
+    {
+      "Id": "jf-deferred",
+      "Name": "Deferred Item",
+      "Type": "Movie",
+      "Path": "${defer_show}/Deferred.mkv",
+      "CanDelete": true,
+      "FailWhenPresent": true,
+      "MediaSources": [{"Path": "${defer_show}/Deferred.mkv"}]
+    }
+  ]
+}
+JSON
+run_remover_api \
+  --path "${defer_show}" \
+  --no-sonarr \
+  --no-radarr \
+  --no-transmission \
+  --jellyfin-api-key test-key \
+  --jellyfin-items-json "${jellyfin_items_json}" \
+  --jellyfin-delete-log "${api_log}" \
+  --apply > "${tmpdir}/deferred-apply.out" 2>&1
+grep -q "item delete deferred id=jf-deferred" "${tmpdir}/deferred-apply.out"
+grep -q "deleted stale jellyfin item id=jf-deferred" "${tmpdir}/deferred-apply.out"
+grep -q "  jellyfin: 0" "${tmpdir}/deferred-apply.out"
+assert_not_exists "${defer_show}"
+
 stale_show="${series}/Stale Show"
 cat > "${jellyfin_items_json}" <<JSON
 {

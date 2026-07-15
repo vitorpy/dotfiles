@@ -918,6 +918,8 @@ def delete_jellyfin_item(item: JellyfinItem, args: argparse.Namespace) -> tuple[
         if raw_item is None:
             return 404, "fixture item not found"
         raw_paths = item_paths(raw_item)
+        if raw_item.get("FailWhenPresent") and any(path.exists() for path in raw_paths):
+            return 500, "backing file still present"
         if raw_item.get("FailWhenMissing") and not any(path.exists() for path in raw_paths):
             return 500, "missing backing file"
         rows = [row for row in rows if str(row.get("Id") or "") != item.id]
@@ -938,9 +940,9 @@ def delete_jellyfin_items(plan: Plan, args: argparse.Namespace) -> None:
         if 200 <= status < 300:
             print(f"deleted jellyfin item id={item.id} name={item.name!r}")
             continue
-        if item_paths_exist(item):
-            raise RuntimeError(f"jellyfin delete failed id={item.id} name={item.name!r} status={status}: {body[:200]}")
-        plan.warnings.append(f"jellyfin: stale item delete deferred id={item.id} status={status}")
+        message = f"jellyfin: item delete deferred id={item.id} name={item.name!r} status={status}: {body[:200]}"
+        plan.warnings.append(message)
+        print(f"WARNING: {message}", file=sys.stderr)
 
 
 def create_placeholder_paths(item: JellyfinItem, roots: list[Path]) -> tuple[list[Path], list[Path]]:

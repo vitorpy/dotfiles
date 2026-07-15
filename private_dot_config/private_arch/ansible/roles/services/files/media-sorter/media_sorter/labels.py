@@ -24,6 +24,7 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
     title = None
     season = None
     album = None
+    book_type = None
 
     for label in labels:
         raw = label.strip()
@@ -35,23 +36,34 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
         if prefix in {"series", "show"} and value:
             kind = "series"
             title = value
+            book_type = None
         elif prefix in {"film", "movie"} and value:
             kind = "film"
             title = value
+            book_type = None
         elif prefix == "music" and value:
             parsed = music_label_from_text(value, reject_obfuscated=False)
             if parsed:
                 kind = "music"
                 title = parsed.title
                 album = parsed.album
-        elif prefix in {"book", "books", "comic", "comics"} and value:
-            parsed = book_label_from_text(value)
+                book_type = None
+        elif prefix in {"book", "books"} and value:
+            parsed = book_label_from_text(value, book_type="book")
             if parsed:
                 kind = "book"
                 title = parsed.title
+                book_type = parsed.book_type
+        elif prefix in {"comic", "comics"} and value:
+            parsed = book_label_from_text(value, book_type="comic")
+            if parsed:
+                kind = "book"
+                title = parsed.title
+                book_type = parsed.book_type
         elif prefix in {"artist", "album_artist"} and value:
             kind = "music"
             title = value
+            book_type = None
         elif prefix == "album" and value:
             album = value
         elif prefix == "season" and value:
@@ -62,5 +74,5 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
     if kind == "music" and title and album:
         return MediaLabel(kind=kind, title=safe_component(title), album=safe_component(album))
     if kind and title:
-        return MediaLabel(kind=kind, title=safe_component(title), season=season)
+        return MediaLabel(kind=kind, title=safe_component(title), season=season, book_type=book_type)
     return None

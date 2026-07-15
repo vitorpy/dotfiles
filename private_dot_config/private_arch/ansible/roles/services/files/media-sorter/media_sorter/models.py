@@ -18,6 +18,7 @@ class MediaLabel:
     title: str
     season: int | None = None
     album: str | None = None
+    book_type: str | None = None
 
 
 

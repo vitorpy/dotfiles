@@ -72,6 +72,13 @@ BOOK_EXTENSIONS = {
     ".mobi",
 }
 
+COMIC_EXTENSIONS = {
+    ".cb7",
+    ".cbr",
+    ".cbt",
+    ".cbz",
+}
+
 BOOK_SIDECAR_EXTENSIONS = {
     ".jpg",
     ".jpeg",

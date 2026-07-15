@@ -239,11 +239,11 @@ write_metadata "${tmpdir}/book-label.json" "Comic Pack" '[]' \
   "Comic Pack/Chainsaw Man Vol 01.epub" \
   "Comic Pack/cover.jpg" \
   "Comic Pack/tracker.txt"
-run_sorter --metadata-json "${tmpdir}/book-label.json" --label "book:Chainsaw Man"
-assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.cbz" "${books}/Chainsaw Man/Chainsaw Man Vol 01.cbz"
-assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.epub" "${books}/Chainsaw Man/Chainsaw Man Vol 01.epub"
-assert_samefile "${downloads}/Comic Pack/cover.jpg" "${books}/Chainsaw Man/cover.jpg"
-assert_not_exists "${books}/Chainsaw Man/tracker.txt"
+run_sorter --metadata-json "${tmpdir}/book-label.json" --label "comic:Chainsaw Man"
+assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.cbz" "${books}/Comics/Chainsaw Man/Chainsaw Man Vol 01.cbz"
+assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.epub" "${books}/Comics/Chainsaw Man/Chainsaw Man Vol 01.epub"
+assert_samefile "${downloads}/Comic Pack/cover.jpg" "${books}/Comics/Chainsaw Man/cover.jpg"
+assert_not_exists "${books}/Comics/Chainsaw Man/tracker.txt"
 grep -qx '\*' "${downloads}/Comic Pack/.ignore"
 
 mkdir -p "${downloads}/Palomar"
@@ -251,9 +251,10 @@ printf comic > "${downloads}/Palomar/Palomar.cbz"
 write_jsonrpc_metadata "${tmpdir}/book-auto.json" "Palomar" "bookhash"
 run_sorter --metadata-json "${tmpdir}/book-auto.json"
 TMDB_API_TOKEN= run_sorter --process-queue
-assert_samefile "${downloads}/Palomar/Palomar.cbz" "${books}/Palomar/Palomar.cbz"
+assert_samefile "${downloads}/Palomar/Palomar.cbz" "${books}/Comics/Palomar/Palomar.cbz"
 test -f "${queue_root}/done/btih_bookhash.json"
 jq -e '.match.provider == "filename" and .plan.label_kind == "book" and .plan.label_title == "Palomar"' "${queue_root}/done/btih_bookhash.json" >/dev/null
+jq -e '.plan.operations[0].dest | contains("/Comics/Palomar/Palomar.cbz")' "${queue_root}/done/btih_bookhash.json" >/dev/null
 
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"
@@ -696,6 +697,6 @@ assert_not_exists "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 run_sorter --backfill-current-downloads --apply
 assert_samefile "${downloads}/Corporate.S01/Corporate.S01E01.mkv" "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 grep -qx '\*' "${downloads}/Corporate.S01/.ignore"
-assert_not_exists "${books}/Comic Pack"
+assert_not_exists "${books}/Comics/Comic Pack"
 
 echo "media sorter tests passed"

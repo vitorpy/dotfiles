@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from .books import book_label_from_text
+from .books import book_type_from_entries
 from .constants import BACKFILL_SERIES_MAP
 from .media_files import collect_files
 from .media_files import is_audio
@@ -26,7 +27,7 @@ def backfill_label(name: str) -> MediaLabel | None:
 def backfill_book_label(name: str, entries: list[FileEntry]) -> MediaLabel | None:
     books = [entry for entry in entries if is_book(entry)]
     if books and not any(is_video(entry) or is_audio(entry) for entry in entries):
-        return book_label_from_text(name)
+        return book_label_from_text(name, book_type=book_type_from_entries(books))
     return None
 
 

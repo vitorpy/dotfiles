@@ -173,6 +173,12 @@ def test_parse_labels_preserves_existing_cli_contract() -> None:
     assert book is not None
     assert book.kind == "book"
     assert book.title == "Chainsaw Man"
+    assert book.book_type == "comic"
+    prose = parse_label(["book:Neuromancer"])
+    assert prose is not None
+    assert prose.kind == "book"
+    assert prose.title == "Neuromancer"
+    assert prose.book_type == "book"
 
 
 def test_book_files_are_sortable_media() -> None:

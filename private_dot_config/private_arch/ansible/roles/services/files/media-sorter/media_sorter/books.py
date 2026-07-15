@@ -5,21 +5,33 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .constants import BOOK_EXTENSIONS, BOOK_SIDECAR_EXTENSIONS
+from .constants import BOOK_EXTENSIONS, BOOK_SIDECAR_EXTENSIONS, COMIC_EXTENSIONS
 from .media_files import entries_from_record, is_audio, is_book, is_video
 from .models import FileEntry, MatchDecision, MediaLabel
 from .planner import SortPlan, apply_plan, preflight_plan
 from .utils import log, safe_component, strip_bracketed
 
 
-def book_label_from_text(value: str) -> MediaLabel | None:
+def book_label_from_text(value: str, book_type: str = "book") -> MediaLabel | None:
     cleaned = Path(value).stem if Path(value).suffix.lower() in BOOK_EXTENSIONS else value
     cleaned = strip_bracketed(cleaned)
     cleaned = re.sub(r"[\._]+", " ", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" -_.")
     if not cleaned:
         return None
-    return MediaLabel(kind="book", title=safe_component(cleaned))
+    return MediaLabel(kind="book", title=safe_component(cleaned), book_type=book_type)
+
+
+def book_type_from_entries(entries: list[FileEntry]) -> str:
+    if any(entry.source.suffix.lower() in COMIC_EXTENSIONS for entry in entries):
+        return "comic"
+    return "book"
+
+
+def book_type_folder(label: MediaLabel) -> str:
+    if label.book_type == "comic":
+        return "Comics"
+    return "Books"
 
 
 def book_sidecars(entries: list[FileEntry]) -> list[FileEntry]:
@@ -49,7 +61,7 @@ def plan_books(label: MediaLabel, entries: list[FileEntry], books_root: Path, to
         plan.warnings.append(f"no book files found for book={label.title!r}")
         return plan
 
-    dest_dir = books_root / safe_component(label.title)
+    dest_dir = books_root / book_type_folder(label) / safe_component(label.title)
     selected = books + book_sidecars(entries)
     seen: set[Path] = set()
     for entry in selected:
@@ -91,7 +103,7 @@ def book_match(record: dict[str, Any], args: argparse.Namespace) -> MatchDecisio
         if candidate in seen:
             continue
         seen.add(candidate)
-        label = book_label_from_text(candidate)
+        label = book_label_from_text(candidate, book_type=book_type_from_entries(books))
         if label:
             return MatchDecision(
                 label,

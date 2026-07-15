@@ -18,6 +18,7 @@ DEFAULT_DOWNLOAD_ROOT = Path("/mnt/media/downloads")
 DEFAULT_SERIES_ROOT = Path("/mnt/media/series")
 DEFAULT_FILMS_ROOT = Path("/mnt/media/films")
 DEFAULT_MUSIC_ROOT = Path("/mnt/media/music")
+DEFAULT_BOOKS_ROOT = Path("/mnt/media/books")
 DEFAULT_QUEUE_ROOT = Path("/var/lib/transmission/media-sorter")
 DEFAULT_SONARR_CONFIG = Path("/var/lib/sonarr/config.xml")
 DEFAULT_RADARR_CONFIG = Path("/var/lib/radarr/config.xml")
@@ -136,7 +137,7 @@ def jellyfin_items(args: argparse.Namespace, warnings: list[str]) -> list[dict[s
     query = urllib.parse.urlencode(
         {
             "Recursive": "true",
-            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder",
+            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder,Book",
             "Fields": "ProviderIds,Path,Overview,MediaSources",
             "Limit": "50000",
         }
@@ -209,7 +210,7 @@ def arr_items(app: str, args: argparse.Namespace, warnings: list[str]) -> list[d
 
 def audit_jellyfin(items: list[dict[str, Any]], active_locations: list[Path], args: argparse.Namespace, findings: list[dict[str, Any]]) -> None:
     download_roots = [Path(args.download_root)]
-    canonical_roots = [Path(args.films_root), Path(args.series_root)]
+    canonical_roots = [Path(args.films_root), Path(args.series_root), Path(args.music_root), Path(args.books_root)]
     duplicates: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
 
     for item in items:
@@ -238,7 +239,7 @@ def audit_jellyfin(items: list[dict[str, Any]], active_locations: list[Path], ar
                     path=path,
                 )
 
-        has_canonical_file = in_active_library and item_type in {"Movie", "Episode"} and any(path_under_any(path, canonical_roots) for path in paths)
+        has_canonical_file = in_active_library and item_type in {"Movie", "Episode", "Book"} and any(path_under_any(path, canonical_roots) for path in paths)
         if has_canonical_file and not item.get("ProviderIds"):
             add_finding(
                 findings,
@@ -420,6 +421,7 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--series-root", default=str(DEFAULT_SERIES_ROOT))
     parser.add_argument("--films-root", default=str(DEFAULT_FILMS_ROOT))
     parser.add_argument("--music-root", default=str(DEFAULT_MUSIC_ROOT))
+    parser.add_argument("--books-root", default=str(DEFAULT_BOOKS_ROOT))
     parser.add_argument("--queue-root", default=str(DEFAULT_QUEUE_ROOT))
     parser.add_argument("--download-category-root", action="append", default=[])
     parser.add_argument("--sonarr-url", default=DEFAULT_SONARR_URL)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from .books import book_label_from_text
 from .models import MediaLabel
 from .music_names import music_label_from_text
 from .utils import safe_component
@@ -43,6 +44,11 @@ def parse_label(labels: list[str]) -> MediaLabel | None:
                 kind = "music"
                 title = parsed.title
                 album = parsed.album
+        elif prefix in {"book", "books", "comic", "comics"} and value:
+            parsed = book_label_from_text(value)
+            if parsed:
+                kind = "book"
+                title = parsed.title
         elif prefix in {"artist", "album_artist"} and value:
             kind = "music"
             title = value

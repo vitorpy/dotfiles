@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .constants import AUDIO_EXTENSIONS, EXTRA_VIDEO_PATTERNS, MUSIC_SIDECAR_EXTENSIONS, SPECIAL_VIDEO_PATTERNS, USEFUL_SIDECAR_EXTENSIONS, VIDEO_EXTENSIONS
+from .constants import AUDIO_EXTENSIONS, BOOK_EXTENSIONS, EXTRA_VIDEO_PATTERNS, MUSIC_SIDECAR_EXTENSIONS, SPECIAL_VIDEO_PATTERNS, USEFUL_SIDECAR_EXTENSIONS, VIDEO_EXTENSIONS
 from .models import FileEntry
 from .utils import parse_season
 
@@ -29,6 +29,11 @@ def is_video(entry: FileEntry) -> bool:
 
 def is_audio(entry: FileEntry) -> bool:
     return entry.source.suffix.lower() in AUDIO_EXTENSIONS
+
+
+
+def is_book(entry: FileEntry) -> bool:
+    return entry.source.suffix.lower() in BOOK_EXTENSIONS
 
 
 
@@ -76,6 +81,8 @@ def file_kind(entry: FileEntry) -> str:
         return "video"
     if suffix in AUDIO_EXTENSIONS:
         return "audio"
+    if suffix in BOOK_EXTENSIONS:
+        return "book"
     if suffix in USEFUL_SIDECAR_EXTENSIONS:
         return "sidecar"
     if suffix in MUSIC_SIDECAR_EXTENSIONS:
@@ -94,6 +101,8 @@ def record_item_kind(item: dict[str, Any]) -> str:
         return "video"
     if suffix in AUDIO_EXTENSIONS:
         return "audio"
+    if suffix in BOOK_EXTENSIONS:
+        return "book"
     if suffix in USEFUL_SIDECAR_EXTENSIONS or suffix in MUSIC_SIDECAR_EXTENSIONS:
         return "sidecar"
     return "other"

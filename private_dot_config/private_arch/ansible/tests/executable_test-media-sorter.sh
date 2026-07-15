@@ -13,8 +13,9 @@ downloads="${tmpdir}/downloads"
 series="${tmpdir}/series"
 films="${tmpdir}/films"
 music="${tmpdir}/music"
+books="${tmpdir}/books"
 queue_root="${tmpdir}/queue-root"
-mkdir -p "${downloads}" "${series}" "${films}" "${music}" "${queue_root}"
+mkdir -p "${downloads}" "${series}" "${films}" "${music}" "${books}" "${queue_root}"
 
 run_sorter() {
   python3 "${sorter}" \
@@ -22,6 +23,7 @@ run_sorter() {
     --series-root "${series}" \
     --films-root "${films}" \
     --music-root "${music}" \
+    --books-root "${books}" \
     --queue-root "${queue_root}" \
     "$@"
 }
@@ -227,6 +229,32 @@ run_sorter --queue > "${tmpdir}/music-pack-queue-review.out"
 grep -q "multi-album music pack needs explicit review" "${tmpdir}/music-pack-queue-review.out"
 grep -q "\\[audio\\] Artist Pack/Live/(1972) Album One/01 - One.mp3" "${tmpdir}/music-pack-queue-review.out"
 
+mkdir -p "${downloads}/Comic Pack"
+printf comic > "${downloads}/Comic Pack/Chainsaw Man Vol 01.cbz"
+printf ebook > "${downloads}/Comic Pack/Chainsaw Man Vol 01.epub"
+printf cover > "${downloads}/Comic Pack/cover.jpg"
+printf tracker > "${downloads}/Comic Pack/tracker.txt"
+write_metadata "${tmpdir}/book-label.json" "Comic Pack" '[]' \
+  "Comic Pack/Chainsaw Man Vol 01.cbz" \
+  "Comic Pack/Chainsaw Man Vol 01.epub" \
+  "Comic Pack/cover.jpg" \
+  "Comic Pack/tracker.txt"
+run_sorter --metadata-json "${tmpdir}/book-label.json" --label "book:Chainsaw Man"
+assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.cbz" "${books}/Chainsaw Man/Chainsaw Man Vol 01.cbz"
+assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.epub" "${books}/Chainsaw Man/Chainsaw Man Vol 01.epub"
+assert_samefile "${downloads}/Comic Pack/cover.jpg" "${books}/Chainsaw Man/cover.jpg"
+assert_not_exists "${books}/Chainsaw Man/tracker.txt"
+grep -qx '\*' "${downloads}/Comic Pack/.ignore"
+
+mkdir -p "${downloads}/Palomar"
+printf comic > "${downloads}/Palomar/Palomar.cbz"
+write_jsonrpc_metadata "${tmpdir}/book-auto.json" "Palomar" "bookhash"
+run_sorter --metadata-json "${tmpdir}/book-auto.json"
+TMDB_API_TOKEN= run_sorter --process-queue
+assert_samefile "${downloads}/Palomar/Palomar.cbz" "${books}/Palomar/Palomar.cbz"
+test -f "${queue_root}/done/btih_bookhash.json"
+jq -e '.match.provider == "filename" and .plan.label_kind == "book" and .plan.label_title == "Palomar"' "${queue_root}/done/btih_bookhash.json" >/dev/null
+
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"
 printf subs > "${downloads}/South.Park.S01E01/South.Park.S01E01.srt"
@@ -325,7 +353,7 @@ write_jsonrpc_metadata "${tmpdir}/magazine-pack.json" "Magazine PDF Pack" "magaz
 run_sorter --metadata-json "${tmpdir}/magazine-pack.json"
 TMDB_API_TOKEN= run_sorter --process-queue
 test -f "${queue_root}/ignored/btih_magazinepackhash.json"
-jq -e '.status == "ignored" and .reason == "no sortable video or audio files"' "${queue_root}/ignored/btih_magazinepackhash.json" >/dev/null
+jq -e '.status == "ignored" and .reason == "no sortable video, audio, or book files"' "${queue_root}/ignored/btih_magazinepackhash.json" >/dev/null
 run_sorter --queue > "${tmpdir}/ignored-queue.out"
 grep -q "ignored: 2 item(s)" "${tmpdir}/ignored-queue.out"
 grep -q "\\[other\\] Magazine PDF Pack/Issue 001.pdf" "${tmpdir}/ignored-queue.out"
@@ -668,5 +696,6 @@ assert_not_exists "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 run_sorter --backfill-current-downloads --apply
 assert_samefile "${downloads}/Corporate.S01/Corporate.S01E01.mkv" "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 grep -qx '\*' "${downloads}/Corporate.S01/.ignore"
+assert_not_exists "${books}/Comic Pack"
 
 echo "media sorter tests passed"

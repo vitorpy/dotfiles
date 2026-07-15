@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .books import plan_books
+from .books import sort_books
 from .films import sort_film
 from .films import plan_film
 from .models import FileEntry, MediaLabel
@@ -22,6 +24,8 @@ def plan_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry],
         return plan_film(label, entries, Path(args.films_root), torrent_name)
     if label.kind == "music":
         return plan_music(label, entries, Path(args.music_root), torrent_name)
+    if label.kind == "book":
+        return plan_books(label, entries, Path(args.books_root), torrent_name)
     plan = SortPlan(label_kind=label.kind, label_title=label.title, torrent_name=torrent_name)
     plan.warnings.append(f"unsupported label kind={label.kind!r}")
     return plan
@@ -35,6 +39,8 @@ def sort_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry],
         sorted_ok = sort_film(label, entries, Path(args.films_root), args.dry_run)
     elif label.kind == "music":
         sorted_ok = sort_music(label, entries, Path(args.music_root), args.dry_run)
+    elif label.kind == "book":
+        sorted_ok = sort_books(label, entries, Path(args.books_root), args.dry_run)
     else:
         log("WARNING", f"unsupported label kind={label.kind!r}")
         return True

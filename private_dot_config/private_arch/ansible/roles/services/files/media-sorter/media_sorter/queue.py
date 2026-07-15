@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from .books import book_match
 from .grok import review_plan_with_grok
 from .labels import normalize_labels, parse_label
 from .media_files import entries_from_record, file_records, record_item_kind
@@ -59,7 +60,7 @@ def load_record(path: Path) -> dict[str, Any]:
 
 
 def library_roots(args: argparse.Namespace) -> list[Path]:
-    return [Path(args.series_root), Path(args.films_root), Path(args.music_root)]
+    return [Path(args.series_root), Path(args.films_root), Path(args.music_root), Path(args.books_root)]
 
 
 
@@ -134,13 +135,16 @@ def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any
 
 
 def has_sortable_media(record: dict[str, Any]) -> bool:
-    return any(record_item_kind(item) in {"video", "audio"} for item in record.get("files", []))
+    return any(record_item_kind(item) in {"video", "audio", "book"} for item in record.get("files", []))
 
 
 def match_record(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
     labels = normalize_labels(record["torrent"].get("labels"))
     label = parse_label(labels)
     decision = MatchDecision(label, "matched", "matched via label", {"provider": "label"}) if label else None
+
+    if decision is None:
+        decision = book_match(record, args)
 
     if decision is None:
         decision = music_match(record, args)
@@ -180,9 +184,9 @@ def print_queue_record(path: Path, *, include_other: bool = False, max_files: in
     printable_files = [
         item
         for item in files
-        if include_other or record_item_kind(item) in {"video", "audio", "sidecar"}
+        if include_other or record_item_kind(item) in {"video", "audio", "book", "sidecar"}
     ]
-    sortable_count = sum(1 for item in files if record_item_kind(item) in {"video", "audio"})
+    sortable_count = sum(1 for item in files if record_item_kind(item) in {"video", "audio", "book"})
 
     print(f"- record: {path}")
     print(f"  key: {record.get('download_key', '')}")
@@ -290,7 +294,7 @@ def process_queue(args: argparse.Namespace) -> int:
         record = load_record(path)
         entries = entries_from_record(record)
         if not has_sortable_media(record):
-            record["reason"] = "no sortable video or audio files"
+            record["reason"] = "no sortable video, audio, or book files"
             record["match"] = {"provider": "none", "ignored": True}
             log("INFO", f"ignored key={record['download_key']} reason={record['reason']}")
             if not args.dry_run:

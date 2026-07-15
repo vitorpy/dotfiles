@@ -38,7 +38,7 @@ def run_direct_sort(args: argparse.Namespace) -> int:
         record["reason"] = "matched via manual label"
         record["match"] = {"provider": "label", "manual": True}
         plan = plan_entries(label, torrent_name, entries, args)
-        preflight = preflight_plan(plan, [Path(args.series_root), Path(args.films_root), Path(args.music_root)])
+        preflight = preflight_plan(plan, [Path(args.series_root), Path(args.films_root), Path(args.music_root), Path(args.books_root)])
         record["plan"] = plan_to_record(plan, preflight)
         record["preflight"] = preflight_to_record(preflight)
         if not preflight.ok:
@@ -70,6 +70,7 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--series-root", default="/mnt/media/series")
     parser.add_argument("--films-root", default="/mnt/media/films")
     parser.add_argument("--music-root", default="/mnt/media/music")
+    parser.add_argument("--books-root", default="/mnt/media/books")
     parser.add_argument("--source-root", default="/mnt/media/downloads")
     parser.add_argument("--queue-root", default="/var/lib/transmission/media-sorter")
     parser.add_argument("--metadata-json", help="test helper: read Transmission JSON from this file")

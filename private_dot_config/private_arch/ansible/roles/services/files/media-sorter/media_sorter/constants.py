@@ -61,6 +61,25 @@ MUSIC_SIDECAR_EXTENSIONS = {
     ".png",
 }
 
+BOOK_EXTENSIONS = {
+    ".azw",
+    ".azw3",
+    ".cb7",
+    ".cbr",
+    ".cbt",
+    ".cbz",
+    ".epub",
+    ".mobi",
+}
+
+BOOK_SIDECAR_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".nfo",
+    ".opf",
+    ".png",
+}
+
 MUSIC_RELEASE_MARKERS = {
     "aac",
     "cd",

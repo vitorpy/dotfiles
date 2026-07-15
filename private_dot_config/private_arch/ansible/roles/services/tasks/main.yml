@@ -766,6 +766,7 @@
     - "{{ arch_media_series_dir }}"
     - "{{ arch_media_films_dir }}"
     - "{{ arch_media_music_dir }}"
+    - "{{ arch_media_books_dir }}"
   when: arch_transmission_enabled | bool
 
 - name: Ensure existing Jellyfin media directories are group writable
@@ -775,7 +776,7 @@
       changed=0
       check={{ ansible_check_mode | ternary('1', '0') }}
 
-      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }}; do
+      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }} {{ arch_media_books_dir | quote }}; do
         [ -d "$path" ] || continue
         while IFS= read -r -d '' directory; do
           changed=1
@@ -809,7 +810,7 @@
         exit 0
       fi
 
-      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }}; do
+      for path in {{ arch_media_series_dir | quote }} {{ arch_media_films_dir | quote }} {{ arch_media_music_dir | quote }} {{ arch_media_books_dir | quote }}; do
         [ -d "$path" ] || continue
         while IFS= read -r -d '' directory; do
           acl="$(getfacl -cp "$directory")"

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from media_sorter.grok import normalize_grok_review
 from media_sorter.labels import parse_label
-from media_sorter.media_files import extra_video_folder, is_episode_zero_video, is_special_video, season_from_entry
+from media_sorter.media_files import extra_video_folder, file_kind, is_episode_zero_video, is_special_video, season_from_entry
 from media_sorter.models import FileEntry
 from media_sorter.music_names import music_candidates_from_text, music_label_from_text
 from media_sorter.planner import SortPlan, apply_plan, preflight_plan
@@ -169,6 +169,15 @@ def test_parse_labels_preserves_existing_cli_contract() -> None:
     assert music.kind == "music"
     assert music.title == "Aphex Twin"
     assert music.album == "Selected Ambient Works 85-92"
+    book = parse_label(["comic:Chainsaw Man"])
+    assert book is not None
+    assert book.kind == "book"
+    assert book.title == "Chainsaw Man"
+
+
+def test_book_files_are_sortable_media() -> None:
+    entry = FileEntry(relpath=Path("Comics/Book.cbz"), source=Path("/tmp/downloads/Comics/Book.cbz"))
+    assert file_kind(entry) == "book"
 
 
 def test_preflight_blocks_required_conflicts_and_skips_optional_conflicts(tmp_path: Path) -> None:

@@ -27,6 +27,7 @@ DEFAULT_DOWNLOAD_ROOT = Path("/mnt/media/downloads")
 DEFAULT_SERIES_ROOT = Path("/mnt/media/series")
 DEFAULT_FILMS_ROOT = Path("/mnt/media/films")
 DEFAULT_MUSIC_ROOT = Path("/mnt/media/music")
+DEFAULT_BOOKS_ROOT = Path("/mnt/media/books")
 DEFAULT_QUEUE_ROOT = Path("/var/lib/transmission/media-sorter")
 DEFAULT_SONARR_CONFIG = Path("/var/lib/sonarr/config.xml")
 DEFAULT_RADARR_CONFIG = Path("/var/lib/radarr/config.xml")
@@ -157,7 +158,7 @@ def is_under(path: Path, root: Path) -> bool:
 
 
 def managed_roots(args: argparse.Namespace) -> list[Path]:
-    return [Path(args.download_root), Path(args.series_root), Path(args.films_root), Path(args.music_root)]
+    return [Path(args.download_root), Path(args.series_root), Path(args.films_root), Path(args.music_root), Path(args.books_root)]
 
 
 def path_allowed(path: Path, roots: list[Path]) -> bool:
@@ -296,7 +297,7 @@ def jellyfin_items(args: argparse.Namespace, warnings: list[str]) -> list[Jellyf
     query = urllib.parse.urlencode(
         {
             "Recursive": "true",
-            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder",
+            "IncludeItemTypes": "Movie,Series,Episode,Video,Folder,Book",
             "Fields": "Path,MediaSources,CanDelete",
             "Limit": "50000",
         }
@@ -1135,6 +1136,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--series-root", default=str(DEFAULT_SERIES_ROOT))
     parser.add_argument("--films-root", default=str(DEFAULT_FILMS_ROOT))
     parser.add_argument("--music-root", default=str(DEFAULT_MUSIC_ROOT))
+    parser.add_argument("--books-root", default=str(DEFAULT_BOOKS_ROOT))
     parser.add_argument("--queue-root", default=str(DEFAULT_QUEUE_ROOT))
     parser.add_argument("--sonarr-url", default=DEFAULT_SONARR_URL)
     parser.add_argument("--radarr-url", default=DEFAULT_RADARR_URL)

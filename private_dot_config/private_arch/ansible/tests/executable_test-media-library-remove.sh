@@ -11,8 +11,9 @@ downloads="${tmpdir}/downloads"
 series="${tmpdir}/series"
 films="${tmpdir}/films"
 music="${tmpdir}/music"
+books="${tmpdir}/books"
 queue_root="${tmpdir}/queue-root"
-mkdir -p "${downloads}" "${series}" "${films}" "${music}" "${queue_root}"
+mkdir -p "${downloads}" "${series}" "${films}" "${music}" "${books}/Books" "${books}/Comics" "${queue_root}"
 jellyfin_items_json="${tmpdir}/jellyfin-items.json"
 sonarr_series_json="${tmpdir}/sonarr-series.json"
 api_log="${tmpdir}/api.log"
@@ -24,6 +25,7 @@ run_remover() {
     --series-root "${series}" \
     --films-root "${films}" \
     --music-root "${music}" \
+    --books-root "${books}" \
     --queue-root "${queue_root}" \
     --no-sonarr \
     --no-radarr \
@@ -71,6 +73,7 @@ run_remover_api() {
     --series-root "${series}" \
     --films-root "${films}" \
     --music-root "${music}" \
+    --books-root "${books}" \
     --queue-root "${queue_root}" \
     "$@"
 }
@@ -189,3 +192,123 @@ run_remover_api \
   --apply > "${tmpdir}/sonarr-apply.out"
 grep -q "sonarr 42 deleteFiles=false" "${api_log}"
 assert_not_exists "${arr_show}"
+
+book_dir="${books}/Books/William Gibson/Neuromancer Series/001 - Neuromancer (34)"
+mkdir -p "${book_dir}"
+printf ebook > "${book_dir}/Neuromancer - William Gibson.epub"
+printf cover > "${book_dir}/cover.jpg"
+cat > "${book_dir}/metadata.opf" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata><dc:title>Neuromancer</dc:title></metadata>
+</package>
+XML
+cat > "${jellyfin_items_json}" <<JSON
+{
+  "Items": [
+    {
+      "Id": "jf-book",
+      "Name": "1 - Neuromancer",
+      "Type": "Book",
+      "Path": "${book_dir}/Neuromancer - William Gibson.epub",
+      "CanDelete": true,
+      "MediaSources": [{"Path": "${book_dir}/Neuromancer - William Gibson.epub"}]
+    }
+  ]
+}
+JSON
+run_remover_api \
+  "Neuromancer" \
+  --no-sonarr \
+  --no-radarr \
+  --no-transmission \
+  --jellyfin-api-key test-key \
+  --jellyfin-items-json "${jellyfin_items_json}" \
+  --jellyfin-delete-log "${api_log}" > "${tmpdir}/book-dry-run.out"
+grep -q "book: Neuromancer" "${tmpdir}/book-dry-run.out"
+grep -q "${book_dir}" "${tmpdir}/book-dry-run.out"
+assert_exists "${book_dir}"
+
+run_remover_api \
+  "Neuromancer" \
+  --no-sonarr \
+  --no-radarr \
+  --no-transmission \
+  --jellyfin-api-key test-key \
+  --jellyfin-items-json "${jellyfin_items_json}" \
+  --jellyfin-delete-log "${api_log}" \
+  --apply > "${tmpdir}/book-apply.out"
+grep -q "deleted jellyfin item id=jf-book" "${tmpdir}/book-apply.out"
+grep -q "  jellyfin: 0" "${tmpdir}/book-apply.out"
+assert_not_exists "${book_dir}"
+assert_exists "${books}/Books"
+
+comic_dir="${books}/Comics/Home Office Romance"
+comic_download="${downloads}/comic-payload-84"
+mkdir -p "${comic_dir}" "${comic_download}"
+printf comic > "${comic_download}/Home Office Romance (2024).cbz"
+ln "${comic_download}/Home Office Romance (2024).cbz" "${comic_dir}/Home Office Romance (2024).cbz"
+printf cover > "${comic_dir}/cover.png"
+cat > "${comic_dir}/ComicInfo.xml" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo><Title>Home Office Romance</Title></ComicInfo>
+XML
+cat > "${jellyfin_items_json}" <<JSON
+{
+  "Items": [
+    {
+      "Id": "jf-comic",
+      "Name": "Home Office Romance",
+      "Type": "Book",
+      "Path": "${comic_dir}/Home Office Romance (2024).cbz",
+      "CanDelete": true,
+      "MediaSources": [{"Path": "${comic_dir}/Home Office Romance (2024).cbz"}]
+    }
+  ]
+}
+JSON
+run_remover_api \
+  "Home Office Romance" \
+  --no-sonarr \
+  --no-radarr \
+  --no-transmission \
+  --jellyfin-api-key test-key \
+  --jellyfin-items-json "${jellyfin_items_json}" \
+  --jellyfin-delete-log "${api_log}" > "${tmpdir}/comic-dry-run.out"
+grep -q "comic: Home Office Romance" "${tmpdir}/comic-dry-run.out"
+grep -q "${comic_dir}" "${tmpdir}/comic-dry-run.out"
+assert_exists "${comic_dir}"
+
+run_remover_api \
+  "Home Office Romance" \
+  --no-sonarr \
+  --no-radarr \
+  --no-transmission \
+  --jellyfin-api-key test-key \
+  --jellyfin-items-json "${jellyfin_items_json}" \
+  --jellyfin-delete-log "${api_log}" \
+  --apply > "${tmpdir}/comic-apply.out"
+grep -q "deleted jellyfin item id=jf-comic" "${tmpdir}/comic-apply.out"
+grep -q "  jellyfin: 0" "${tmpdir}/comic-apply.out"
+assert_not_exists "${comic_dir}"
+assert_not_exists "${comic_download}"
+assert_exists "${books}/Comics"
+
+duplicate_one="${books}/Books/Author One/Shared Title (70)"
+duplicate_two="${books}/Books/Author Two/Shared Title (71)"
+mkdir -p "${duplicate_one}" "${duplicate_two}"
+printf ebook > "${duplicate_one}/Shared Title - Author One.epub"
+printf ebook > "${duplicate_two}/Shared Title - Author Two.pdf"
+if run_remover "Shared Title" > "${tmpdir}/book-ambiguous.out" 2>&1; then
+  echo "expected duplicate book title query to require refinement" >&2
+  exit 1
+fi
+grep -q "multiple media entries matched" "${tmpdir}/book-ambiguous.out"
+grep -q "${duplicate_one}" "${tmpdir}/book-ambiguous.out"
+grep -q "${duplicate_two}" "${tmpdir}/book-ambiguous.out"
+
+if run_remover --path "${books}/Books" > "${tmpdir}/books-root-guard.out" 2>&1; then
+  echo "expected Books container deletion to fail" >&2
+  exit 1
+fi
+grep -q "refusing unmanaged or root path" "${tmpdir}/books-root-guard.out"

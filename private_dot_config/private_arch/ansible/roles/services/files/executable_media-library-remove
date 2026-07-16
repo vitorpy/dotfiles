@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import urllib.error
@@ -36,6 +37,23 @@ DEFAULT_TRANSMISSION_URL = "http://127.0.0.1:9091/transmission/rpc"
 DEFAULT_SONARR_URL = "http://127.0.0.1:8989/api/v3"
 DEFAULT_RADARR_URL = "http://127.0.0.1:7878/api/v3"
 DEFAULT_JELLYFIN_URL = "http://127.0.0.1:8096"
+
+BOOK_LIBRARY_CONTAINERS = ("Audiobooks", "Books", "Comics")
+BOOK_MEDIA_EXTENSIONS = {
+    ".7z",
+    ".azw",
+    ".azw3",
+    ".cb7",
+    ".cbr",
+    ".cbt",
+    ".cbz",
+    ".epub",
+    ".mobi",
+    ".pdf",
+    ".rar",
+    ".zip",
+}
+CALIBRE_ID_SUFFIX = re.compile(r"\s+\(\d+\)$")
 
 
 @dataclass(frozen=True)
@@ -71,6 +89,7 @@ class Candidate:
     path: Path | None
     app_item: AppItem | None = None
     torrent: TorrentItem | None = None
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass
@@ -163,13 +182,22 @@ def managed_roots(args: argparse.Namespace) -> list[Path]:
 
 def path_allowed(path: Path, roots: list[Path]) -> bool:
     resolved = path.resolve(strict=False)
+    protected = protected_library_paths(roots)
+    if resolved in protected:
+        return False
     for root in roots:
         root_resolved = root.resolve(strict=False)
-        if resolved == root_resolved:
-            return False
         if is_under(resolved, root_resolved):
             return True
     return False
+
+
+def protected_library_paths(roots: list[Path]) -> set[Path]:
+    protected = {root.resolve(strict=False) for root in roots}
+    if roots:
+        books_root = roots[-1].resolve(strict=False)
+        protected.update((books_root / name).resolve(strict=False) for name in BOOK_LIBRARY_CONTAINERS)
+    return protected
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -409,6 +437,73 @@ def list_top_level_paths(roots: list[Path]) -> list[Path]:
     return paths
 
 
+def xml_element_text(path: Path, element_name: str) -> str | None:
+    if not path.exists():
+        return None
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        return None
+    for element in root.iter():
+        if element.tag.rsplit("}", 1)[-1].casefold() != element_name.casefold():
+            continue
+        value = (element.text or "").strip()
+        if value:
+            return value
+    return None
+
+
+def book_directory_title(path: Path, kind: str) -> str:
+    metadata_paths = [path / "ComicInfo.xml"] if kind == "comic" else [path / "metadata.opf", path / "content.opf"]
+    for metadata_path in metadata_paths:
+        title = xml_element_text(metadata_path, "Title" if kind == "comic" else "title")
+        if title:
+            return title
+    return CALIBRE_ID_SUFFIX.sub("", path.name).strip() or path.name
+
+
+def book_library_candidates(books_root: Path, jellyfin: list[JellyfinItem]) -> list[Candidate]:
+    jellyfin_names: dict[Path, set[str]] = {}
+    for item in jellyfin:
+        if item.type.casefold() != "book":
+            continue
+        for item_path in item.paths:
+            parent = item_path.parent.resolve(strict=False)
+            if is_under(parent, books_root.resolve(strict=False)):
+                jellyfin_names.setdefault(parent, set()).add(item.name)
+
+    candidates: list[Candidate] = []
+    for container_name, kind in (("Books", "book"), ("Comics", "comic")):
+        container = books_root / container_name
+        if not container.exists():
+            continue
+        media_directories: dict[Path, set[str]] = {}
+        try:
+            paths = container.rglob("*")
+            for path in paths:
+                if not path.is_file() or path.suffix.casefold() not in BOOK_MEDIA_EXTENSIONS:
+                    continue
+                parent = path.parent.resolve(strict=False)
+                media_directories.setdefault(parent, set()).add(path.stem)
+        except OSError:
+            continue
+
+        for directory, file_stems in sorted(media_directories.items(), key=lambda item: str(item[0])):
+            title = book_directory_title(directory, kind)
+            aliases = set(file_stems)
+            aliases.add(directory.name)
+            aliases.update(jellyfin_names.get(directory, set()))
+            candidates.append(
+                Candidate(
+                    kind,
+                    f"{kind}: {title}",
+                    directory,
+                    aliases=tuple(sorted(alias for alias in aliases if alias)),
+                )
+            )
+    return candidates
+
+
 def load_queue_records(queue_root: Path, warnings: list[str]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for directory_name in ("queue", "done", "needs-review", "ignored", "failed"):
@@ -448,7 +543,7 @@ def selection_key(candidate: Candidate) -> str:
 
 def candidate_matches_query(candidate: Candidate, query: str) -> bool:
     needle = casefold(query)
-    values = [candidate.label]
+    values = [candidate.label, *candidate.aliases]
     if candidate.path is not None:
         values.append(str(candidate.path))
     if candidate.app_item:
@@ -464,6 +559,7 @@ def build_candidates(
     radarr: list[AppItem],
     torrents: list[TorrentItem],
     roots: list[Path],
+    jellyfin: list[JellyfinItem],
 ) -> list[Candidate]:
     candidates: list[Candidate] = []
     for item in sonarr:
@@ -473,8 +569,9 @@ def build_candidates(
     for torrent in torrents:
         path = common_torrent_path(torrent)
         candidates.append(Candidate("transmission", f"transmission:{torrent.id} {torrent.name}", path, torrent=torrent))
-    for path in list_top_level_paths(roots):
+    for path in list_top_level_paths(roots[:-1]):
         candidates.append(Candidate("path", str(path), path))
+    candidates.extend(book_library_candidates(Path(args.books_root), jellyfin))
     return candidates
 
 
@@ -718,7 +815,10 @@ def build_plan(args: argparse.Namespace) -> Plan:
             warnings.append(f"transmission: could not list torrents: {exc}")
             torrents = []
 
-    candidates = build_candidates(args, sonarr, radarr, torrents, roots)
+    jellyfin_key = jellyfin_api_key(args)
+    all_jellyfin_items = jellyfin_items(args, warnings) if jellyfin_key and not args.no_jellyfin else []
+
+    candidates = build_candidates(args, sonarr, radarr, torrents, roots, all_jellyfin_items)
     selected = resolve_selection(candidates, args, roots)
     plan = Plan(selected=selected, warnings=warnings)
 
@@ -760,11 +860,10 @@ def build_plan(args: argparse.Namespace) -> Plan:
         if not path_allowed(path, roots):
             raise RuntimeError(f"refusing unmanaged or root path in plan: {path}")
 
-    jellyfin_key = jellyfin_api_key(args)
     plan.jellyfin_refresh = bool(jellyfin_key and not args.no_jellyfin)
     plan.jellyfin_delete = bool(jellyfin_key and not args.no_jellyfin and not args.no_jellyfin_delete)
     if jellyfin_key and not args.no_jellyfin:
-        plan.jellyfin_items = jellyfin_items_under_paths(jellyfin_items(args, plan.warnings), list(plan.delete_paths))
+        plan.jellyfin_items = jellyfin_items_under_paths(all_jellyfin_items, list(plan.delete_paths))
     if not plan.jellyfin_refresh and not args.no_jellyfin:
         plan.warnings.append("jellyfin: JELLYFIN_API_KEY not configured; filesystem deletes will be picked up on the next library scan")
     plan.preflight = preflight_delete_paths(list(plan.delete_paths), plan.jellyfin_items, plan.jellyfin_delete)
@@ -896,7 +995,7 @@ def remove_path(path: Path) -> None:
 
 
 def prune_empty_parents(paths: list[Path], roots: list[Path]) -> None:
-    root_resolved = {root.resolve(strict=False) for root in roots}
+    root_resolved = protected_library_paths(roots)
     for path in paths:
         current = path.parent
         while current.resolve(strict=False) not in root_resolved and any(is_under(current, root) for root in roots):
@@ -1121,7 +1220,7 @@ def apply_plan(plan: Plan, args: argparse.Namespace) -> None:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Remove one media entry from Arr apps, Transmission, Jellyfin-visible libraries, and download hardlinks.",
+        description="Remove one movie, series, book, or comic from media apps, Jellyfin-visible libraries, and download hardlinks.",
     )
     parser.add_argument("query", nargs="?", help="Title/path/id substring to search. Refine ambiguous matches with explicit selectors.")
     parser.add_argument("--path", action="append", help="Absolute media path to remove. Can be repeated.")

@@ -53,6 +53,31 @@ BOOK_MEDIA_EXTENSIONS = {
     ".rar",
     ".zip",
 }
+PRIMARY_MEDIA_EXTENSIONS = BOOK_MEDIA_EXTENSIONS | {
+    ".aac",
+    ".aif",
+    ".aiff",
+    ".alac",
+    ".ape",
+    ".avi",
+    ".flac",
+    ".m4a",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".mpeg",
+    ".mpg",
+    ".oga",
+    ".ogg",
+    ".opus",
+    ".ts",
+    ".wav",
+    ".webm",
+    ".wma",
+    ".wmv",
+}
 CALIBRE_ID_SUFFIX = re.compile(r"\s+\(\d+\)$")
 
 
@@ -137,28 +162,7 @@ class TransmissionRpc:
     def torrents(self) -> list[TorrentItem]:
         fields = ["id", "name", "hashString", "hash_string", "downloadDir", "download_dir", "files"]
         result = self.call("torrent-get", {"fields": fields})
-        items = result.get("arguments", {}).get("torrents", [])
-        torrents: list[TorrentItem] = []
-        for item in items:
-            download_dir = Path(str(item.get("downloadDir") or item.get("download_dir") or "."))
-            files = []
-            for file_item in item.get("files") or []:
-                if isinstance(file_item, str):
-                    relpath = file_item
-                else:
-                    relpath = str(file_item.get("name") or "")
-                if relpath:
-                    files.append(download_dir / relpath)
-            torrents.append(
-                TorrentItem(
-                    id=int(item["id"]),
-                    name=str(item.get("name") or item["id"]),
-                    hash_string=str(item.get("hashString") or item.get("hash_string") or "").lower(),
-                    download_dir=download_dir,
-                    files=tuple(files),
-                )
-            )
-        return torrents
+        return torrent_items_from_rows(result.get("arguments", {}).get("torrents", []))
 
     def remove(self, torrent_id: int) -> None:
         self.call("torrent-remove", {"ids": [torrent_id], "delete-local-data": True})
@@ -228,6 +232,42 @@ def append_log(path: str | None, line: str) -> None:
     if path:
         with Path(path).open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
+
+
+def torrent_items_from_rows(rows: list[dict[str, Any]]) -> list[TorrentItem]:
+    torrents: list[TorrentItem] = []
+    for item in rows:
+        download_dir = Path(str(item.get("downloadDir") or item.get("download_dir") or "."))
+        files = []
+        for file_item in item.get("files") or []:
+            if isinstance(file_item, str):
+                relpath = file_item
+            else:
+                relpath = str(file_item.get("name") or "")
+            if relpath:
+                files.append(download_dir / relpath)
+        torrents.append(
+            TorrentItem(
+                id=int(item["id"]),
+                name=str(item.get("name") or item["id"]),
+                hash_string=str(item.get("hashString") or item.get("hash_string") or "").lower(),
+                download_dir=download_dir,
+                files=tuple(files),
+            )
+        )
+    return torrents
+
+
+def transmission_items(args: argparse.Namespace, warnings: list[str]) -> list[TorrentItem]:
+    fixture = load_fixture(args.transmission_torrents_json)
+    if fixture is not None:
+        rows = fixture.get("Items", fixture) if isinstance(fixture, dict) else fixture
+        return torrent_items_from_rows(rows)
+    try:
+        return TransmissionRpc(args.transmission_url, args.timeout).torrents()
+    except Exception as exc:
+        warnings.append(f"transmission: could not list torrents: {exc}")
+        return []
 
 
 def api_key_from_config(path: Path) -> str | None:
@@ -653,6 +693,16 @@ def paths_related(left: Path, right: Path) -> bool:
     return left_resolved == right_resolved or is_under(left_resolved, right_resolved) or is_under(right_resolved, left_resolved)
 
 
+def torrent_media_coverage(torrent: TorrentItem, paths: list[Path]) -> tuple[int, int]:
+    media_files = [path for path in torrent.files if path.suffix.casefold() in PRIMARY_MEDIA_EXTENSIONS]
+    covered = sum(
+        1
+        for media_file in media_files
+        if any(selected_container_matches_path(path, media_file) for path in paths)
+    )
+    return covered, len(media_files)
+
+
 def file_paths_under(path: Path) -> list[Path]:
     if not path.exists():
         return []
@@ -806,14 +856,7 @@ def build_plan(args: argparse.Namespace) -> Plan:
 
     sonarr = [] if args.no_sonarr else arr_items("sonarr", args.sonarr_url, Path(args.sonarr_config), args.timeout, warnings, args.sonarr_series_json)
     radarr = [] if args.no_radarr else arr_items("radarr", args.radarr_url, Path(args.radarr_config), args.timeout, warnings, args.radarr_movies_json)
-    if args.no_transmission:
-        torrents: list[TorrentItem] = []
-    else:
-        try:
-            torrents = TransmissionRpc(args.transmission_url, args.timeout).torrents()
-        except Exception as exc:
-            warnings.append(f"transmission: could not list torrents: {exc}")
-            torrents = []
+    torrents = [] if args.no_transmission else transmission_items(args, warnings)
 
     jellyfin_key = jellyfin_api_key(args)
     all_jellyfin_items = jellyfin_items(args, warnings) if jellyfin_key and not args.no_jellyfin else []
@@ -854,6 +897,18 @@ def build_plan(args: argparse.Namespace) -> Plan:
     if not args.no_hardlink_scan:
         for path, reason in hardlink_peers(list(plan.delete_paths), roots, roots).items():
             plan.delete_paths.setdefault(path, reason)
+
+    for torrent in torrents:
+        if torrent in plan.torrents:
+            continue
+        covered, total = torrent_media_coverage(torrent, list(plan.delete_paths))
+        if total and covered == total:
+            plan.torrents.append(torrent)
+        elif covered:
+            plan.warnings.append(
+                f"transmission: torrent id={torrent.id} name={torrent.name!r} is only partially associated "
+                f"with this deletion ({covered}/{total} media files); leaving it registered"
+            )
 
     plan.delete_paths = collapse_delete_paths(plan.delete_paths)
     for path in list(plan.delete_paths):
@@ -1148,15 +1203,12 @@ def verification_report(plan: Plan, args: argparse.Namespace) -> dict[str, Any]:
     report["radarr"] = arr_residuals("radarr", plan.radarr)
 
     if not args.no_transmission:
-        try:
-            torrents = TransmissionRpc(args.transmission_url, args.timeout).torrents()
-            planned_ids = {torrent.id for torrent in plan.torrents}
-            for torrent in torrents:
-                common_path = common_torrent_path(torrent)
-                if torrent.id in planned_ids or (common_path and any(selected_container_matches_path(target, common_path) for target in targets)):
-                    report["transmission"].append({"id": torrent.id, "name": torrent.name, "hash_string": torrent.hash_string})
-        except Exception as exc:
-            report["warnings"].append(f"transmission: could not verify torrents: {exc}")
+        torrents = transmission_items(args, report["warnings"])
+        planned_ids = {torrent.id for torrent in plan.torrents}
+        for torrent in torrents:
+            common_path = common_torrent_path(torrent)
+            if torrent.id in planned_ids or (common_path and any(selected_container_matches_path(target, common_path) for target in targets)):
+                report["transmission"].append({"id": torrent.id, "name": torrent.name, "hash_string": torrent.hash_string})
 
     if not args.no_jellyfin and jellyfin_api_key(args):
         warnings: list[str] = []
@@ -1191,7 +1243,17 @@ def apply_plan(plan: Plan, args: argparse.Namespace) -> None:
     assert_preflight_ok(plan)
     delete_jellyfin_items(plan, args)
     for torrent in plan.torrents:
-        TransmissionRpc(args.transmission_url, args.timeout).remove(torrent.id)
+        if args.transmission_torrents_json:
+            data = load_fixture(args.transmission_torrents_json) or []
+            rows = data.get("Items", data) if isinstance(data, dict) else data
+            rows = [row for row in rows if int(row.get("id") or -1) != torrent.id]
+            save_fixture(args.transmission_torrents_json, {"Items": rows} if isinstance(data, dict) else rows)
+            append_log(args.transmission_delete_log, f"transmission {torrent.id} delete-local-data=true")
+            common_path = common_torrent_path(torrent)
+            if common_path and path_allowed(common_path, roots):
+                remove_path(common_path)
+        else:
+            TransmissionRpc(args.transmission_url, args.timeout).remove(torrent.id)
         print(f"removed transmission torrent id={torrent.id} name={torrent.name!r}")
     for item in plan.sonarr:
         delete_arr_item(item, args)
@@ -1259,6 +1321,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sonarr-delete-log", help=argparse.SUPPRESS)
     parser.add_argument("--radarr-movies-json", help=argparse.SUPPRESS)
     parser.add_argument("--radarr-delete-log", help=argparse.SUPPRESS)
+    parser.add_argument("--transmission-torrents-json", help=argparse.SUPPRESS)
+    parser.add_argument("--transmission-delete-log", help=argparse.SUPPRESS)
     return parser
 
 

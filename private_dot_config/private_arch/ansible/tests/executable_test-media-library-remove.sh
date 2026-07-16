@@ -78,6 +78,91 @@ run_remover_api() {
     "$@"
 }
 
+torrent_show="${series}/Torrent Linked Show"
+torrent_download="${downloads}/torrent-linked-show"
+transmission_torrents_json="${tmpdir}/transmission-torrents.json"
+transmission_log="${tmpdir}/transmission.log"
+mkdir -p "${torrent_show}/Season 01" "${torrent_download}"
+printf episode-one > "${torrent_download}/Torrent.Linked.Show.S01E01.mkv"
+printf episode-two > "${torrent_download}/Torrent.Linked.Show.S01E02.mkv"
+printf release-note > "${torrent_download}/RARBG.txt"
+ln "${torrent_download}/Torrent.Linked.Show.S01E01.mkv" "${torrent_show}/Season 01/Torrent.Linked.Show.S01E01.mkv"
+ln "${torrent_download}/Torrent.Linked.Show.S01E02.mkv" "${torrent_show}/Season 01/Torrent.Linked.Show.S01E02.mkv"
+cat > "${transmission_torrents_json}" <<JSON
+[
+  {
+    "id": 88,
+    "name": "torrent-linked-show",
+    "hashString": "torrent-linked-show-hash",
+    "downloadDir": "${downloads}",
+    "files": [
+      {"name": "torrent-linked-show/Torrent.Linked.Show.S01E01.mkv"},
+      {"name": "torrent-linked-show/Torrent.Linked.Show.S01E02.mkv"},
+      {"name": "torrent-linked-show/RARBG.txt"}
+    ]
+  }
+]
+JSON
+run_remover_api \
+  --path "${torrent_show}" \
+  --no-sonarr \
+  --no-radarr \
+  --no-jellyfin \
+  --transmission-torrents-json "${transmission_torrents_json}" \
+  --transmission-delete-log "${transmission_log}" > "${tmpdir}/torrent-linked-dry-run.out"
+grep -q "id=88 name='torrent-linked-show' delete-local-data=true" "${tmpdir}/torrent-linked-dry-run.out"
+assert_exists "${torrent_show}"
+assert_exists "${torrent_download}"
+
+run_remover_api \
+  --path "${torrent_show}" \
+  --no-sonarr \
+  --no-radarr \
+  --no-jellyfin \
+  --transmission-torrents-json "${transmission_torrents_json}" \
+  --transmission-delete-log "${transmission_log}" \
+  --apply > "${tmpdir}/torrent-linked-apply.out"
+grep -q "transmission 88 delete-local-data=true" "${transmission_log}"
+grep -q "  transmission: 0" "${tmpdir}/torrent-linked-apply.out"
+assert_not_exists "${torrent_show}"
+assert_not_exists "${torrent_download}"
+
+mixed_show="${series}/Mixed Torrent Show"
+mixed_download="${downloads}/mixed-torrent"
+mkdir -p "${mixed_show}/Season 01" "${mixed_download}"
+printf selected-episode > "${mixed_download}/Mixed.Torrent.Show.S01E01.mkv"
+printf unrelated-movie > "${mixed_download}/Unrelated.Movie.2026.mkv"
+ln "${mixed_download}/Mixed.Torrent.Show.S01E01.mkv" "${mixed_show}/Season 01/Mixed.Torrent.Show.S01E01.mkv"
+cat > "${transmission_torrents_json}" <<JSON
+[
+  {
+    "id": 89,
+    "name": "mixed-torrent",
+    "hashString": "mixed-torrent-hash",
+    "downloadDir": "${downloads}",
+    "files": [
+      {"name": "mixed-torrent/Mixed.Torrent.Show.S01E01.mkv"},
+      {"name": "mixed-torrent/Unrelated.Movie.2026.mkv"}
+    ]
+  }
+]
+JSON
+run_remover_api \
+  --path "${mixed_show}" \
+  --no-sonarr \
+  --no-radarr \
+  --no-jellyfin \
+  --transmission-torrents-json "${transmission_torrents_json}" \
+  --transmission-delete-log "${transmission_log}" > "${tmpdir}/mixed-torrent-dry-run.out" 2>&1
+grep -q "only partially associated with this deletion (1/2 media files); leaving it registered" "${tmpdir}/mixed-torrent-dry-run.out"
+if grep -q "id=89 name='mixed-torrent' delete-local-data=true" "${tmpdir}/mixed-torrent-dry-run.out"; then
+  echo "partially associated torrent was incorrectly selected for deletion" >&2
+  exit 1
+fi
+assert_exists "${mixed_show}"
+assert_exists "${mixed_download}/Mixed.Torrent.Show.S01E01.mkv"
+assert_exists "${mixed_download}/Unrelated.Movie.2026.mkv"
+
 jelly_show="${series}/Jelly Show"
 mkdir -p "${jelly_show}/Season 01"
 printf episode > "${jelly_show}/Season 01/Jelly.Show.S01E01.mkv"

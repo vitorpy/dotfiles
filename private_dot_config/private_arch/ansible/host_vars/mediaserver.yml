@@ -9,6 +9,7 @@ arch_host_pacman_packages_extra:
   - uv
 arch_host_aur_packages_extra:
   - bazarr
+  - flaresolverr
   - hermes-agent
   - kcc
   - prowlarr
@@ -16,6 +17,7 @@ arch_host_aur_packages_extra:
   - sonarr
 arch_host_system_services_extra:
   - bazarr
+  - flaresolverr
   - prowlarr
   - radarr
   - sonarr
@@ -47,3 +49,5 @@ arch_hermes_agent_provider: xai
 arch_hermes_agent_base_url: https://api.x.ai/v1
 arch_hermes_agent_model: grok-4.3
 arch_hermes_agent_gateway_service_enabled: true
+
+arch_flaresolverr_enabled: true

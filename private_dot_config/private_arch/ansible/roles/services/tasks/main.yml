@@ -673,6 +673,35 @@
   tags:
     - hermes_agent
 
+- name: Ensure FlareSolverr service override directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/flaresolverr.service.d
+    state: directory
+    mode: "0755"
+  when: arch_flaresolverr_enabled | bool
+  tags:
+    - flaresolverr
+
+- name: Configure FlareSolverr listener
+  ansible.builtin.template:
+    src: flaresolverr-override.conf.j2
+    dest: /etc/systemd/system/flaresolverr.service.d/10-listener.conf
+    mode: "0644"
+  register: services_flaresolverr_override
+  when: arch_flaresolverr_enabled | bool
+  tags:
+    - flaresolverr
+
+- name: Reload systemd after FlareSolverr configuration changes
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when:
+    - arch_flaresolverr_enabled | bool
+    - services_flaresolverr_override.changed | default(false)
+    - not ansible_check_mode
+  tags:
+    - flaresolverr
+
 - name: Gather service facts
   ansible.builtin.service_facts:
   tags:
@@ -843,6 +872,17 @@
   loop: "{{ (arch_system_services + arch_host_system_services_extra) | unique | difference(['nftables']) }}"
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
+
+- name: Restart FlareSolverr after listener changes
+  ansible.builtin.systemd:
+    name: flaresolverr
+    state: restarted
+  when:
+    - arch_flaresolverr_enabled | bool
+    - services_flaresolverr_override.changed | default(false)
+    - not ansible_check_mode
+  tags:
+    - flaresolverr
 
 - name: Restart media manager services after group changes
   ansible.builtin.systemd:

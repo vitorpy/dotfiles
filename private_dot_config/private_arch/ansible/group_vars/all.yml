@@ -75,6 +75,9 @@ arch_hermes_agent_gateway_platform: telegram
 arch_hermes_agent_gateway_service_enabled: false
 arch_hermes_agent_telegram_reply_to_mode: first
 arch_hermes_agent_telegram_disable_link_previews: false
+arch_flaresolverr_enabled: false
+arch_flaresolverr_host: 127.0.0.1
+arch_flaresolverr_port: 8191
 arch_nginx_conf_dir: /etc/nginx/conf.d
 arch_nginx_managed_confs: []
 

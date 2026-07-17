@@ -23,6 +23,10 @@ def plan_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry],
     if label.kind == "film":
         return plan_film(label, entries, Path(args.films_root), torrent_name)
     if label.kind == "music":
+        if not args.enable_music_sorting:
+            plan = SortPlan(label_kind=label.kind, label_title=label.title, torrent_name=torrent_name)
+            plan.warnings.append("music sorting is disabled; Lidarr owns music imports")
+            return plan
         return plan_music(label, entries, Path(args.music_root), torrent_name)
     if label.kind == "book":
         return plan_books(label, entries, Path(args.books_root), torrent_name)
@@ -38,6 +42,9 @@ def sort_entries(label: MediaLabel, torrent_name: str, entries: list[FileEntry],
     elif label.kind == "film":
         sorted_ok = sort_film(label, entries, Path(args.films_root), args.dry_run)
     elif label.kind == "music":
+        if not args.enable_music_sorting:
+            log("INFO", "music sorting is disabled; leaving torrent for Lidarr")
+            return True
         sorted_ok = sort_music(label, entries, Path(args.music_root), args.dry_run)
     elif label.kind == "book":
         sorted_ok = sort_books(label, entries, Path(args.books_root), args.dry_run)

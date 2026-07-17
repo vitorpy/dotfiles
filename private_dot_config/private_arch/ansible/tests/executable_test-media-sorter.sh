@@ -28,6 +28,10 @@ run_sorter() {
     "$@"
 }
 
+run_sorter_music() {
+  run_sorter --enable-music-sorting "$@"
+}
+
 write_metadata() {
   local path="$1"
   local name="$2"
@@ -167,8 +171,17 @@ mkdir -p "${downloads}/SelectedAmbient"
 printf audio > "${downloads}/SelectedAmbient/01 - Xtal.flac"
 write_metadata "${tmpdir}/music-label.json" "SelectedAmbient" '[]' \
   "SelectedAmbient/01 - Xtal.flac"
-run_sorter --metadata-json "${tmpdir}/music-label.json" --label "music:Aphex Twin - Selected Ambient Works 85-92"
+run_sorter_music --metadata-json "${tmpdir}/music-label.json" --label "music:Aphex Twin - Selected Ambient Works 85-92"
 assert_samefile "${downloads}/SelectedAmbient/01 - Xtal.flac" "${music}/Aphex Twin/Selected Ambient Works 85-92/01 - Xtal.flac"
+
+mkdir -p "${downloads}/LidarrManaged"
+printf audio > "${downloads}/LidarrManaged/01 - Track.flac"
+write_jsonrpc_metadata "${tmpdir}/music-lidarr-default.json" "LidarrManaged" "lidarrmanagedhash"
+run_sorter --metadata-json "${tmpdir}/music-lidarr-default.json"
+TMDB_API_TOKEN= run_sorter --process-queue
+test -f "${queue_root}/ignored/btih_lidarrmanagedhash.json"
+jq -e '.status == "ignored" and .reason == "no sortable video or book files; music is handled by Lidarr"' "${queue_root}/ignored/btih_lidarrmanagedhash.json" >/dev/null
+assert_not_exists "${music}/LidarrManaged"
 
 mkdir -p "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Disc 1"
 mkdir -p "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Artwork"
@@ -177,7 +190,7 @@ printf cover > "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-
 printf tracker > "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/tracker.txt"
 write_jsonrpc_metadata "${tmpdir}/music-auto.json" "Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]" "musichash"
 run_sorter --metadata-json "${tmpdir}/music-auto.json"
-TMDB_API_TOKEN= run_sorter --process-queue
+TMDB_API_TOKEN= run_sorter_music --process-queue
 assert_samefile "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Disc 1/01 - Fly Me To The Moon.mp3" "${music}/Frank Sinatra/Love Songs My Way/Disc 1/01 - Fly Me To The Moon.mp3"
 assert_samefile "${downloads}/Frank Sinatra - Love Songs My Way - 2-CD-[MP3-320]-[[TFM]/Artwork/Front.jpg" "${music}/Frank Sinatra/Love Songs My Way/Artwork/Front.jpg"
 assert_not_exists "${music}/Frank Sinatra/Love Songs My Way/tracker.txt"
@@ -223,7 +236,7 @@ esac
 SH
 chmod +x "${tmpdir}/fpcalc"
 run_sorter --metadata-json "${tmpdir}/music-obfuscated.json"
-TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+TMDB_API_TOKEN= run_sorter_music --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
 test -f "${queue_root}/done/btih_obfuscatedmusichash.json"
 assert_samefile "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.mp3" "${music}/Elis Regina/Elis & Tom/01 - Aguas De Marco.mp3"
 assert_samefile "${downloads}/3l1s R3g1n4 3 T0m J0b1m- 3l1s 3 T0m/01 - Aguas De Marco.lrc" "${music}/Elis Regina/Elis & Tom/01 - Aguas De Marco.lrc"
@@ -233,7 +246,7 @@ mkdir -p "${downloads}/LooseTracks"
 printf audio > "${downloads}/LooseTracks/track01.flac"
 write_jsonrpc_metadata "${tmpdir}/music-unparsed.json" "LooseTracks" "unparsedmusichash"
 run_sorter --metadata-json "${tmpdir}/music-unparsed.json"
-TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+TMDB_API_TOKEN= run_sorter_music --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
 test -f "${queue_root}/needs-review/btih_unparsedmusichash.json"
 run_sorter --queue > "${tmpdir}/music-queue-review.out"
 grep -q "no AcoustID album candidates" "${tmpdir}/music-queue-review.out"
@@ -244,7 +257,7 @@ printf audio > "${downloads}/Artist Pack/Live/(1972) Album One/01 - One.mp3"
 printf audio > "${downloads}/Artist Pack/Studio/(1973) Album Two/01 - Two.mp3"
 write_jsonrpc_metadata "${tmpdir}/music-pack.json" "Artist Pack" "musicpackhash"
 run_sorter --metadata-json "${tmpdir}/music-pack.json"
-TMDB_API_TOKEN= run_sorter --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
+TMDB_API_TOKEN= run_sorter_music --process-queue --audiodb-fixture-json "${tmpdir}/audiodb-fixture.json" --acoustid-fixture-json "${tmpdir}/acoustid-fixture.json" --fpcalc-path "${tmpdir}/fpcalc"
 test -f "${queue_root}/needs-review/btih_musicpackhash.json"
 assert_not_exists "${music}/Elis Regina/Elis & Tom/Live"
 run_sorter --queue > "${tmpdir}/music-pack-queue-review.out"
@@ -397,9 +410,9 @@ write_jsonrpc_metadata "${tmpdir}/magazine-pack.json" "Magazine PDF Pack" "magaz
 run_sorter --metadata-json "${tmpdir}/magazine-pack.json"
 TMDB_API_TOKEN= run_sorter --process-queue
 test -f "${queue_root}/ignored/btih_magazinepackhash.json"
-jq -e '.status == "ignored" and .reason == "no sortable video, audio, or book files"' "${queue_root}/ignored/btih_magazinepackhash.json" >/dev/null
+jq -e '.status == "ignored" and .reason == "no sortable video or book files; music is handled by Lidarr"' "${queue_root}/ignored/btih_magazinepackhash.json" >/dev/null
 run_sorter --queue > "${tmpdir}/ignored-queue.out"
-grep -q "ignored: 2 item(s)" "${tmpdir}/ignored-queue.out"
+grep -q "ignored: 3 item(s)" "${tmpdir}/ignored-queue.out"
 grep -q "\\[other\\] Magazine PDF Pack/Issue 001.pdf" "${tmpdir}/ignored-queue.out"
 grep -q "\\[sidecar\\] Magazine PDF Pack/Cover.jpg" "${tmpdir}/ignored-queue.out"
 

@@ -12,18 +12,21 @@ arch_host_aur_packages_extra:
   - flaresolverr
   - hermes-agent
   - kcc
+  - lidarr-bin
   - prowlarr
   - radarr
   - sonarr
 arch_host_system_services_extra:
   - bazarr
   - flaresolverr
+  - lidarr
   - prowlarr
   - radarr
   - sonarr
   - tailscaled
 arch_host_firewall_allowed_tcp_ports_extra:
   - 7878
+  - 8686
   - 8989
   - 9696
 arch_host_firewall_allowed_udp_ports_extra:
@@ -41,6 +44,7 @@ arch_extra_mounts:
 
 arch_transmission_download_dir: /mnt/media/downloads
 arch_transmission_download_categories:
+  - lidarr
   - radarr
   - tv-sonarr
 

@@ -134,8 +134,11 @@ def move_record(path: Path, queue_root: Path, status: str, record: dict[str, Any
         path.unlink()
 
 
-def has_sortable_media(record: dict[str, Any]) -> bool:
-    return any(record_item_kind(item) in {"video", "audio", "book"} for item in record.get("files", []))
+def has_sortable_media(record: dict[str, Any], args: argparse.Namespace) -> bool:
+    sortable_kinds = {"video", "book"}
+    if args.enable_music_sorting:
+        sortable_kinds.add("audio")
+    return any(record_item_kind(item) in sortable_kinds for item in record.get("files", []))
 
 
 def match_record(record: dict[str, Any], args: argparse.Namespace) -> MatchDecision:
@@ -146,7 +149,7 @@ def match_record(record: dict[str, Any], args: argparse.Namespace) -> MatchDecis
     if decision is None:
         decision = book_match(record, args)
 
-    if decision is None:
+    if decision is None and args.enable_music_sorting:
         decision = music_match(record, args)
 
     if decision is None:
@@ -293,8 +296,8 @@ def process_queue(args: argparse.Namespace) -> int:
     for path in queue_paths:
         record = load_record(path)
         entries = entries_from_record(record)
-        if not has_sortable_media(record):
-            record["reason"] = "no sortable video, audio, or book files"
+        if not has_sortable_media(record, args):
+            record["reason"] = "no sortable video or book files; music is handled by Lidarr"
             record["match"] = {"provider": "none", "ignored": True}
             log("INFO", f"ignored key={record['download_key']} reason={record['reason']}")
             if not args.dry_run:

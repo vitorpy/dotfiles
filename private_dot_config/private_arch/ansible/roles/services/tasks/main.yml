@@ -749,6 +749,7 @@
   loop:
     - jellyfin
     - bazarr
+    - lidarr
     - sonarr
     - radarr
   register: services_media_user_query
@@ -908,7 +909,7 @@
     label: "{{ item.item.item }}"
   when:
     - item.changed | default(false)
-    - item.item.item in ['bazarr', 'radarr', 'sonarr']
+    - item.item.item in ['bazarr', 'lidarr', 'radarr', 'sonarr']
     - not ansible_check_mode
     - (item.item.item ~ '.service') in ansible_facts.services
 

@@ -94,6 +94,7 @@ def parser() -> argparse.ArgumentParser:
     parser.add_argument("--acoustid-min-tracks", type=int, default=1)
     parser.add_argument("--acoustid-max-tracks", type=int, default=5)
     parser.add_argument("--fpcalc-path", default="fpcalc")
+    parser.add_argument("--enable-music-sorting", action="store_true", help="allow legacy direct music imports; disabled by default so Lidarr owns music")
     parser.add_argument("--grok-review", action="store_true", help="require Grok approval before applying a matched plan")
     parser.add_argument("--xai-responses-url", default=DEFAULT_XAI_RESPONSES_URL)
     parser.add_argument("--xai-model", default="grok-4.3")

@@ -305,11 +305,13 @@
         import json;
         data = json.load(open("/var/lib/transmission/.config/transmission-daemon/settings.json"));
         desired_sorter = {{ arch_media_sorter_enabled | bool | ternary('True', 'False') }};
+        desired_download_dir = {{ arch_transmission_download_dir | to_json }};
         desired_umask = {{ ("%03o" | format(arch_transmission_umask | int)) | to_json }};
+        download_dir_ok = data.get("download-dir") == desired_download_dir;
         sorter_ok = data.get("script-torrent-done-enabled") is desired_sorter;
         path_ok = (not desired_sorter) or data.get("script-torrent-done-filename") == {{ arch_media_sorter_path | to_json }};
         umask_ok = data.get("umask") in ({{ arch_transmission_umask | int }}, desired_umask);
-        print("ok" if sorter_ok and path_ok and umask_ok else "changed")
+        print("ok" if download_dir_ok and sorter_ok and path_ok and umask_ok else "changed")
   register: services_transmission_sorter_settings
   changed_when: false
   failed_when: false
@@ -336,6 +338,19 @@
     line: '    "umask": {{ ("%03o" | format(arch_transmission_umask | int)) | to_json }},'
     validate: python3 -m json.tool %s
   register: services_transmission_umask
+  when:
+    - arch_transmission_enabled | bool
+    - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
+  tags:
+    - media_sorter
+
+- name: Configure Transmission download directory
+  ansible.builtin.lineinfile:
+    path: /var/lib/transmission/.config/transmission-daemon/settings.json
+    regexp: '^\s*"download-dir"\s*:'
+    line: '    "download-dir": {{ arch_transmission_download_dir | to_json }},'
+    validate: python3 -m json.tool %s
+  register: services_transmission_download_dir_setting
   when:
     - arch_transmission_enabled | bool
     - services_transmission_sorter_settings.stdout | default('changed') != 'ok'
@@ -1010,7 +1025,71 @@
     state: restarted
   when:
     - arch_transmission_enabled | bool
-    - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_umask.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
+    - (services_transmission_override.changed | default(false)) or (services_transmission_download_dir.changed | default(false)) or (services_transmission_umask.changed | default(false)) or (services_transmission_download_dir_setting.changed | default(false)) or (services_transmission_sorter_enabled.changed | default(false)) or (services_transmission_sorter_filename.changed | default(false))
+  tags:
+    - media_sorter
+
+- name: Request Transmission RPC session token
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ arch_transmission_rpc_port }}/transmission/rpc"
+    method: POST
+    body_format: json
+    body:
+      method: session-get
+      arguments:
+        fields:
+          - download-dir
+    status_code:
+      - 200
+      - 409
+  register: services_transmission_rpc_token
+  changed_when: false
+  when:
+    - arch_transmission_enabled | bool
+    - not ansible_check_mode
+  tags:
+    - media_sorter
+
+- name: Read Transmission RPC download directory
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ arch_transmission_rpc_port }}/transmission/rpc"
+    method: POST
+    headers:
+      X-Transmission-Session-Id: "{{ services_transmission_rpc_token.x_transmission_session_id }}"
+    body_format: json
+    body:
+      method: session-get
+      arguments:
+        fields:
+          - download-dir
+    return_content: true
+  register: services_transmission_rpc_session
+  changed_when: false
+  when:
+    - arch_transmission_enabled | bool
+    - not ansible_check_mode
+    - services_transmission_rpc_token.x_transmission_session_id is defined
+  tags:
+    - media_sorter
+
+- name: Configure Transmission RPC download directory
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ arch_transmission_rpc_port }}/transmission/rpc"
+    method: POST
+    headers:
+      X-Transmission-Session-Id: "{{ services_transmission_rpc_token.x_transmission_session_id }}"
+    body_format: json
+    body:
+      method: session-set
+      arguments:
+        download-dir: "{{ arch_transmission_download_dir }}"
+  register: services_transmission_rpc_download_dir
+  changed_when: true
+  when:
+    - arch_transmission_enabled | bool
+    - not ansible_check_mode
+    - services_transmission_rpc_token.x_transmission_session_id is defined
+    - services_transmission_rpc_session.json.arguments["download-dir"] | default('') != arch_transmission_download_dir
   tags:
     - media_sorter
 

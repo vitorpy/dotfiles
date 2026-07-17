@@ -141,6 +141,28 @@ JSON
 run_sorter --metadata-json "${tmpdir}/json-rpc-movie.json" --label "film:Ewoks Jsonrpc"
 assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks Jsonrpc/Ewoks.mkv"
 
+mkdir -p "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/Season 1"
+printf episode > "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/Season 1/Category.Show.S01E01.mkv"
+cat > "${tmpdir}/json-rpc-category-series.json" <<JSON
+{
+  "id": 3,
+  "jsonrpc": "2.0",
+  "result": {
+    "torrents": [
+      {
+        "download_dir": "${downloads}/tv-sonarr",
+        "labels": [],
+        "name": "Category.Show.Full.Incl.Extras"
+      }
+    ]
+  }
+}
+JSON
+run_sorter --metadata-json "${tmpdir}/json-rpc-category-series.json" --label "series:Category Show"
+assert_samefile "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/Season 1/Category.Show.S01E01.mkv" "${series}/Category Show/Season 01/Category.Show.S01E01.mkv"
+assert_not_exists "${series}/Category Show/Season 01/extras/Category.Show.S01E01.mkv"
+grep -qx '\*' "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/.ignore"
+
 mkdir -p "${downloads}/SelectedAmbient"
 printf audio > "${downloads}/SelectedAmbient/01 - Xtal.flac"
 write_metadata "${tmpdir}/music-label.json" "SelectedAmbient" '[]' \

@@ -16,10 +16,32 @@ def is_under(path: Path, root: Path) -> bool:
         return False
 
 
+def raw_root_from_relpaths(entries: list[FileEntry], source_root: Path) -> Path | None:
+    candidates = []
+    for entry in entries:
+        parts = entry.relpath.parts
+        if len(parts) <= 1:
+            return None
+        candidates.append(entry.source.parents[len(parts) - 1] / parts[0])
+
+    first = candidates[0].resolve(strict=False)
+    if not all(candidate.resolve(strict=False) == first for candidate in candidates):
+        return None
+    if first == source_root.resolve(strict=False) or not is_under(first, source_root):
+        return None
+    if not first.is_dir():
+        return None
+    return first
+
+
 def raw_root_for_entries(entries: list[FileEntry], source_root: Path) -> Path | None:
     sources = [entry.source for entry in entries]
     if not sources:
         return None
+
+    relpath_root = raw_root_from_relpaths(entries, source_root)
+    if relpath_root is not None:
+        return relpath_root
 
     try:
         common = Path(os.path.commonpath([str(source) for source in sources]))

@@ -77,7 +77,16 @@ def files_from_torrent(torrent: dict[str, Any], source_root: Path | None) -> tup
         entries.append(FileEntry(relpath=relpath, source=download_dir / relpath))
 
     if not entries and source_root:
-        entries = collect_files(source_root / name, source_root)
+        fallback_root = source_root.resolve(strict=False)
+        download_root = download_dir.resolve(strict=False)
+        fallback_path = (download_dir / name).resolve(strict=False)
+        try:
+            fallback_path.relative_to(fallback_root)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"download path {fallback_path} is outside source root {fallback_root}; refusing fallback scan"
+            ) from exc
+        entries = collect_files(fallback_path, download_root)
 
     return name, download_dir, entries
 

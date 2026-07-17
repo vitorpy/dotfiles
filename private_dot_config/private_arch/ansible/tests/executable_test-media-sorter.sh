@@ -103,7 +103,7 @@ run_sorter --metadata-json "${tmpdir}/movie.json" --label "film:Ewoks The Battle
 assert_samefile "${downloads}/EwoksPack/Ewoks.mkv" "${films}/Ewoks The Battle for Endor/Ewoks.mkv"
 assert_samefile "${downloads}/EwoksPack/Ewoks.srt" "${films}/Ewoks The Battle for Endor/Ewoks.srt"
 assert_not_exists "${films}/Ewoks The Battle for Endor/tracker.txt"
-grep -qx '\*' "${downloads}/EwoksPack/.ignore"
+test ! -s "${downloads}/EwoksPack/.ignore"
 
 mkdir -p "${downloads}/NasuExtras"
 printf main-feature-video > "${downloads}/NasuExtras/Nasu Summer in Andalusia.mkv"
@@ -161,7 +161,7 @@ JSON
 run_sorter --metadata-json "${tmpdir}/json-rpc-category-series.json" --label "series:Category Show"
 assert_samefile "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/Season 1/Category.Show.S01E01.mkv" "${series}/Category Show/Season 01/Category.Show.S01E01.mkv"
 assert_not_exists "${series}/Category Show/Season 01/extras/Category.Show.S01E01.mkv"
-grep -qx '\*' "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/.ignore"
+test ! -s "${downloads}/tv-sonarr/Category.Show.Full.Incl.Extras/.ignore"
 
 mkdir -p "${downloads}/SelectedAmbient"
 printf audio > "${downloads}/SelectedAmbient/01 - Xtal.flac"
@@ -266,7 +266,7 @@ assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.cbz" "${books}/Comi
 assert_samefile "${downloads}/Comic Pack/Chainsaw Man Vol 01.epub" "${books}/Comics/Chainsaw Man/Chainsaw Man Vol 01.epub"
 assert_samefile "${downloads}/Comic Pack/cover.jpg" "${books}/Comics/Chainsaw Man/cover.jpg"
 assert_not_exists "${books}/Comics/Chainsaw Man/tracker.txt"
-grep -qx '\*' "${downloads}/Comic Pack/.ignore"
+test ! -s "${downloads}/Comic Pack/.ignore"
 
 mkdir -p "${downloads}/Palomar"
 printf comic > "${downloads}/Palomar/Palomar.cbz"
@@ -277,6 +277,16 @@ assert_samefile "${downloads}/Palomar/Palomar.cbz" "${books}/Comics/Palomar/Palo
 test -f "${queue_root}/done/btih_bookhash.json"
 jq -e '.match.provider == "filename" and .plan.label_kind == "book" and .plan.label_title == "Palomar"' "${queue_root}/done/btih_bookhash.json" >/dev/null
 jq -e '.plan.operations[0].dest | contains("/Comics/Palomar/Palomar.cbz")' "${queue_root}/done/btih_bookhash.json" >/dev/null
+
+mkdir -p "${downloads}/PlanetesPack"
+printf episode > "${downloads}/PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.mkv"
+printf nfo > "${downloads}/PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.nfo"
+write_metadata "${tmpdir}/episode-word-season-label.json" "PlanetesPack" '[]' \
+  "PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.mkv" \
+  "PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.nfo"
+run_sorter --metadata-json "${tmpdir}/episode-word-season-label.json" --label "series:Planetes" --label "season:1"
+assert_samefile "${downloads}/PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.mkv" "${series}/Planetes/Season 01/[bonkai77].Planetes.S01E01.Outside.the.Atmosphere.mkv"
+assert_samefile "${downloads}/PlanetesPack/[bonkai77].Planetes.Episode.01.Outside.the.Atmosphere.nfo" "${series}/Planetes/Season 01/[bonkai77].Planetes.S01E01.Outside.the.Atmosphere.nfo"
 
 mkdir -p "${downloads}/South.Park.S01E01"
 printf episode > "${downloads}/South.Park.S01E01/South.Park.S01E01.mkv"
@@ -634,7 +644,7 @@ run_sorter --metadata-json "${tmpdir}/seasonless-anime.json"
 run_sorter --metadata-json "${tmpdir}/danger-5.json"
 run_sorter --process-queue --tmdb-fixture-json "${tmpdir}/tmdb-fixture.json"
 assert_samefile "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv" "${films}/Perfect Blue/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265.mkv"
-grep -qx '\*' "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/.ignore"
+test ! -s "${downloads}/Perfect.Blue.1997.JAPANESE.REMASTERED.1080p.BluRay.x265-GalaxyRG265[TGx]/.ignore"
 assert_samefile "${downloads}/Patriot Season 2 Complete 720p WEBRip x264 [i_c]/Patriot S02E01 American Dimes.mkv" "${series}/Patriot/Season 02/Patriot S02E01 American Dimes.mkv"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain - 01 [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/[Kanavid] Serial Experiments Lain - S01E01 [BD][1080p][AAC].mp4"
 assert_samefile "${downloads}/[Kanavid] Serial Experiments Lain 1-13(END) [BD][1080p][AAC][MP4]/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4" "${series}/Serial Experiments Lain/Season 01/extras/[Kanavid] Serial Experiments Lain Clean OP [BD][1080p][AAC].mp4"
@@ -729,7 +739,7 @@ grep -q "would hardlink" "${tmpdir}/backfill-dry-run.out"
 assert_not_exists "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
 run_sorter --backfill-current-downloads --apply
 assert_samefile "${downloads}/Corporate.S01/Corporate.S01E01.mkv" "${series}/Corporate/Season 01/Corporate.S01E01.mkv"
-grep -qx '\*' "${downloads}/Corporate.S01/.ignore"
+test ! -s "${downloads}/Corporate.S01/.ignore"
 assert_not_exists "${books}/Comics/Comic Pack"
 
 echo "media sorter tests passed"

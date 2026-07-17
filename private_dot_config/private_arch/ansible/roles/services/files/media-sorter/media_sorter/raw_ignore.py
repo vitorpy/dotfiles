@@ -58,11 +58,11 @@ def raw_root_for_entries(entries: list[FileEntry], source_root: Path) -> Path | 
     return raw_root
 
 
-def ignore_file_has_star(path: Path) -> bool:
+def ignore_file_excludes_directory(path: Path) -> bool:
     if not path.exists():
         return False
     try:
-        return any(line.strip() == "*" for line in path.read_text(encoding="utf-8").splitlines())
+        return path.stat().st_size == 0
     except OSError:
         return False
 
@@ -74,7 +74,7 @@ def write_raw_ignore(entries: list[FileEntry], source_root: Path, dry_run: bool 
 
     ignore_path = raw_root / ".ignore"
     record: dict[str, Any] = {"path": str(ignore_path), "raw_root": str(raw_root)}
-    if ignore_file_has_star(ignore_path):
+    if ignore_file_excludes_directory(ignore_path):
         record["status"] = "already-present"
         return record
     if dry_run:
@@ -83,12 +83,10 @@ def write_raw_ignore(entries: list[FileEntry], source_root: Path, dry_run: bool 
 
     try:
         if ignore_path.exists():
-            existing = ignore_path.read_text(encoding="utf-8")
-            separator = "" if existing.endswith("\n") or not existing else "\n"
-            ignore_path.write_text(existing + separator + "*\n", encoding="utf-8")
+            ignore_path.write_text("", encoding="utf-8")
             record["status"] = "updated"
         else:
-            ignore_path.write_text("*\n", encoding="utf-8")
+            ignore_path.write_text("", encoding="utf-8")
             record["status"] = "created"
         log("INFO", f"wrote raw download ignore file path={ignore_path}")
     except OSError as exc:

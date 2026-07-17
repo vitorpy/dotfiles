@@ -20,7 +20,7 @@ printf shin-raw > "${downloads}/radarr/Shin/Shin.mkv"
 printf shin-canonical > "${films}/Shin Godzilla/Shin.mkv"
 printf episode > "${series}/Example/Season 01/Example.S01E01.mkv"
 printf clean > "${films}/Clean Movie/Clean Movie.mkv"
-printf '*\n' > "${downloads}/radarr/Ignored.Movie/.ignore"
+: > "${downloads}/radarr/Ignored.Movie/.ignore"
 printf '{}' > "${queue_root}/failed/example.json"
 
 cat > "${tmpdir}/jellyfin-dirty.json" <<JSON
@@ -103,8 +103,8 @@ jq -e '[.findings[].type] | index("media_sorter_queue_attention")' "${tmpdir}/di
 
 clean_queue="${tmpdir}/clean-queue"
 mkdir -p "${clean_queue}"
-printf '*\n' > "${downloads}/radarr/Raw.Movie/.ignore"
-printf '*\n' > "${downloads}/radarr/Shin/.ignore"
+: > "${downloads}/radarr/Raw.Movie/.ignore"
+: > "${downloads}/radarr/Shin/.ignore"
 cat > "${tmpdir}/jellyfin-clean.json" <<JSON
 [
   {

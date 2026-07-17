@@ -95,12 +95,12 @@ def item_paths(item: dict[str, Any]) -> list[str]:
     return sorted(set(paths))
 
 
-def has_star_ignore(path: Path) -> bool:
+def has_directory_ignore(path: Path) -> bool:
     ignore = path / ".ignore"
     if not ignore.exists():
         return False
     try:
-        return any(line.strip() == "*" for line in ignore.read_text(encoding="utf-8").splitlines())
+        return ignore.stat().st_size == 0
     except OSError:
         return False
 
@@ -323,7 +323,7 @@ def audit_raw_download_ignores(args: argparse.Namespace, findings: list[dict[str
         for child in children:
             if not child.is_dir() or child.name.startswith("."):
                 continue
-            if directory_has_video(child) and not has_star_ignore(child):
+            if directory_has_video(child) and not has_directory_ignore(child):
                 add_finding(
                     findings,
                     "raw_download_missing_ignore",

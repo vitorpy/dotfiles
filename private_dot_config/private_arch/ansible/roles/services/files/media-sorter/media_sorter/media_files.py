@@ -52,12 +52,30 @@ def is_episode_zero_video(entry: FileEntry) -> bool:
 
 
 
+def has_regular_episode_number(entry: FileEntry) -> bool:
+    name = entry.source.stem
+    patterns = (
+        r"(?i)(?:^|[^a-z0-9])s\d{1,2}e0*[1-9]\d*(?:[^a-z0-9]|$)",
+        r"(?i)(?:^|[^a-z0-9])\d{1,2}x0*[1-9]\d*(?:[^a-z0-9]|$)",
+        r"(?i)(?:^|[^a-z0-9])season[ ._-]*\d{1,2}[ ._-]+episode[ ._-]*0*[1-9]\d*(?:[^a-z0-9]|$)",
+    )
+    return any(re.search(pattern, name) for pattern in patterns)
+
+
 def extra_video_folder(entry: FileEntry) -> str | None:
-    values = [entry.source.stem, *entry.relpath.parent.parts]
-    for value in values:
+    parent_parts = entry.relpath.parent.parts
+    parent_values = parent_parts[1:] if has_regular_episode_number(entry) else parent_parts
+    for value in reversed(parent_values):
         for pattern, folder in EXTRA_VIDEO_PATTERNS:
             if pattern.search(value):
                 return folder
+
+    if has_regular_episode_number(entry):
+        return None
+
+    for pattern, folder in EXTRA_VIDEO_PATTERNS:
+        if pattern.search(entry.source.stem):
+            return folder
     return None
 
 

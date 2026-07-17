@@ -313,6 +313,17 @@ assert_not_exists "${series}/Stargate Universe/Season 01/Stargate Universe Seaso
 assert_not_exists "${series}/Stargate Universe/Season 01/Kino 01 - Get Outta Here.avi"
 assert_not_exists "${series}/Stargate Universe/Season 01/SGU Interviews 01.avi"
 
+mkdir -p "${downloads}/Star Trek TNG Complete/Season.1" "${downloads}/Star Trek TNG Complete/Shorts"
+printf tngepisode > "${downloads}/Star Trek TNG Complete/Season.1/Star.Trek.TNG.S01E16 - Too Short a Season.mkv"
+printf tngshort > "${downloads}/Star Trek TNG Complete/Shorts/Star.Trek.TNG.S01E99 - Short Promo.mkv"
+write_metadata "${tmpdir}/numbered-episode-extra-keyword.json" "Star Trek TNG Complete" '[]' \
+  "Star Trek TNG Complete/Season.1/Star.Trek.TNG.S01E16 - Too Short a Season.mkv" \
+  "Star Trek TNG Complete/Shorts/Star.Trek.TNG.S01E99 - Short Promo.mkv"
+run_sorter --metadata-json "${tmpdir}/numbered-episode-extra-keyword.json" --label "series:Star Trek: The Next Generation"
+assert_samefile "${downloads}/Star Trek TNG Complete/Season.1/Star.Trek.TNG.S01E16 - Too Short a Season.mkv" "${series}/Star Trek: The Next Generation/Season 01/Star.Trek.TNG.S01E16 - Too Short a Season.mkv"
+assert_samefile "${downloads}/Star Trek TNG Complete/Shorts/Star.Trek.TNG.S01E99 - Short Promo.mkv" "${series}/Star Trek: The Next Generation/Season 01/shorts/Star.Trek.TNG.S01E99 - Short Promo.mkv"
+assert_not_exists "${series}/Star Trek: The Next Generation/Season 01/shorts/Star.Trek.TNG.S01E16 - Too Short a Season.mkv"
+
 mkdir -p "${downloads}/Os normais/1a Temporada" "${downloads}/Os normais/2a Temporada" "${downloads}/Os normais/3a Temporada"
 printf osn1 > "${downloads}/Os normais/1a Temporada/Os.Normais.01x01.avi"
 printf osn2 > "${downloads}/Os normais/2a Temporada/Os.Normais.2x01 - Tudo normal como antes.avi"

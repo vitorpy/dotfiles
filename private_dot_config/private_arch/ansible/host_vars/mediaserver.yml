@@ -7,6 +7,7 @@ arch_host_pacman_packages_extra:
   - calibre
   - tailscale
   - uv
+  - vpl-gpu-rt
 arch_host_aur_packages_extra:
   - bazarr
   - flaresolverr

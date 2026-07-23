@@ -1,0 +1,41 @@
+# Managed by Ansible — Podman Quadlet for Frigate NVR
+# Installs as frigate.service via systemd generators
+
+[Unit]
+Description=Frigate NVR (Podman)
+Documentation=https://docs.frigate.video
+After=network-online.target local-fs.target
+Wants=network-online.target
+RequiresMountsFor={{ arch_frigate_media_dir }} {{ arch_frigate_config_dir }}
+
+[Container]
+Image={{ arch_frigate_image }}
+ContainerName=frigate
+AutoUpdate={{ arch_frigate_podman_auto_update }}
+# Frigate needs generous /dev/shm for decode + detect frame rings
+PodmanArgs=--shm-size={{ arch_frigate_shm_size }}
+# UI + API (LAN). go2rtc RTSP only on loopback for local restream consumers.
+PublishPort={{ arch_frigate_ui_bind }}:{{ arch_frigate_ui_port }}:5000
+PublishPort=127.0.0.1:{{ arch_frigate_rtsp_port }}:8554
+PublishPort={{ arch_frigate_ui_bind }}:{{ arch_frigate_webrtc_port }}:8555/tcp
+PublishPort={{ arch_frigate_ui_bind }}:{{ arch_frigate_webrtc_port }}:8555/udp
+Volume={{ arch_frigate_config_dir }}:/config:U,rw
+Volume={{ arch_frigate_media_dir }}:/media/frigate:U,rw
+# Intel iGPU (N150) for OpenVINO + VAAPI
+AddDevice=/dev/dri:/dev/dri
+Environment=LIBVA_DRIVER_NAME=iHD
+Environment=FRIGATE_RTSP_PASSWORD={{ arch_frigate_rtsp_password }}
+{% if arch_frigate_plus_api_key | length > 0 %}
+Environment=PLUS_API_KEY={{ arch_frigate_plus_api_key }}
+{% endif %}
+LogDriver=journald
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+TimeoutStopSec=60
+# Pull can be slow on first boot
+ExecStartPre=-/usr/bin/podman pull {{ arch_frigate_image }}
+
+[Install]
+WantedBy=multi-user.target

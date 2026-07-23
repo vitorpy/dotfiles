@@ -722,6 +722,12 @@
   tags:
     - media_sorter
 
+- name: Configure Frigate NVR (Podman Quadlet)
+  ansible.builtin.import_tasks: frigate.yml
+  when: arch_frigate_enabled | bool
+  tags:
+    - frigate
+
 - name: Ensure extra mount points exist
   ansible.builtin.file:
     path: "{{ item.path }}"

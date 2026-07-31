@@ -79,10 +79,12 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 ### Arts Wallpaper
 
 `~/.local/bin/arts-wallpaper` selects a random provider from Google Arts &
-Culture, Rijksmuseum, and the Cleveland Museum of Art. If the first provider
-fails, it tries the remaining providers before leaving the current wallpaper
-unchanged. Rijksmuseum progress is persisted so its cursor-only collection API
-advances through the available flat artwork over time.
+Culture, Rijksmuseum, the Cleveland Museum of Art, and MASP. If the first
+provider fails, it tries the remaining providers before leaving the current
+wallpaper unchanged. Rijksmuseum and MASP progress is persisted so their
+collection pages advance through the available flat artwork over time. MASP
+uses the public JSON route behind its collection website and is configured for
+personal, non-distributed use with museum and photographer attribution.
 
 The user timer runs daily at 08:00 with up to five minutes of randomized delay,
 and one minute after boot when needed:
@@ -98,6 +100,7 @@ Test a provider without changing the wallpaper or saved cursor state:
 arts-wallpaper --provider google --dry-run
 arts-wallpaper --provider rijksmuseum --dry-run
 arts-wallpaper --provider cleveland --dry-run
+arts-wallpaper --provider masp --dry-run
 ```
 
 Published files are under `~/.local/share/arts-wallpaper/`. The service needs

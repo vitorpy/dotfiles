@@ -92,6 +92,104 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(candidate.artwork.image_url, "https://example.test/print.jpg")
         self.assertEqual(candidate.artwork.rights, "CC0 1.0")
 
+    def test_masp_normalizes_flat_art_and_advances_page_cursor(self):
+        response = {
+            "result": {
+                "items": [
+                    {
+                        "slug": "three-dimensional-work",
+                        "title": "Three-dimensional work",
+                        "designation": "Escultura",
+                        "image": [{"path": "/uploads/temp/sculpture.jpg"}],
+                    },
+                    {
+                        "slug": "obra-exemplo",
+                        "author": "Artista Exemplo",
+                        "title": " Obra exemplo ",
+                        "date_work": " 1944 ",
+                        "technique": "Óleo sobre tela",
+                        "designation": "Pintura",
+                        "photo_credits": "Fotógrafa Exemplo",
+                        "image": [
+                            {
+                                "filename": "WEB_EXAMPLE_MASP_00001_01",
+                                "path": "/uploads/temp/WEB_EXAMPLE_MASP_00001_01.jpg",
+                            }
+                        ],
+                    },
+                ],
+                "next_page_url": ("https://masp.org.br/pt/acervo/previous/2023?page=2"),
+            }
+        }
+        http = FakeHTTP([response])
+        candidate = arts.MaspProvider(http, random.Random(1)).select({})
+        self.assertEqual(candidate.artwork.provider, "masp")
+        self.assertEqual(candidate.artwork.record_id, "obra-exemplo")
+        self.assertEqual(candidate.artwork.title, "Obra exemplo")
+        self.assertEqual(candidate.artwork.creator, "Artista Exemplo")
+        self.assertEqual(candidate.artwork.date, "1944")
+        self.assertEqual(
+            candidate.artwork.source_url,
+            "https://masp.org.br/acervo/obra/obra-exemplo",
+        )
+        self.assertEqual(
+            candidate.artwork.image_url,
+            "https://assets.masp.org.br/uploads/temp/WEB_EXAMPLE_MASP_00001_01.jpg",
+        )
+        self.assertIn("Fotógrafa Exemplo", candidate.artwork.attribution)
+        self.assertEqual(
+            candidate.state_update["masp"]["next"],
+            "https://masp.org.br/pt/acervo/previous/2023?page=2",
+        )
+
+    def test_masp_uses_saved_cursor_and_skips_page_without_flat_art(self):
+        saved = "https://masp.org.br/pt/acervo/previous/2022?page=3"
+        next_page = "https://masp.org.br/pt/acervo/previous/2022?page=4"
+        no_flat_art = {
+            "result": {
+                "items": [
+                    {
+                        "slug": "sculpture",
+                        "title": "Sculpture",
+                        "designation": "Escultura",
+                        "image": [{"path": "/uploads/temp/sculpture.jpg"}],
+                    }
+                ],
+                "next_page_url": next_page,
+            }
+        }
+        drawing = {
+            "result": {
+                "items": [
+                    {
+                        "slug": "drawing",
+                        "title": "Drawing",
+                        "author": "Artist",
+                        "designation": "Desenho",
+                        "image": [{"path": "/uploads/temp/drawing.jpg"}],
+                    }
+                ],
+                "next_page_url": None,
+            }
+        }
+        http = FakeHTTP([no_flat_art, drawing])
+        candidate = arts.MaspProvider(http, random.Random(2)).select(
+            {"masp": {"next": saved}}
+        )
+        self.assertEqual(http.requests[0], (saved, None))
+        self.assertEqual(http.requests[1], (next_page, None))
+        self.assertEqual(candidate.artwork.record_id, "drawing")
+
+    def test_masp_rejects_untrusted_urls(self):
+        self.assertIsNone(
+            arts.MaspProvider._image_url("https://example.test/uploads/image.jpg")
+        )
+        self.assertIsNone(
+            arts.MaspProvider._valid_page_url(
+                "https://example.test/pt/acervo/previous/2023?page=2"
+            )
+        )
+
     def test_rijksmuseum_resolves_linked_art_and_advances_type_cursor(self):
         page = {
             "orderedItems": [{"id": "https://id.rijksmuseum.nl/200100001"}],
@@ -183,6 +281,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(merged["rijksmuseum"]["painting"]["next"], "old")
         self.assertEqual(merged["rijksmuseum"]["print"]["next"], "new")
         self.assertNotIn("print", original["rijksmuseum"])
+
+    def test_masp_wallpaper_resolution_floor(self):
+        self.assertTrue(arts.masp_image_is_large_enough(3327, 3495))
+        self.assertTrue(arts.masp_image_is_large_enough(5194, 2617))
+        self.assertFalse(arts.masp_image_is_large_enough(2559, 2000))
+        self.assertFalse(arts.masp_image_is_large_enough(4000, 1439))
 
     def test_first_success_falls_back(self):
         attempted = []

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch an open-access artwork and publish it as the current Hyprpaper image."""
+"""Fetch an artwork and publish it as the current Hyprpaper image."""
 
 from __future__ import annotations
 
@@ -25,12 +25,23 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
-PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland")
-FLAT_ART_TERMS = ("painting", "drawing", "print", "photograph")
+PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland", "masp")
+FLAT_ART_TERMS = (
+    "painting",
+    "drawing",
+    "print",
+    "photograph",
+    "pintura",
+    "desenho",
+    "gravura",
+    "fotografia",
+)
+MASP_MIN_LONG_EDGE = 2560
+MASP_MIN_SHORT_EDGE = 1440
 USER_AGENT = f"arts-wallpaper/{VERSION} (personal desktop wallpaper service)"
 
 
@@ -366,6 +377,188 @@ class ClevelandProvider:
         raise ProviderError("Cleveland did not return a usable flat CC0 artwork")
 
 
+class MaspProvider:
+    name = "masp"
+    page_base = "https://masp.org.br/pt/acervo/previous"
+    asset_base = "https://assets.masp.org.br/"
+    image_policy_url = "https://masp.org.br/acervo/intercambio"
+    years = (
+        2023,
+        2022,
+        2021,
+        2020,
+        2019,
+        2018,
+        2017,
+        2016,
+        2015,
+        2012,
+        2010,
+        2009,
+        2008,
+        2007,
+        2006,
+        2005,
+        2004,
+        2003,
+        2002,
+        2001,
+        1999,
+        1998,
+        1997,
+        1996,
+        1995,
+        1994,
+        1993,
+        1992,
+        1991,
+        1990,
+        1986,
+        1966,
+        1958,
+        1953,
+        1950,
+        1947,
+    )
+    max_page_attempts = 3
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    @classmethod
+    def _page_url(cls, year: int, page: int = 1) -> str:
+        return append_query(f"{cls.page_base}/{year}", {"page": page})
+
+    @classmethod
+    def _valid_page_url(cls, value: Any) -> str | None:
+        url = clean_text(value)
+        if not url:
+            return None
+        parts = urllib.parse.urlsplit(url)
+        if parts.scheme != "https" or parts.hostname != "masp.org.br":
+            return None
+        if not re.fullmatch(r"/pt/acervo/previous/\d{4}", parts.path):
+            return None
+        query = urllib.parse.parse_qs(parts.query)
+        if set(query) != {"page"}:
+            return None
+        page_values = query.get("page")
+        if len(page_values or []) != 1:
+            return None
+        try:
+            page = int(page_values[0])
+            if page < 1:
+                return None
+        except (TypeError, ValueError):
+            return None
+        return urllib.parse.urlunsplit(
+            (
+                "https",
+                "masp.org.br",
+                parts.path,
+                urllib.parse.urlencode({"page": page}),
+                "",
+            )
+        )
+
+    @classmethod
+    def _image_url(cls, value: Any) -> str | None:
+        path = clean_text(value)
+        if not path:
+            return None
+        url = urllib.parse.urljoin(cls.asset_base, path)
+        parts = urllib.parse.urlsplit(url)
+        if (
+            parts.scheme != "https"
+            or parts.hostname != "assets.masp.org.br"
+            or not parts.path.startswith("/uploads/")
+        ):
+            return None
+        return urllib.parse.urlunsplit(
+            ("https", "assets.masp.org.br", parts.path, parts.query, "")
+        )
+
+    def _initial_url(self) -> str:
+        return self._page_url(self.rng.choice(self.years))
+
+    def _state_url(self, state: Mapping[str, Any]) -> str:
+        provider_state = state.get(self.name)
+        if isinstance(provider_state, Mapping):
+            saved = self._valid_page_url(provider_state.get("next"))
+            if saved:
+                return saved
+        return self._initial_url()
+
+    def _next_url(self, result: Mapping[str, Any]) -> str:
+        return self._valid_page_url(result.get("next_page_url")) or self._initial_url()
+
+    def _candidate(self, record: Mapping[str, Any], next_url: str) -> Candidate | None:
+        if not is_flat_art(record.get("designation"), record.get("technique")):
+            return None
+        slug = clean_text(record.get("slug"))
+        title = clean_text(record.get("title"))
+        if not slug or not title:
+            return None
+
+        images = record.get("image")
+        image_urls: list[str] = []
+        if isinstance(images, list):
+            for image in images:
+                if not isinstance(image, Mapping):
+                    continue
+                image_url = self._image_url(image.get("path") or image.get("url"))
+                if image_url and image_url not in image_urls:
+                    image_urls.append(image_url)
+        if not image_urls:
+            return None
+        self.rng.shuffle(image_urls)
+
+        photo_credit = clean_text(record.get("photo_credits"))
+        attribution = "Museu de Arte de São Paulo Assis Chateaubriand (MASP)"
+        if photo_credit:
+            attribution = f"{attribution}; photograph: {photo_credit}"
+        return Candidate(
+            Artwork(
+                provider=self.name,
+                provider_name="Museu de Arte de São Paulo Assis Chateaubriand (MASP)",
+                record_id=slug,
+                title=title,
+                creator=clean_text(record.get("author")),
+                date=clean_text(record.get("date_work")),
+                attribution=attribution,
+                rights="Personal, non-distributed use; MASP image-use terms apply",
+                rights_url=self.image_policy_url,
+                source_url=(
+                    "https://masp.org.br/acervo/obra/"
+                    f"{urllib.parse.quote(slug, safe='-')}"
+                ),
+                image_url=image_urls[0],
+            ),
+            {self.name: {"next": next_url}},
+        )
+
+    def select(self, state: Mapping[str, Any]) -> Candidate:
+        page_url = self._state_url(state)
+        for _ in range(self.max_page_attempts):
+            response = self.http.get_json(page_url)
+            result = response.get("result") if isinstance(response, Mapping) else None
+            if not isinstance(result, Mapping):
+                raise ProviderError("MASP response did not include a result object")
+            items = result.get("items")
+            if not isinstance(items, list):
+                raise ProviderError("MASP response did not include artwork records")
+            next_url = self._next_url(result)
+            records = [item for item in items if isinstance(item, Mapping)]
+            self.rng.shuffle(records)
+            for record in records:
+                candidate = self._candidate(record, next_url)
+                if candidate:
+                    return candidate
+            page_url = next_url
+        raise ProviderError("MASP returned no usable flat artwork after three pages")
+
+
 def rijks_data_url(identifier: str) -> str:
     parts = urllib.parse.urlsplit(identifier)
     if parts.scheme != "https" or parts.hostname not in {
@@ -689,6 +882,24 @@ def run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
         raise WallpaperError(f"command failed ({' '.join(command)}): {detail}") from exc
 
 
+def image_dimensions(source: Path) -> tuple[int, int]:
+    result = run_command(["magick", "identify", "-format", "%w %h", str(source)])
+    try:
+        width, height = (int(part) for part in result.stdout.strip().split())
+    except (TypeError, ValueError) as exc:
+        raise WallpaperError("ImageMagick returned invalid image dimensions") from exc
+    if width < 1 or height < 1:
+        raise WallpaperError("image has invalid dimensions")
+    return width, height
+
+
+def masp_image_is_large_enough(width: int, height: int) -> bool:
+    return (
+        max(width, height) >= MASP_MIN_LONG_EDGE
+        and min(width, height) >= MASP_MIN_SHORT_EDGE
+    )
+
+
 def process_image(source: Path, destination: Path) -> tuple[int, int]:
     run_command(
         [
@@ -703,14 +914,7 @@ def process_image(source: Path, destination: Path) -> tuple[int, int]:
             str(destination),
         ]
     )
-    result = run_command(["magick", "identify", "-format", "%w %h", str(destination)])
-    try:
-        width, height = (int(part) for part in result.stdout.strip().split())
-    except (TypeError, ValueError) as exc:
-        raise WallpaperError("ImageMagick returned invalid image dimensions") from exc
-    if width < 1 or height < 1:
-        raise WallpaperError("processed wallpaper has invalid dimensions")
-    return width, height
+    return image_dimensions(destination)
 
 
 def write_json_temp(directory: Path, prefix: str, value: Mapping[str, Any]) -> Path:
@@ -783,6 +987,13 @@ def stage_provider(
         source = temporary_directory / "download"
         processed = temporary_directory / "wallpaper.webp"
         http.download(candidate.artwork.image_url, source)
+        if candidate.artwork.provider == "masp":
+            width, height = image_dimensions(source)
+            if not masp_image_is_large_enough(width, height):
+                raise ProviderError(
+                    "MASP image is below the 2560x1440 wallpaper source floor "
+                    f"({width}x{height})"
+                )
         width, height = process_image(source, processed)
         return StagedArtwork(candidate, processed, width, height, temporary_directory)
     except Exception:
@@ -850,6 +1061,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "google": GoogleProvider(http, rng),
             "rijksmuseum": RijksmuseumProvider(http, rng),
             "cleveland": ClevelandProvider(http, rng),
+            "masp": MaspProvider(http, rng),
         }
         order = provider_order(args.provider, rng)
         print(f"Provider order: {', '.join(order)}")

@@ -73,7 +73,9 @@
   "custom/clock": {
     "exec": "~/.config/waybar/scripts/smart-clock.sh",
     "interval": 30,
-    "format": "{}"
+    "format": "{text}",
+    "return-type": "json",
+    "escape": true
   },
   "custom/kblayout": {
     "exec": "~/.config/waybar/scripts/kblayout-auto.sh",

@@ -1,0 +1,131 @@
+# Managed by Ansible — Frigate NVR (Podman exception on mediaserver)
+# Cameras: Tenda CP3V2.2 via go2rtc restream (single RTSP pull each)
+
+mqtt:
+  enabled: false
+
+database:
+  path: /config/frigate.db
+
+ffmpeg:
+  hwaccel_args: preset-vaapi
+  # Tenda audio is pcm_alaw; AAC helps browser playback of recordings/live
+  output_args:
+    record: preset-record-generic-audio-aac
+
+detectors:
+  ov:
+    type: openvino
+    device: GPU
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+# person + cat only (COCO labels in the default OpenVINO model)
+objects:
+  track:
+    - person
+    - cat
+  filters:
+    person:
+      min_area: 400
+      min_score: 0.60
+      threshold: 0.72
+    cat:
+      min_area: 200
+      min_score: 0.55
+      threshold: 0.68
+
+detect:
+  enabled: true
+  fps: 5
+  max_disappeared: 25
+
+# Continuous ~8h (0.34d); events/motion/alerts ~24h
+# Frigate retention is day-based floats are accepted for continuous.
+record:
+  enabled: true
+  sync_recordings: true
+  continuous:
+    days: {{ arch_frigate_continuous_days }}
+  motion:
+    days: {{ arch_frigate_event_days }}
+  alerts:
+    retain:
+      days: {{ arch_frigate_event_days }}
+      mode: motion
+  detections:
+    retain:
+      days: {{ arch_frigate_event_days }}
+      mode: motion
+
+snapshots:
+  enabled: true
+  retain:
+    default: {{ arch_frigate_event_days }}
+  quality: 75
+
+review:
+  alerts:
+    labels:
+      - person
+  detections:
+    labels:
+      - cat
+      - person
+
+go2rtc:
+  streams:
+{% for cam in arch_frigate_cameras %}
+    {{ cam.name }}:
+      - rtsp://{{ cam.user }}:{{ cam.password }}@{{ cam.host }}:{{ cam.rtsp_port }}{{ cam.main_path }}
+      - ffmpeg:{{ cam.name }}#audio=aac
+    {{ cam.name }}_sub:
+      - rtsp://{{ cam.user }}:{{ cam.password }}@{{ cam.host }}:{{ cam.rtsp_port }}{{ cam.sub_path }}
+{% endfor %}
+
+cameras:
+{% for cam in arch_frigate_cameras %}
+  {{ cam.name }}:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/{{ cam.name }}_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+        - path: rtsp://127.0.0.1:8554/{{ cam.name }}
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+    detect:
+      enabled: true
+      width: {{ cam.detect_width | default(640) }}
+      height: {{ cam.detect_height | default(360) }}
+      fps: {{ cam.detect_fps | default(5) }}
+    record:
+      enabled: true
+    snapshots:
+      enabled: true
+    live:
+      streams:
+        Main: {{ cam.name }}
+        Sub: {{ cam.name }}_sub
+    motion:
+      # Tenda 15fps substream — slightly less sensitive to noise
+      threshold: 30
+      contour_area: 20
+{% endfor %}
+
+ui:
+  timezone: {{ arch_timezone }}
+
+telemetry:
+  version_check: false
+
+version: 0.16-0

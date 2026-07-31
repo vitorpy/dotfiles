@@ -1,12 +1,15 @@
 ---
 arch_system_services: "{{ arch_server_system_services + ['NetworkManager', 'jellyfin', 'transmission'] }}"
-arch_firewall_allowed_tcp_ports: "{{ (arch_server_firewall_allowed_tcp_ports + [8096, 9091, 51413, 6767] + arch_host_firewall_allowed_tcp_ports_extra) | unique }}"
-arch_firewall_allowed_udp_ports: "{{ [51413] + arch_host_firewall_allowed_udp_ports_extra }}"
+arch_firewall_allowed_tcp_ports: "{{ (arch_server_firewall_allowed_tcp_ports + [8096, 9091, 51413, 6767] + arch_host_firewall_allowed_tcp_ports_extra + ([arch_frigate_ui_port, arch_frigate_webrtc_port] if arch_frigate_enabled | bool else [])) | unique }}"
+arch_firewall_allowed_udp_ports: "{{ ([51413] + arch_host_firewall_allowed_udp_ports_extra + ([arch_frigate_webrtc_port] if arch_frigate_enabled | bool else [])) | unique }}"
 arch_firewall_trusted_interfaces: "{{ arch_host_firewall_trusted_interfaces_extra }}"
 
-arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg', 'transmission-cli', 'chromaprint', 'intel-media-driver', 'libva-utils', 'vulkan-intel', 'vulkan-tools'] }}"
+arch_pacman_packages: "{{ arch_server_pacman_packages + ['networkmanager', 'jellyfin-server', 'jellyfin-web', 'jellyfin-ffmpeg', 'transmission-cli', 'chromaprint', 'intel-media-driver', 'libva-utils', 'vulkan-intel', 'vulkan-tools'] + (['podman', 'crun', 'netavark', 'aardvark-dns', 'catatonit', 'fuse-overlayfs'] if arch_frigate_enabled | bool else []) }}"
 arch_aur_packages: "{{ arch_server_aur_packages }}"
 
 arch_transmission_enabled: true
 arch_transmission_rpc_allowed: "127.0.0.1,::1,192.168.1.*"
 arch_transmission_tracker_updater_enabled: true
+
+# Frigate NVR — Podman-only exception (person + cat, short retention)
+arch_frigate_enabled: true

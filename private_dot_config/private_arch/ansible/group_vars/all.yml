@@ -66,6 +66,24 @@ arch_media_sorter_xai_model: grok-4.3
 arch_media_sorter_xai_timeout: 30
 arch_media_sorter_enabled: true
 arch_media_sorter_timer_enabled: true
+# Frigate NVR (Podman Quadlet exception — not AUR). Off by default.
+arch_frigate_enabled: false
+arch_frigate_image: ghcr.io/blakeblackshear/frigate:stable
+arch_frigate_config_dir: /etc/frigate
+arch_frigate_media_dir: /mnt/media/cameras/frigate
+arch_frigate_ui_bind: "0.0.0.0"
+arch_frigate_ui_port: 5000
+arch_frigate_rtsp_port: 8554
+arch_frigate_webrtc_port: 8555
+arch_frigate_shm_size: 256m
+arch_frigate_podman_auto_update: registry
+# ~8 hours continuous (Frigate accepts fractional days); events/snapshots 1 day
+arch_frigate_continuous_days: "0.34"
+arch_frigate_event_days: 1
+# Used by go2rtc restream auth inside the container (not the camera password)
+arch_frigate_rtsp_password: "frigate_restream"
+arch_frigate_plus_api_key: ""
+arch_frigate_cameras: []
 arch_hermes_agent_enabled: false
 arch_hermes_agent_home: "{{ arch_primary_user_home }}/.hermes"
 arch_hermes_agent_provider: custom

@@ -1,5 +1,5 @@
 [Unit]
-Description=Fetch Google Arts & Culture wallpaper
+Description=Fetch an open-access artwork wallpaper
 Wants=network-online.target
 After=network-online.target
 PartOf=graphical-session.target
@@ -8,4 +8,6 @@ ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/google-arts-wallpaper
+ExecStart=%h/.local/bin/arts-wallpaper
+TimeoutStartSec=5min
+UMask=0022

@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Google Arts & Culture wallpaper update
+Description=Daily open-access artwork wallpaper update
 
 [Timer]
 OnCalendar=*-*-* 08:00:00

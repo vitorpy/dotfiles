@@ -1,4 +1,5 @@
 README.md
+tests
 
 # Linux-only window manager and desktop environment
 {{- if eq .chezmoi.os "darwin" }}
@@ -18,5 +19,5 @@ README.md
 .config/private_gtk-3.0
 
 # Linux-only scripts
-.local/bin/google-arts-wallpaper
+.local/bin/arts-wallpaper
 {{- end }}

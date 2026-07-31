@@ -76,6 +76,38 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 
 ## Arch Linux Scripts
 
+### Arts Wallpaper
+
+`~/.local/bin/arts-wallpaper` selects a random provider from Google Arts &
+Culture, Rijksmuseum, and the Cleveland Museum of Art. If the first provider
+fails, it tries the remaining providers before leaving the current wallpaper
+unchanged. Rijksmuseum progress is persisted so its cursor-only collection API
+advances through the available flat artwork over time.
+
+The user timer runs daily at 08:00 with up to five minutes of randomized delay,
+and one minute after boot when needed:
+
+```bash
+systemctl --user status arts-wallpaper.timer
+journalctl --user -u arts-wallpaper.service
+```
+
+Test a provider without changing the wallpaper or saved cursor state:
+
+```bash
+arts-wallpaper --provider google --dry-run
+arts-wallpaper --provider rijksmuseum --dry-run
+arts-wallpaper --provider cleveland --dry-run
+```
+
+Published files are under `~/.local/share/arts-wallpaper/`. The service needs
+Python 3, ImageMagick, Hyprpaper, and network access; these packages are managed
+by the Arch configuration.
+
+To roll back, revert the wallpaper-service commit in the chezmoi source, apply
+chezmoi, reload the user systemd manager, and re-enable the restored timer. The
+legacy `~/.local/share/google-arts/` data is intentionally retained.
+
 ### System Reconciliation
 
 Apply the declarative Arch system configuration:

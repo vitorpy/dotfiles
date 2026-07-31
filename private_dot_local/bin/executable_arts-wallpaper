@@ -1,0 +1,897 @@
+#!/usr/bin/env python3
+"""Fetch an open-access artwork and publish it as the current Hyprpaper image."""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import dataclasses
+import datetime as dt
+import fcntl
+import html
+import json
+import os
+import random
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from pathlib import Path
+from typing import Any, Protocol, TypeVar
+
+VERSION = "1.0.0"
+TARGET_WIDTH = 2560
+HTTP_TIMEOUT_SECONDS = 20
+MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
+PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland")
+FLAT_ART_TERMS = ("painting", "drawing", "print", "photograph")
+USER_AGENT = f"arts-wallpaper/{VERSION} (personal desktop wallpaper service)"
+
+
+class WallpaperError(RuntimeError):
+    """Base error for a failed wallpaper update."""
+
+
+class ProviderError(WallpaperError):
+    """A provider could not return a usable artwork."""
+
+
+class AllProvidersError(WallpaperError):
+    def __init__(self, errors: Mapping[str, str]):
+        self.errors = dict(errors)
+        details = "; ".join(f"{name}: {message}" for name, message in errors.items())
+        super().__init__(f"all providers failed ({details})")
+
+
+class HTTPClientProtocol(Protocol):
+    def get_json(
+        self,
+        url: str,
+        params: Mapping[str, Any] | Sequence[tuple[str, Any]] | None = None,
+    ) -> Any: ...
+
+    def download(self, url: str, destination: Path) -> str | None: ...
+
+
+def clean_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return str(value)
+    if not isinstance(value, str):
+        return None
+    text = re.sub(r"<[^>]+>", " ", html.unescape(value))
+    text = " ".join(text.split())
+    return text or None
+
+
+def iter_text(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        cleaned = clean_text(value)
+        if cleaned:
+            yield cleaned
+    elif isinstance(value, Mapping):
+        for key in (
+            "title",
+            "name",
+            "label",
+            "_label",
+            "description",
+            "content",
+            "@value",
+        ):
+            cleaned = clean_text(value.get(key))
+            if cleaned:
+                yield cleaned
+        for nested in value.values():
+            if isinstance(nested, (Mapping, list, tuple)):
+                yield from iter_text(nested)
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            yield from iter_text(nested)
+
+
+def is_flat_art(*values: Any) -> bool:
+    text = " ".join(iter_text(values)).casefold()
+    return any(term in text for term in FLAT_ART_TERMS)
+
+
+def append_query(
+    url: str,
+    params: Mapping[str, Any] | Sequence[tuple[str, Any]] | None,
+) -> str:
+    if not params:
+        return url
+    parts = urllib.parse.urlsplit(url)
+    existing = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    items = list(params.items()) if isinstance(params, Mapping) else list(params)
+    query = urllib.parse.urlencode(existing + items, doseq=True)
+    return urllib.parse.urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, query, parts.fragment)
+    )
+
+
+class HTTPClient:
+    def __init__(self, timeout: int = HTTP_TIMEOUT_SECONDS, attempts: int = 2):
+        self.timeout = timeout
+        self.attempts = attempts
+
+    def _open(self, request: urllib.request.Request):
+        last_error: Exception | None = None
+        for attempt in range(self.attempts):
+            try:
+                return urllib.request.urlopen(request, timeout=self.timeout)
+            except (
+                urllib.error.HTTPError,
+                urllib.error.URLError,
+                TimeoutError,
+                OSError,
+            ) as exc:
+                last_error = exc
+                if attempt + 1 < self.attempts:
+                    time.sleep(attempt + 1)
+        raise ProviderError(f"request failed for {request.full_url}: {last_error}")
+
+    def get_json(
+        self,
+        url: str,
+        params: Mapping[str, Any] | Sequence[tuple[str, Any]] | None = None,
+    ) -> Any:
+        request_url = append_query(url, params)
+        request = urllib.request.Request(
+            request_url,
+            headers={
+                "Accept": "application/json, application/ld+json",
+                "User-Agent": USER_AGENT,
+            },
+        )
+        try:
+            with self._open(request) as response:
+                body = response.read(MAX_DOWNLOAD_BYTES + 1)
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise ProviderError(
+                f"could not read JSON from {request_url}: {exc}"
+            ) from exc
+        if len(body) > MAX_DOWNLOAD_BYTES:
+            raise ProviderError(f"JSON response from {request_url} exceeded size limit")
+        try:
+            return json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProviderError(f"invalid JSON from {request_url}: {exc}") from exc
+
+    def download(self, url: str, destination: Path) -> str | None:
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*",
+                "User-Agent": USER_AGENT,
+            },
+        )
+        try:
+            with self._open(request) as response, destination.open("wb") as output:
+                content_type = response.headers.get_content_type()
+                downloaded = 0
+                while chunk := response.read(1024 * 1024):
+                    downloaded += len(chunk)
+                    if downloaded > MAX_DOWNLOAD_BYTES:
+                        raise ProviderError(f"image from {url} exceeded size limit")
+                    output.write(chunk)
+        except ProviderError:
+            raise
+        except Exception as exc:
+            raise ProviderError(f"could not download image from {url}: {exc}") from exc
+        if downloaded == 0:
+            raise ProviderError(f"empty image response from {url}")
+        if content_type and not (
+            content_type.startswith("image/")
+            or content_type == "application/octet-stream"
+        ):
+            raise ProviderError(
+                f"unexpected image content type {content_type!r} from {url}"
+            )
+        return content_type
+
+
+@dataclasses.dataclass(frozen=True)
+class Artwork:
+    provider: str
+    provider_name: str
+    record_id: str
+    title: str
+    creator: str | None
+    date: str | None
+    attribution: str
+    rights: str | None
+    rights_url: str | None
+    source_url: str
+    image_url: str
+
+    def metadata(self, width: int, height: int) -> dict[str, Any]:
+        return {
+            "provider": self.provider,
+            "provider_name": self.provider_name,
+            "record_id": self.record_id,
+            "title": self.title,
+            "creator": self.creator,
+            "date": self.date,
+            "attribution": self.attribution,
+            "rights": self.rights,
+            "rights_url": self.rights_url,
+            "source_url": self.source_url,
+            "image_url": self.image_url,
+            "downloaded": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+            "width": width,
+            "height": height,
+        }
+
+
+@dataclasses.dataclass(frozen=True)
+class Candidate:
+    artwork: Artwork
+    state_update: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
+class GoogleProvider:
+    name = "google"
+    endpoint = "https://www.gstatic.com/culturalinstitute/tabext/imax_2_2.json"
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    def select(self, state: Mapping[str, Any]) -> Candidate:
+        del state
+        records = self.http.get_json(self.endpoint)
+        if not isinstance(records, list) or not records:
+            raise ProviderError("Google Arts returned no artwork records")
+        records = list(records)
+        self.rng.shuffle(records)
+        for record in records[:25]:
+            if not isinstance(record, Mapping):
+                continue
+            image_base = clean_text(record.get("image"))
+            link = clean_text(record.get("link"))
+            title = clean_text(record.get("title"))
+            if not image_base or not link or not title:
+                continue
+            source_url = urllib.parse.urljoin(
+                "https://artsandculture.google.com/", link
+            )
+            return Candidate(
+                Artwork(
+                    provider=self.name,
+                    provider_name="Google Arts & Culture",
+                    record_id=link.rstrip("/").split("/")[-1],
+                    title=title,
+                    creator=clean_text(record.get("creator")),
+                    date=None,
+                    attribution=clean_text(record.get("attribution"))
+                    or "Google Arts & Culture",
+                    rights=None,
+                    rights_url=None,
+                    source_url=source_url,
+                    image_url=f"{image_base}=s{TARGET_WIDTH}-rw",
+                )
+            )
+        raise ProviderError("Google Arts returned no usable artwork record")
+
+
+class ClevelandProvider:
+    name = "cleveland"
+    endpoint = "https://openaccess-api.clevelandart.org/api/artworks"
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    @staticmethod
+    def _params(skip: int) -> list[tuple[str, Any]]:
+        return [("cc0", ""), ("has_image", 1), ("limit", 1), ("skip", skip)]
+
+    def select(self, state: Mapping[str, Any]) -> Candidate:
+        del state
+        overview = self.http.get_json(self.endpoint, self._params(skip=0))
+        try:
+            total = int(overview["info"]["total"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(
+                "Cleveland response did not include a result total"
+            ) from exc
+        if total < 1:
+            raise ProviderError("Cleveland returned no CC0 artworks with images")
+
+        for _ in range(16):
+            response = self.http.get_json(
+                self.endpoint, self._params(skip=self.rng.randrange(total))
+            )
+            records = response.get("data") if isinstance(response, Mapping) else None
+            if (
+                not isinstance(records, list)
+                or not records
+                or not isinstance(records[0], Mapping)
+            ):
+                continue
+            record = records[0]
+            if clean_text(record.get("share_license_status")) != "CC0":
+                continue
+            if not is_flat_art(record.get("type"), record.get("classification")):
+                continue
+            images = record.get("images")
+            image_url = None
+            if isinstance(images, Mapping):
+                for rendition in ("print", "web"):
+                    image = images.get(rendition)
+                    if isinstance(image, Mapping):
+                        image_url = clean_text(image.get("url"))
+                    if image_url:
+                        break
+            title = clean_text(record.get("title"))
+            if not image_url or not title:
+                continue
+            creators = record.get("creators")
+            creator_names: list[str] = []
+            if isinstance(creators, list):
+                for creator in creators:
+                    if isinstance(creator, Mapping):
+                        description = clean_text(creator.get("description"))
+                        if description:
+                            creator_names.append(description)
+            record_id = clean_text(record.get("accession_number")) or str(
+                record.get("id")
+            )
+            return Candidate(
+                Artwork(
+                    provider=self.name,
+                    provider_name="Cleveland Museum of Art",
+                    record_id=record_id,
+                    title=title,
+                    creator="; ".join(creator_names) or None,
+                    date=clean_text(record.get("creation_date")),
+                    attribution="Cleveland Museum of Art",
+                    rights="CC0 1.0",
+                    rights_url="https://creativecommons.org/publicdomain/zero/1.0/",
+                    source_url=clean_text(record.get("url"))
+                    or f"https://www.clevelandart.org/art/{urllib.parse.quote(record_id)}",
+                    image_url=image_url,
+                )
+            )
+        raise ProviderError("Cleveland did not return a usable flat CC0 artwork")
+
+
+def rijks_data_url(identifier: str) -> str:
+    parts = urllib.parse.urlsplit(identifier)
+    if parts.scheme != "https" or parts.hostname not in {
+        "id.rijksmuseum.nl",
+        "data.rijksmuseum.nl",
+    }:
+        raise ProviderError(f"unexpected Rijksmuseum identifier: {identifier}")
+    return urllib.parse.urlunsplit(("https", "data.rijksmuseum.nl", parts.path, "", ""))
+
+
+def find_nested_values(value: Any, wanted_key: str) -> list[Any]:
+    found: list[Any] = []
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if key == wanted_key:
+                found.append(nested)
+            if isinstance(nested, (Mapping, list, tuple)):
+                found.extend(find_nested_values(nested, wanted_key))
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            found.extend(find_nested_values(nested, wanted_key))
+    return found
+
+
+def first_mapping(value: Any) -> Mapping[str, Any] | None:
+    if isinstance(value, Mapping):
+        return value
+    if isinstance(value, list):
+        return next((entry for entry in value if isinstance(entry, Mapping)), None)
+    return None
+
+
+class RijksmuseumProvider:
+    name = "rijksmuseum"
+    search_endpoint = "https://data.rijksmuseum.nl/search/collection"
+    artwork_types = ("painting", "drawing", "print", "photograph")
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    def _page_url(self, state: Mapping[str, Any], artwork_type: str) -> str:
+        provider_state = state.get(self.name)
+        if isinstance(provider_state, Mapping):
+            type_state = provider_state.get(artwork_type)
+            if isinstance(type_state, Mapping):
+                saved = clean_text(type_state.get("next"))
+                if saved:
+                    parts = urllib.parse.urlsplit(saved)
+                    if (
+                        parts.scheme == "https"
+                        and parts.hostname == "data.rijksmuseum.nl"
+                        and parts.path == "/search/collection"
+                    ):
+                        return saved
+        return append_query(
+            self.search_endpoint,
+            {"imageAvailable": "true", "type": artwork_type},
+        )
+
+    @staticmethod
+    def _object_number(record: Mapping[str, Any]) -> str | None:
+        identifiers = record.get("identified_by")
+        if not isinstance(identifiers, list):
+            return None
+        fallback = None
+        for identifier in identifiers:
+            if not isinstance(identifier, Mapping):
+                continue
+            content = clean_text(identifier.get("content"))
+            if not content:
+                continue
+            fallback = fallback or content
+            classifications = identifier.get("classified_as")
+            if isinstance(classifications, list) and any(
+                isinstance(entry, Mapping)
+                and clean_text(entry.get("id")) == "https://id.rijksmuseum.nl/22015218"
+                for entry in classifications
+            ):
+                return content
+        return fallback
+
+    @staticmethod
+    def _record_creator(record: Mapping[str, Any]) -> str | None:
+        values = find_nested_values(record.get("produced_by"), "carried_out_by")
+        labels: list[str] = []
+        for value in values:
+            entries = value if isinstance(value, list) else [value]
+            for entry in entries:
+                if not isinstance(entry, Mapping):
+                    continue
+                notation = entry.get("notation")
+                notation_entries = notation if isinstance(notation, list) else []
+                english = next(
+                    (
+                        clean_text(note.get("@value"))
+                        for note in notation_entries
+                        if isinstance(note, Mapping) and note.get("@language") == "en"
+                    ),
+                    None,
+                )
+                fallback = next(
+                    (
+                        clean_text(note.get("@value"))
+                        for note in notation_entries
+                        if isinstance(note, Mapping) and clean_text(note.get("@value"))
+                    ),
+                    None,
+                )
+                label = english or clean_text(entry.get("_label")) or fallback
+                if label and label not in labels:
+                    labels.append(label)
+        return "; ".join(labels) or None
+
+    @staticmethod
+    def _record_title(record: Mapping[str, Any]) -> str | None:
+        identifiers = record.get("identified_by")
+        choices: list[tuple[int, int, str]] = []
+        if isinstance(identifiers, list):
+            for identifier in identifiers:
+                if (
+                    not isinstance(identifier, Mapping)
+                    or identifier.get("type") != "Name"
+                ):
+                    continue
+                content = clean_text(identifier.get("content"))
+                if not content:
+                    continue
+                classifications = identifier.get("classified_as")
+                classification_ids = (
+                    {
+                        clean_text(entry.get("id"))
+                        for entry in classifications
+                        if isinstance(entry, Mapping)
+                    }
+                    if isinstance(classifications, list)
+                    else set()
+                )
+                if "https://id.rijksmuseum.nl/22015528" in classification_ids:
+                    continue
+                languages = identifier.get("language")
+                is_english = isinstance(languages, list) and any(
+                    isinstance(language, Mapping)
+                    and clean_text(language.get("id"))
+                    == "http://vocab.getty.edu/aat/300388277"
+                    for language in languages
+                )
+                is_brief = "http://vocab.getty.edu/aat/300417207" in classification_ids
+                is_current = (
+                    "http://vocab.getty.edu/aat/300417200" in classification_ids
+                )
+                if is_english and is_brief:
+                    priority = 0
+                elif is_english and is_current:
+                    priority = 1
+                elif is_brief:
+                    priority = 2
+                elif is_current:
+                    priority = 3
+                else:
+                    priority = 4
+                choices.append((priority, len(content), content))
+        if choices:
+            return min(choices)[2]
+        return clean_text(record.get("_label")) or clean_text(record.get("label"))
+
+    @staticmethod
+    def _record_date(record: Mapping[str, Any]) -> str | None:
+        for value in find_nested_values(record.get("produced_by"), "timespan"):
+            labels = list(iter_text(value))
+            if labels:
+                return labels[0]
+        return None
+
+    def _resolve(self, object_identifier: str, artwork_type: str) -> Artwork:
+        object_url = rijks_data_url(object_identifier)
+        record = self.http.get_json(object_url, {"_profile": "la-framed"})
+        if not isinstance(record, Mapping):
+            raise ProviderError("Rijksmuseum object record was not an object")
+
+        visual = first_mapping(record.get("shows"))
+        visual_id = clean_text(visual.get("id")) if visual else None
+        if not visual_id:
+            raise ProviderError("Rijksmuseum object had no visual item")
+        visual_record = self.http.get_json(
+            rijks_data_url(visual_id), {"_profile": "la-framed"}
+        )
+        if not isinstance(visual_record, Mapping):
+            raise ProviderError("Rijksmuseum visual record was not an object")
+
+        digital = first_mapping(visual_record.get("digitally_shown_by"))
+        digital_id = clean_text(digital.get("id")) if digital else None
+        if not digital_id:
+            raise ProviderError("Rijksmuseum visual item had no digital object")
+        digital_record = self.http.get_json(
+            rijks_data_url(digital_id), {"_profile": "la-framed"}
+        )
+        if not isinstance(digital_record, Mapping):
+            raise ProviderError("Rijksmuseum digital record was not an object")
+
+        image_id = None
+        access_points = digital_record.get("access_point")
+        if isinstance(access_points, list):
+            for access_point in access_points:
+                if not isinstance(access_point, Mapping):
+                    continue
+                candidate = clean_text(access_point.get("id"))
+                if not candidate:
+                    continue
+                parts = urllib.parse.urlsplit(candidate)
+                if parts.scheme == "https" and parts.hostname == "iiif.micr.io":
+                    path_parts = [part for part in parts.path.split("/") if part]
+                    if path_parts:
+                        image_id = path_parts[0]
+                        break
+        if not image_id:
+            raise ProviderError("Rijksmuseum digital object had no Micrio IIIF image")
+
+        object_number = (
+            self._object_number(record) or object_url.rstrip("/").split("/")[-1]
+        )
+        title = self._record_title(record)
+        if not title:
+            raise ProviderError("Rijksmuseum object had no title")
+        return Artwork(
+            provider=self.name,
+            provider_name="Rijksmuseum",
+            record_id=object_number,
+            title=title,
+            creator=self._record_creator(record),
+            date=self._record_date(record),
+            attribution="Rijksmuseum, Amsterdam",
+            rights="Rijksmuseum open data policy",
+            rights_url="https://data.rijksmuseum.nl/",
+            source_url=(
+                "https://www.rijksmuseum.nl/en/collection/"
+                f"{urllib.parse.quote(object_number, safe='')}"
+            ),
+            image_url=f"https://iiif.micr.io/{image_id}/full/{TARGET_WIDTH},/0/default.webp",
+        )
+
+    def select(self, state: Mapping[str, Any]) -> Candidate:
+        artwork_type = self.rng.choice(self.artwork_types)
+        page = self.http.get_json(self._page_url(state, artwork_type))
+        if not isinstance(page, Mapping):
+            raise ProviderError("Rijksmuseum search response was not an object")
+        items = page.get("orderedItems")
+        if not isinstance(items, list) or not items:
+            raise ProviderError(f"Rijksmuseum returned no {artwork_type} records")
+        items = list(items)
+        self.rng.shuffle(items)
+        errors: list[str] = []
+        for item in items[:20]:
+            if not isinstance(item, Mapping):
+                continue
+            object_identifier = clean_text(item.get("id"))
+            if not object_identifier:
+                continue
+            try:
+                artwork = self._resolve(object_identifier, artwork_type)
+            except ProviderError as exc:
+                errors.append(str(exc))
+                continue
+            next_block = page.get("next")
+            next_url = (
+                clean_text(next_block.get("id"))
+                if isinstance(next_block, Mapping)
+                else None
+            )
+            return Candidate(
+                artwork,
+                {self.name: {artwork_type: {"next": next_url}}},
+            )
+        detail = errors[-1] if errors else "no resolvable record"
+        raise ProviderError(f"Rijksmuseum page had no usable {artwork_type}: {detail}")
+
+
+def merge_state(state: Mapping[str, Any], update: Mapping[str, Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = copy.deepcopy(dict(state))
+
+    def merge(target: dict[str, Any], source: Mapping[str, Any]) -> None:
+        for key, value in source.items():
+            if isinstance(value, Mapping) and isinstance(target.get(key), Mapping):
+                nested = dict(target[key])
+                merge(nested, value)
+                target[key] = nested
+            else:
+                target[key] = copy.deepcopy(value)
+
+    merge(merged, update)
+    merged["version"] = 1
+    return merged
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"version": 1}
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        print(f"Warning: ignoring unreadable state file {path}: {exc}", file=sys.stderr)
+        return {"version": 1}
+    if not isinstance(state, dict):
+        print(f"Warning: ignoring invalid state file {path}", file=sys.stderr)
+        return {"version": 1}
+    return state
+
+
+def run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise WallpaperError(f"required command not found: {command[0]}") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        raise WallpaperError(f"command failed ({' '.join(command)}): {detail}") from exc
+
+
+def process_image(source: Path, destination: Path) -> tuple[int, int]:
+    run_command(
+        [
+            "magick",
+            str(source),
+            "-auto-orient",
+            "-resize",
+            f"{TARGET_WIDTH}x>",
+            "-strip",
+            "-quality",
+            "90",
+            str(destination),
+        ]
+    )
+    result = run_command(["magick", "identify", "-format", "%w %h", str(destination)])
+    try:
+        width, height = (int(part) for part in result.stdout.strip().split())
+    except (TypeError, ValueError) as exc:
+        raise WallpaperError("ImageMagick returned invalid image dimensions") from exc
+    if width < 1 or height < 1:
+        raise WallpaperError("processed wallpaper has invalid dimensions")
+    return width, height
+
+
+def write_json_temp(directory: Path, prefix: str, value: Mapping[str, Any]) -> Path:
+    descriptor, name = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=directory)
+    path = Path(name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            json.dump(value, output, ensure_ascii=False, indent=2, sort_keys=True)
+            output.write("\n")
+            output.flush()
+            os.fsync(output.fileno())
+        path.chmod(0o644)
+        return path
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+
+
+def publish(
+    data_dir: Path,
+    image: Path,
+    metadata: Mapping[str, Any],
+    state: Mapping[str, Any],
+) -> None:
+    metadata_temp = write_json_temp(data_dir, ".current-", metadata)
+    state_temp = write_json_temp(data_dir, ".state-", state)
+    image.chmod(0o644)
+    try:
+        os.replace(image, data_dir / "current.webp")
+        os.replace(metadata_temp, data_dir / "current.json")
+        os.replace(state_temp, data_dir / "state.json")
+    finally:
+        metadata_temp.unlink(missing_ok=True)
+        state_temp.unlink(missing_ok=True)
+
+
+T = TypeVar("T")
+
+
+def first_success(names: Sequence[str], attempt: Callable[[str], T]) -> T:
+    errors: dict[str, str] = {}
+    for name in names:
+        try:
+            return attempt(name)
+        except (WallpaperError, OSError, ValueError, KeyError) as exc:
+            errors[name] = str(exc)
+            print(f"Provider {name} failed: {exc}", file=sys.stderr)
+    raise AllProvidersError(errors)
+
+
+@dataclasses.dataclass
+class StagedArtwork:
+    candidate: Candidate
+    image: Path
+    width: int
+    height: int
+    temporary_directory: Path
+
+
+def stage_provider(
+    name: str,
+    providers: Mapping[str, Any],
+    state: Mapping[str, Any],
+    http: HTTPClientProtocol,
+    data_dir: Path,
+) -> StagedArtwork:
+    temporary_directory = Path(tempfile.mkdtemp(prefix=f".{name}-", dir=data_dir))
+    try:
+        candidate = providers[name].select(state)
+        source = temporary_directory / "download"
+        processed = temporary_directory / "wallpaper.webp"
+        http.download(candidate.artwork.image_url, source)
+        width, height = process_image(source, processed)
+        return StagedArtwork(candidate, processed, width, height, temporary_directory)
+    except Exception:
+        shutil.rmtree(temporary_directory, ignore_errors=True)
+        raise
+
+
+def provider_order(requested: str, rng: random.Random) -> list[str]:
+    if requested != "auto":
+        return [requested]
+    names = list(PROVIDER_NAMES)
+    rng.shuffle(names)
+    return names
+
+
+def default_data_dir() -> Path:
+    override = os.environ.get("ARTS_WALLPAPER_DATA_DIR")
+    return (
+        Path(override).expanduser()
+        if override
+        else Path.home() / ".local/share/arts-wallpaper"
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--provider",
+        choices=("auto",) + PROVIDER_NAMES,
+        default="auto",
+        help="force one provider; auto randomly orders all providers (default: auto)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="fetch and validate without publishing, changing state, or restarting Hyprpaper",
+    )
+    parser.add_argument(
+        "--no-restart",
+        action="store_true",
+        help="publish the wallpaper without restarting hyprpaper.service",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    data_dir = default_data_dir()
+    data_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
+    lock_path = data_dir / ".lock"
+
+    with lock_path.open("a", encoding="utf-8") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Another arts-wallpaper update is already running", file=sys.stderr)
+            return 1
+
+        rng = random.SystemRandom()
+        state_path = data_dir / "state.json"
+        state = load_state(state_path)
+        http = HTTPClient()
+        providers = {
+            "google": GoogleProvider(http, rng),
+            "rijksmuseum": RijksmuseumProvider(http, rng),
+            "cleveland": ClevelandProvider(http, rng),
+        }
+        order = provider_order(args.provider, rng)
+        print(f"Provider order: {', '.join(order)}")
+
+        staged: StagedArtwork | None = None
+        try:
+            staged = first_success(
+                order,
+                lambda name: stage_provider(name, providers, state, http, data_dir),
+            )
+            metadata = staged.candidate.artwork.metadata(staged.width, staged.height)
+            if args.dry_run:
+                print(
+                    json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True)
+                )
+                return 0
+
+            updated_state = merge_state(state, staged.candidate.state_update)
+            publish(data_dir, staged.image, metadata, updated_state)
+            artwork = staged.candidate.artwork
+            print(f"Published: {artwork.title} — {artwork.creator or 'Unknown artist'}")
+            print(f"Provider: {artwork.provider_name}")
+            print(f"Source: {artwork.source_url}")
+        except WallpaperError as exc:
+            print(f"Wallpaper update failed: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            if staged is not None:
+                shutil.rmtree(staged.temporary_directory, ignore_errors=True)
+
+        if not args.no_restart:
+            try:
+                run_command(["systemctl", "--user", "restart", "hyprpaper.service"])
+            except WallpaperError as exc:
+                print(
+                    f"Wallpaper published but Hyprpaper restart failed: {exc}",
+                    file=sys.stderr,
+                )
+                return 1
+            print("Hyprpaper restarted successfully")
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

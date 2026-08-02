@@ -1,5 +1,4 @@
--- Inactive Hyprland Lua migration candidate.
--- Keep this outside ~/.config/hypr/hyprland.lua until it has been tested from a TTY.
+-- Hyprland Lua configuration, managed by chezmoi.
 
 ----------------
 -- Monitors
@@ -20,11 +19,15 @@ local screenshot = [[grim -g "$(slurp)" - | wl-copy]]
 local mainMod = "SUPER"
 
 ----------------
--- Session Ownership
+-- Autostart
 ----------------
 
--- Graphical session services are owned by UWSM/systemd user units in this setup.
--- This candidate intentionally does not duplicate those services with hl.exec_cmd.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("uwsm app -- nm-applet")
+    hl.exec_cmd("uwsm app -- /opt/1Password/1password --silent")
+    hl.exec_cmd("uwsm app -- bitwarden-desktop")
+    hl.exec_cmd("uwsm app -- tailscale systray")
+end)
 
 ----------------
 -- Environment
@@ -144,8 +147,8 @@ hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"))
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.window.move({ monitor = "+1" }))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("/home/vitorpy/.config/hypr/next_free_ws.sh"))
 
-hl.bind(mainMod .. " + left", hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mainMod .. " + right", hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mainMod .. " + left", hl.dsp.focus({ workspace = "r-1" }))
+hl.bind(mainMod .. " + right", hl.dsp.focus({ workspace = "r+1" }))
 
 for i = 1, 10 do
     local key = i % 10

@@ -145,7 +145,7 @@ hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"))
 
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.window.move({ monitor = "+1" }))
-hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("/home/vitorpy/.config/hypr/next_free_ws.sh"))
+hl.bind(mainMod .. " + SHIFT + M", hl.dsp.window.move({ workspace = "emptynm", follow = true }))
 
 hl.bind(mainMod .. " + left", hl.dsp.focus({ workspace = "r-1" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ workspace = "r+1" }))

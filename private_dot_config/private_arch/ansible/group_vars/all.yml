@@ -217,6 +217,7 @@ arch_pacman_packages_hyprland:
 
 arch_pacman_packages_multimedia:
   - ffmpeg
+  - gimp
   - libva-utils
   - mesa
   - spirv-headers

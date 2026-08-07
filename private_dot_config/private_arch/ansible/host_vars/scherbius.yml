@@ -9,6 +9,7 @@ arch_host_pacman_packages_extra:
 arch_host_system_services_extra:
   - tailscaled
 arch_host_firewall_allowed_udp_ports_extra:
+  - 3334
   - 41641
 arch_host_firewall_trusted_interfaces_extra:
   - tailscale0
@@ -25,8 +26,19 @@ arch_hosts_entries:
   - "2a01:4f9:5a:2618::2 scherbius.vitorpy.com scherbius"
 
 arch_host_firewall_allowed_tcp_ports_extra:
+  - 3334
   - 4000
   - 8081
+
+arch_bitmagnet_enabled: true
+arch_bitmagnet_build_patched_image: true
+arch_bitmagnet_image: "{{ arch_bitmagnet_patched_image }}"
+arch_bitmagnet_http_bind: 100.125.115.90
+arch_bitmagnet_container_bittorrent_port: 3335
+arch_bitmagnet_dht_bootstrap_nodes:
+  - 87.98.162.88:6881
+  - 212.129.33.59:6881
+  - 185.157.221.247:25401
 
 arch_nginx_managed_confs:
   - name: atproto-bot-webhook.conf

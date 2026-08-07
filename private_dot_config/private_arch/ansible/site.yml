@@ -16,6 +16,10 @@
     - role: packages
     - role: security
     - role: services
+    - role: bitmagnet
+      when: arch_bitmagnet_enabled | default(false) | bool
+      tags:
+        - bitmagnet
     - role: desktop
       when: arch_desktop_enabled | bool
     - role: ly

@@ -149,6 +149,8 @@
     validate: /usr/bin/nft -c -f %s
   when: arch_firewall_enabled | bool
   notify: Reload nftables
+  tags:
+    - firewall
 
 - name: Ensure polkit rules directory exists
   ansible.builtin.file:

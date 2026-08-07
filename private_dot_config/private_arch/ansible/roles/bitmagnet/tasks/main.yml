@@ -1,0 +1,392 @@
+---
+- name: Validate BitMagnet network boundaries
+  ansible.builtin.assert:
+    that:
+      - arch_bitmagnet_http_bind | length > 0
+      - arch_bitmagnet_http_bind not in ['0.0.0.0', '::', '[::]']
+      - arch_bitmagnet_http_port | int not in [80, 443]
+      - arch_bitmagnet_bittorrent_port | int not in [80, 443]
+      - arch_bitmagnet_container_bittorrent_port | int not in [80, 443]
+      - arch_bitmagnet_disk_warning_percent | int >= 1
+      - arch_bitmagnet_disk_warning_percent | int <= 99
+      - >-
+        not arch_bitmagnet_build_patched_image | bool
+        or arch_bitmagnet_image == arch_bitmagnet_patched_image
+    fail_msg: >-
+      BitMagnet must keep its HTTP API private and must not overlap nginx
+      ports.
+
+- name: Read BitMagnet user UID
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ arch_bitmagnet_user }}"
+  register: bitmagnet_user_uid_command
+  changed_when: false
+  check_mode: false
+
+- name: Record BitMagnet user runtime paths
+  ansible.builtin.set_fact:
+    bitmagnet_user_uid: "{{ bitmagnet_user_uid_command.stdout }}"
+    bitmagnet_user_runtime_dir: >-
+      /run/user/{{ bitmagnet_user_uid_command.stdout }}
+
+- name: Ensure BitMagnet directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ arch_bitmagnet_config_dir }}"
+      mode: "0700"
+    - path: "{{ arch_bitmagnet_config_dir }}/app"
+      mode: "0700"
+    - path: "{{ arch_bitmagnet_quadlet_dir }}"
+      mode: "0755"
+    - path: "{{ arch_bitmagnet_systemd_user_dir }}"
+      mode: "0755"
+    - path: "{{ arch_bitmagnet_data_dir }}"
+      mode: "0750"
+    - path: "{{ arch_bitmagnet_home }}/.local/bin"
+      mode: "0755"
+
+- name: Keep the BitMagnet user manager running after logout
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - "{{ arch_bitmagnet_user }}"
+    creates: "/var/lib/systemd/linger/{{ arch_bitmagnet_user }}"
+
+- name: Ensure the patched BitMagnet build directory exists
+  ansible.builtin.file:
+    path: "{{ arch_bitmagnet_build_dir }}"
+    state: directory
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0700"
+  when: arch_bitmagnet_build_patched_image | bool
+
+- name: Install the patched BitMagnet Containerfile
+  ansible.builtin.template:
+    src: Containerfile.j2
+    dest: "{{ arch_bitmagnet_build_dir }}/Containerfile"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0600"
+  register: bitmagnet_patched_containerfile
+  when: arch_bitmagnet_build_patched_image | bool
+
+- name: Install the BitMagnet IPv4 unmap patch
+  ansible.builtin.copy:
+    src: dht-ipv4-unmap.patch
+    dest: "{{ arch_bitmagnet_build_dir }}/dht-ipv4-unmap.patch"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0600"
+  register: bitmagnet_ipv4_unmap_patch
+  when: arch_bitmagnet_build_patched_image | bool
+
+- name: Check for the patched BitMagnet image
+  ansible.builtin.command:
+    argv:
+      - podman
+      - image
+      - exists
+      - "{{ arch_bitmagnet_patched_image }}"
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+  register: bitmagnet_patched_image_check
+  changed_when: false
+  failed_when: bitmagnet_patched_image_check.rc not in [0, 1]
+  check_mode: false
+  when: arch_bitmagnet_build_patched_image | bool
+
+- name: Build the patched BitMagnet image
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - "{{ arch_bitmagnet_patched_image }}"
+      - --file
+      - "{{ arch_bitmagnet_build_dir }}/Containerfile"
+      - "{{ arch_bitmagnet_build_dir }}"
+    chdir: "{{ arch_bitmagnet_build_dir }}"
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+  register: bitmagnet_patched_image_build
+  changed_when: true
+  when:
+    - arch_bitmagnet_build_patched_image | bool
+    - not ansible_check_mode
+    - >-
+      (bitmagnet_patched_image_check.rc | default(1)) != 0
+      or bitmagnet_patched_containerfile.changed | default(false)
+      or bitmagnet_ipv4_unmap_patch.changed | default(false)
+
+- name: Check for an existing BitMagnet PostgreSQL secret
+  ansible.builtin.stat:
+    path: "{{ arch_bitmagnet_config_dir }}/postgres.env"
+  register: bitmagnet_postgres_env_stat
+
+- name: Generate the initial BitMagnet PostgreSQL password
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - rand
+      - -hex
+      - "32"
+  register: bitmagnet_postgres_password
+  changed_when: true
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - not bitmagnet_postgres_env_stat.stat.exists
+
+- name: Store the BitMagnet PostgreSQL password
+  ansible.builtin.copy:
+    dest: "{{ arch_bitmagnet_config_dir }}/postgres.env"
+    content: "POSTGRES_PASSWORD={{ bitmagnet_postgres_password.stdout }}\n"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0600"
+  register: bitmagnet_postgres_env
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - not bitmagnet_postgres_env_stat.stat.exists
+
+- name: Read the existing TMDB environment from its source host
+  ansible.builtin.slurp:
+    src: "{{ arch_bitmagnet_tmdb_source_env_file }}"
+  delegate_to: >-
+    {{
+      arch_bitmagnet_tmdb_source_host
+      if arch_bitmagnet_tmdb_source_host | length > 0
+      else inventory_hostname
+    }}
+  register: bitmagnet_tmdb_source_env
+  no_log: true
+  when: arch_bitmagnet_tmdb_source_host | length > 0
+
+- name: Extract the existing TMDB API key
+  ansible.builtin.set_fact:
+    bitmagnet_tmdb_api_key: >-
+      {{
+        (
+          bitmagnet_tmdb_source_env.content
+          | b64decode
+        ).splitlines()
+        | select('match', '^TMDB_API_KEY=')
+        | map('regex_replace', '^TMDB_API_KEY=', '')
+        | first
+        | default('')
+      }}
+  no_log: true
+  when: arch_bitmagnet_tmdb_source_host | length > 0
+
+- name: Require a nonempty TMDB API key
+  ansible.builtin.assert:
+    that:
+      - bitmagnet_tmdb_api_key | length > 0
+    fail_msg: >-
+      The source TMDB environment does not contain a nonempty TMDB_API_KEY.
+  no_log: true
+  when: arch_bitmagnet_tmdb_source_host | length > 0
+
+- name: Store the BitMagnet TMDB API key
+  ansible.builtin.copy:
+    dest: "{{ arch_bitmagnet_config_dir }}/tmdb.env"
+    content: "TMDB_API_KEY={{ bitmagnet_tmdb_api_key }}\n"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0600"
+  register: bitmagnet_tmdb_env
+  no_log: true
+  when: arch_bitmagnet_tmdb_source_host | length > 0
+
+- name: Install the BitMagnet Podman network Quadlet
+  ansible.builtin.template:
+    src: bitmagnet.network.j2
+    dest: "{{ arch_bitmagnet_quadlet_dir }}/bitmagnet.network"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_network_quadlet
+
+- name: Install the BitMagnet PostgreSQL volume Quadlet
+  ansible.builtin.template:
+    src: bitmagnet-postgres.volume.j2
+    dest: "{{ arch_bitmagnet_quadlet_dir }}/bitmagnet-postgres.volume"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_postgres_volume_quadlet
+
+- name: Install the BitMagnet PostgreSQL container Quadlet
+  ansible.builtin.template:
+    src: bitmagnet-postgres.container.j2
+    dest: "{{ arch_bitmagnet_quadlet_dir }}/bitmagnet-postgres.container"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_postgres_quadlet
+
+- name: Install the BitMagnet application container Quadlet
+  ansible.builtin.template:
+    src: bitmagnet.container.j2
+    dest: "{{ arch_bitmagnet_quadlet_dir }}/bitmagnet.container"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_app_quadlet
+
+- name: Install the BitMagnet disk monitor
+  ansible.builtin.template:
+    src: bitmagnet-disk-monitor.j2
+    dest: "{{ arch_bitmagnet_home }}/.local/bin/bitmagnet-disk-monitor"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0755"
+  register: bitmagnet_disk_monitor_script
+
+- name: Install the BitMagnet disk monitor user service
+  ansible.builtin.template:
+    src: bitmagnet-disk-monitor.service.j2
+    dest: "{{ arch_bitmagnet_systemd_user_dir }}/bitmagnet-disk-monitor.service"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_disk_monitor_service
+
+- name: Install the BitMagnet disk monitor user timer
+  ansible.builtin.template:
+    src: bitmagnet-disk-monitor.timer.j2
+    dest: "{{ arch_bitmagnet_systemd_user_dir }}/bitmagnet-disk-monitor.timer"
+    owner: "{{ arch_bitmagnet_user }}"
+    group: "{{ arch_bitmagnet_user }}"
+    mode: "0644"
+  register: bitmagnet_disk_monitor_timer
+
+- name: Compute BitMagnet restart requirements
+  ansible.builtin.set_fact:
+    bitmagnet_infrastructure_changed: >-
+      {{
+        bitmagnet_network_quadlet.changed
+        or bitmagnet_postgres_volume_quadlet.changed
+        or bitmagnet_postgres_quadlet.changed
+        or bitmagnet_postgres_env.changed | default(false)
+      }}
+    bitmagnet_application_changed: >-
+      {{
+        bitmagnet_app_quadlet.changed
+        or bitmagnet_tmdb_env.changed | default(false)
+        or bitmagnet_patched_image_build.changed | default(false)
+      }}
+
+- name: Reload the BitMagnet user service manager
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path={{ bitmagnet_user_runtime_dir }}/bus"
+  when: not ansible_check_mode
+
+- name: Start the BitMagnet PostgreSQL service
+  ansible.builtin.systemd_service:
+    name: bitmagnet-postgres.service
+    scope: user
+    state: >-
+      {{
+        'restarted'
+        if bitmagnet_infrastructure_changed | bool
+        else 'started'
+      }}
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path={{ bitmagnet_user_runtime_dir }}/bus"
+  when: not ansible_check_mode
+
+- name: Start the BitMagnet application service
+  ansible.builtin.systemd_service:
+    name: bitmagnet.service
+    scope: user
+    state: >-
+      {{
+        'restarted'
+        if (
+          bitmagnet_infrastructure_changed | bool
+          or bitmagnet_application_changed | bool
+        )
+        else 'started'
+      }}
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path={{ bitmagnet_user_runtime_dir }}/bus"
+  when: not ansible_check_mode
+
+- name: Enable the BitMagnet disk monitor timer
+  ansible.builtin.systemd_service:
+    name: bitmagnet-disk-monitor.timer
+    scope: user
+    enabled: true
+    state: started
+  become: true
+  become_user: "{{ arch_bitmagnet_user }}"
+  environment:
+    HOME: "{{ arch_bitmagnet_home }}"
+    XDG_RUNTIME_DIR: "{{ bitmagnet_user_runtime_dir }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path={{ bitmagnet_user_runtime_dir }}/bus"
+  when: not ansible_check_mode
+
+- name: Wait for the private BitMagnet status endpoint
+  ansible.builtin.uri:
+    url: >-
+      http://{{ arch_bitmagnet_http_bind }}:{{ arch_bitmagnet_http_port
+      }}/status
+    method: GET
+    status_code: 200
+    return_content: false
+  register: bitmagnet_status_check
+  retries: 30
+  delay: 2
+  until: bitmagnet_status_check.status == 200
+  when: not ansible_check_mode
+
+- name: Wait for a successful BitMagnet DHT bootstrap query
+  ansible.builtin.uri:
+    url: >-
+      http://{{ arch_bitmagnet_http_bind }}:{{ arch_bitmagnet_http_port
+      }}/metrics
+    method: GET
+    status_code: 200
+    return_content: true
+  register: bitmagnet_dht_metrics_check
+  retries: 30
+  delay: 2
+  until:
+    - bitmagnet_dht_metrics_check.status == 200
+    - >-
+      'bitmagnet_dht_server_query_success_total{query="ping"}'
+      in bitmagnet_dht_metrics_check.content
+  when: not ansible_check_mode

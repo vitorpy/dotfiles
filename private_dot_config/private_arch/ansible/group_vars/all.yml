@@ -66,6 +66,33 @@ arch_media_sorter_xai_model: grok-4.3
 arch_media_sorter_xai_timeout: 30
 arch_media_sorter_enabled: true
 arch_media_sorter_timer_enabled: true
+# BitMagnet DHT crawler (rootless Podman Quadlets). Off by default.
+arch_bitmagnet_enabled: false
+arch_bitmagnet_user: "{{ arch_primary_user }}"
+arch_bitmagnet_home: "{{ arch_primary_user_home }}"
+arch_bitmagnet_config_dir: "{{ arch_bitmagnet_home }}/.config/bitmagnet"
+arch_bitmagnet_quadlet_dir: >-
+  {{ arch_bitmagnet_home }}/.config/containers/systemd
+arch_bitmagnet_systemd_user_dir: >-
+  {{ arch_bitmagnet_home }}/.config/systemd/user
+arch_bitmagnet_data_dir: "{{ arch_bitmagnet_home }}/.local/share/bitmagnet"
+arch_bitmagnet_image: ghcr.io/bitmagnet-io/bitmagnet:v0.10.0
+arch_bitmagnet_postgres_image: docker.io/library/postgres:16-alpine
+arch_bitmagnet_build_patched_image: false
+arch_bitmagnet_build_dir: "{{ arch_bitmagnet_config_dir }}/build"
+arch_bitmagnet_patched_image: localhost/bitmagnet:v0.10.0-ipv4-unmap
+arch_bitmagnet_source_revision: 4d4042acdddfa1af05bfaf092a68c97b1e3698e2
+arch_bitmagnet_builder_image: docker.io/library/golang:1.23.6-alpine3.20
+arch_bitmagnet_runtime_image: >-
+  ghcr.io/bitmagnet-io/bitmagnet@sha256:4286148c8e9c579307bb73972a190c4702712b60ba1a16257fa9ef553e8c3412
+arch_bitmagnet_http_bind: 127.0.0.1
+arch_bitmagnet_http_port: 3333
+arch_bitmagnet_bittorrent_port: 3334
+arch_bitmagnet_container_bittorrent_port: 3334
+arch_bitmagnet_dht_bootstrap_nodes: []
+arch_bitmagnet_tmdb_source_host: ""
+arch_bitmagnet_tmdb_source_env_file: /etc/media-sorter/tmdb.env
+arch_bitmagnet_disk_warning_percent: 85
 # Frigate NVR (Podman Quadlet exception — not AUR). Off by default.
 arch_frigate_enabled: false
 arch_frigate_image: ghcr.io/blakeblackshear/frigate:stable

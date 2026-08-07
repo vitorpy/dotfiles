@@ -1,0 +1,28 @@
+FROM {{ arch_bitmagnet_builder_image }} AS build
+
+RUN apk --no-cache add gcc musl-dev git
+
+ARG BITMAGNET_SOURCE_REVISION={{ arch_bitmagnet_source_revision }}
+WORKDIR /build
+
+RUN git init . \
+    && git remote add origin https://github.com/bitmagnet-io/bitmagnet.git \
+    && git fetch --depth 1 origin "${BITMAGNET_SOURCE_REVISION}" \
+    && git checkout --detach FETCH_HEAD \
+    && test "$(git rev-parse HEAD)" = "${BITMAGNET_SOURCE_REVISION}"
+
+COPY dht-ipv4-unmap.patch /tmp/dht-ipv4-unmap.patch
+RUN git apply --unidiff-zero --check /tmp/dht-ipv4-unmap.patch \
+    && git apply --unidiff-zero /tmp/dht-ipv4-unmap.patch
+
+RUN go test ./internal/protocol/dht/server \
+    && go test ./... \
+    && go build -ldflags "-s -w -X github.com/bitmagnet-io/bitmagnet/internal/version.GitTag=v0.10.0-ipv4-unmap"
+
+FROM {{ arch_bitmagnet_runtime_image }}
+
+COPY --from=build /build/bitmagnet /usr/local/bin/bitmagnet
+
+LABEL org.opencontainers.image.revision="{{ arch_bitmagnet_source_revision }}" \
+      org.opencontainers.image.version="v0.10.0-ipv4-unmap" \
+      io.vitorpy.bitmagnet.patch="https://github.com/bitmagnet-io/bitmagnet/pull/510"

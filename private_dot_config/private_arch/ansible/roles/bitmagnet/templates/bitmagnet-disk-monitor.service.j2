@@ -1,0 +1,8 @@
+# Managed by Ansible.
+
+[Unit]
+Description=Check filesystem usage for BitMagnet growth
+
+[Service]
+Type=oneshot
+ExecStart={{ arch_bitmagnet_home }}/.local/bin/bitmagnet-disk-monitor

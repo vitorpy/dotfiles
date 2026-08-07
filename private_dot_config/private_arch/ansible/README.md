@@ -66,6 +66,52 @@ Before enabling it, set:
 
 This role manages `/etc/kernel/cmdline`, mkinitcpio hooks, UKI preset, `systemd-boot`, and optional `sbctl` signing.
 
+## BitMagnet Role
+
+The optional `bitmagnet` role runs BitMagnet and PostgreSQL as rootless Podman
+Quadlets for the primary user. It keeps the HTTP API bound to the configured
+private address while publishing only the BitTorrent/DHT port publicly. It does
+not create or modify an nginx virtual host, and PostgreSQL is reachable only on
+the private container network.
+
+Enable it in host variables with:
+
+```yaml
+arch_bitmagnet_enabled: true
+arch_bitmagnet_http_bind: 100.x.y.z
+```
+
+`arch_bitmagnet_dht_bootstrap_nodes` can provide an explicit list of bootstrap
+endpoints when the upstream hostname defaults are not reachable. An empty list
+keeps the upstream defaults.
+
+BitMagnet v0.10.0 has an upstream IPv4-mapped address bug that prevents DHT
+bootstrap on affected hosts. With `arch_bitmagnet_build_patched_image: true`,
+the role builds a local image from the exact v0.10.0 release commit, applies the
+focused fix and regression test from upstream PR 510, and runs the full Go test
+suite during the image build. The final runtime layer is pinned by digest.
+
+Rootless Podman may not return DHT replies when the published host port and the
+container's UDP source port are identical. Set
+`arch_bitmagnet_container_bittorrent_port` to a different internal port; the
+role configures `DHT_SERVER_PORT` and preserves the public host port through the
+Quadlet mapping.
+
+If `arch_bitmagnet_tmdb_source_host` is set, the role copies only a v3
+`TMDB_API_KEY` from that host and stores it in a mode-`0600` runtime environment
+file. If it is unset, BitMagnet uses its built-in shared key. TMDB v4 bearer
+tokens such as `TMDB_API_TOKEN` are not compatible with BitMagnet v0.10.0.
+
+The PostgreSQL password is generated on the destination host and is never
+committed. An hourly user timer warns in the journal when root filesystem usage
+reaches `arch_bitmagnet_disk_warning_percent`.
+
+To roll back the running service without changing nginx, stop
+`bitmagnet.service`, `bitmagnet-postgres.service`, and
+`bitmagnet-disk-monitor.timer` in the primary user's systemd manager. Remove the
+Quadlets only after deciding whether the `bitmagnet-postgres` volume should be
+retained or deleted.
+
 ## Open Gaps
 
 - Password prompting is intentionally left out.

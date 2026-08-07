@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage="$(df -P / | awk 'NR == 2 { sub(/%$/, "", $5); print $5 }')"
+
+if [[ ! "$usage" =~ ^[0-9]+$ ]]; then
+    printf 'Unable to determine root filesystem usage: %s\n' "$usage" >&2
+    exit 1
+fi
+
+if (( usage >= {{ arch_bitmagnet_disk_warning_percent | int }} )); then
+    printf 'BitMagnet disk warning: root filesystem usage is %s%% (threshold %s%%)\n' \
+        "$usage" "{{ arch_bitmagnet_disk_warning_percent | int }}" >&2
+fi

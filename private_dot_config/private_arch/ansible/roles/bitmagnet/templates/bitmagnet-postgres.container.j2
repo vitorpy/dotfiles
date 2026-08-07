@@ -1,0 +1,31 @@
+# Managed by Ansible.
+
+[Unit]
+Description=BitMagnet PostgreSQL database
+
+[Container]
+Image={{ arch_bitmagnet_postgres_image }}
+ContainerName=bitmagnet-postgres
+Network=bitmagnet.network
+NetworkAlias=postgres
+Volume=bitmagnet-postgres.volume:/var/lib/postgresql/data
+EnvironmentFile={{ arch_bitmagnet_config_dir }}/postgres.env
+Environment=POSTGRES_DB=bitmagnet
+Environment=PGUSER=postgres
+HealthCmd=pg_isready -U postgres -d bitmagnet
+HealthInterval=10s
+HealthRetries=12
+HealthStartPeriod=20s
+HealthOnFailure=kill
+Notify=healthy
+NoNewPrivileges=true
+ShmSize=1g
+LogDriver=journald
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

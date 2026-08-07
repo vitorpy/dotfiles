@@ -1,0 +1,38 @@
+# Managed by Ansible.
+
+[Unit]
+Description=BitMagnet DHT crawler and Torznab service
+Requires=bitmagnet-postgres.service
+After=bitmagnet-postgres.service
+
+[Container]
+Image={{ arch_bitmagnet_image }}
+ContainerName=bitmagnet
+Network=bitmagnet.network
+EnvironmentFile={{ arch_bitmagnet_config_dir }}/postgres.env
+{% if arch_bitmagnet_tmdb_source_host | length > 0 %}
+EnvironmentFile={{ arch_bitmagnet_config_dir }}/tmdb.env
+{% endif %}
+{% if arch_bitmagnet_dht_bootstrap_nodes | length > 0 %}
+Environment=DHT_CRAWLER_BOOTSTRAP_NODES={{ arch_bitmagnet_dht_bootstrap_nodes | join(',') }}
+{% endif %}
+Environment=DHT_SERVER_PORT={{ arch_bitmagnet_container_bittorrent_port }}
+Environment=POSTGRES_HOST=postgres
+Environment=POSTGRES_NAME=bitmagnet
+Environment=POSTGRES_USER=postgres
+Volume={{ arch_bitmagnet_config_dir }}/app:/root/.config/bitmagnet
+Volume={{ arch_bitmagnet_data_dir }}:/root/.local/share/bitmagnet
+PublishPort={{ arch_bitmagnet_http_bind }}:{{ arch_bitmagnet_http_port }}:3333/tcp
+PublishPort={{ arch_bitmagnet_bittorrent_port }}:{{ arch_bitmagnet_container_bittorrent_port }}/tcp
+PublishPort={{ arch_bitmagnet_bittorrent_port }}:{{ arch_bitmagnet_container_bittorrent_port }}/udp
+Exec=worker run --keys=http_server --keys=queue_server --keys=dht_crawler
+NoNewPrivileges=true
+LogDriver=journald
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

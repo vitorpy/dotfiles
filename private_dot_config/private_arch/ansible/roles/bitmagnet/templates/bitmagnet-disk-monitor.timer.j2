@@ -1,0 +1,13 @@
+# Managed by Ansible.
+
+[Unit]
+Description=Monitor BitMagnet filesystem growth hourly
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=1h
+Persistent=true
+Unit=bitmagnet-disk-monitor.service
+
+[Install]
+WantedBy=timers.target

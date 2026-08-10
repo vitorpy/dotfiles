@@ -8,6 +8,6 @@ ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/arts-wallpaper
+ExecStart=%h/.local/bin/arts-wallpaper rotate
 TimeoutStartSec=5min
 UMask=0022

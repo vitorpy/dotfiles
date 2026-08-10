@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch an artwork and publish it as the current Hyprpaper image."""
+"""Inspect or rotate the current artwork wallpaper."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -1018,31 +1018,110 @@ def default_data_dir() -> Path:
     )
 
 
+def load_current_metadata(path: Path) -> dict[str, Any]:
+    try:
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise WallpaperError(f"no current wallpaper metadata found at {path}") from exc
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise WallpaperError(f"could not read current wallpaper metadata at {path}: {exc}") from exc
+
+    if not isinstance(metadata, dict):
+        raise WallpaperError(f"invalid current wallpaper metadata at {path}: expected an object")
+
+    required_strings = (
+        "provider",
+        "provider_name",
+        "record_id",
+        "title",
+        "attribution",
+        "source_url",
+        "image_url",
+        "downloaded",
+    )
+    for key in required_strings:
+        value = metadata.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise WallpaperError(
+                f"invalid current wallpaper metadata at {path}: "
+                f"{key!r} must be a non-empty string"
+            )
+
+    for key in ("width", "height"):
+        value = metadata.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise WallpaperError(
+                f"invalid current wallpaper metadata at {path}: "
+                f"{key!r} must be a positive integer"
+            )
+
+    return metadata
+
+
+def format_current_metadata(metadata: Mapping[str, Any], wallpaper_path: Path) -> str:
+    fields: list[tuple[str, str]] = []
+
+    def add(label: str, value: Any) -> None:
+        if isinstance(value, str) and value.strip():
+            fields.append((label, value.strip()))
+
+    add("Title", metadata["title"])
+    add("Artist", metadata.get("creator"))
+    add("Date", metadata.get("date"))
+    add("Provider", metadata["provider_name"])
+    add("Credit", metadata["attribution"])
+    add("Rights", metadata.get("rights"))
+    add("Rights URL", metadata.get("rights_url"))
+    fields.append(("Dimensions", f"{metadata['width']}x{metadata['height']}"))
+    add("Downloaded", metadata["downloaded"])
+    add("Source", metadata["source_url"])
+    fields.append(("Wallpaper", str(wallpaper_path)))
+    return "\n".join(f"{label}: {value}" for label, value in fields)
+
+
+def show_current(data_dir: Path, as_json: bool) -> int:
+    metadata = load_current_metadata(data_dir / "current.json")
+    if as_json:
+        print(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_current_metadata(metadata, data_dir / "current.webp"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--json",
+        action="store_true",
+        help="print the current wallpaper's complete metadata as JSON",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
+    rotate_parser = subparsers.add_parser(
+        "rotate",
+        help="fetch and publish a new artwork wallpaper",
+        description="Fetch an artwork and publish it as the current Hyprpaper image.",
+    )
+    rotate_parser.add_argument(
         "--provider",
         choices=("auto",) + PROVIDER_NAMES,
         default="auto",
         help="force one provider; auto randomly orders all providers (default: auto)",
     )
-    parser.add_argument(
+    rotate_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="fetch and validate without publishing, changing state, or restarting Hyprpaper",
     )
-    parser.add_argument(
+    rotate_parser.add_argument(
         "--no-restart",
         action="store_true",
         help="publish the wallpaper without restarting hyprpaper.service",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    data_dir = default_data_dir()
+def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
     data_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
     lock_path = data_dir / ".lock"
 
@@ -1103,6 +1182,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1
             print("Hyprpaper restarted successfully")
         return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    data_dir = default_data_dir()
+
+    if args.command == "rotate":
+        if args.json:
+            parser.error("--json cannot be used with rotate")
+        return rotate_wallpaper(args, data_dir)
+
+    try:
+        return show_current(data_dir, args.json)
+    except WallpaperError as exc:
+        print(f"Current wallpaper lookup failed: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

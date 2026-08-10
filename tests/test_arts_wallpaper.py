@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import random
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 DEFAULT_SOURCE = (
     Path(__file__).resolve().parents[1]
@@ -21,6 +24,27 @@ assert SPEC is not None
 arts = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = arts
 LOADER.exec_module(arts)
+
+
+def sample_current_metadata(**overrides):
+    metadata = {
+        "provider": "masp",
+        "provider_name": "Museu de Arte de São Paulo Assis Chateaubriand (MASP)",
+        "record_id": "vestes",
+        "title": "Vestes",
+        "creator": "Gal Oppido",
+        "date": "1989",
+        "attribution": "MASP; photograph: Eduardo Ortega",
+        "rights": "Personal, non-distributed use",
+        "rights_url": "https://masp.org.br/acervo/intercambio",
+        "source_url": "https://masp.org.br/acervo/obra/vestes",
+        "image_url": "https://assets.masp.org.br/uploads/temp/vestes.jpg",
+        "downloaded": "2026-08-10T10:49:30+02:00",
+        "width": 2560,
+        "height": 3328,
+    }
+    metadata.update(overrides)
+    return metadata
 
 
 class FakeHTTP:
@@ -362,6 +386,142 @@ class CoreTests(unittest.TestCase):
             state_path = Path(directory) / "state.json"
             state_path.write_text("not json")
             self.assertEqual(arts.load_state(state_path), {"version": 1})
+
+
+class CliTests(unittest.TestCase):
+    def run_main(self, data_dir, argv):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"ARTS_WALLPAPER_DATA_DIR": str(data_dir)},
+            ),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            result = arts.main(argv)
+        return result, stdout.getvalue(), stderr.getvalue()
+
+    def test_bare_command_shows_human_current_info(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "current.json").write_text(
+                json.dumps(sample_current_metadata()),
+                encoding="utf-8",
+            )
+
+            result, stdout, stderr = self.run_main(root, [])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Title: Vestes\n", stdout)
+            self.assertIn("Artist: Gal Oppido\n", stdout)
+            self.assertIn("Date: 1989\n", stdout)
+            self.assertIn("Dimensions: 2560x3328\n", stdout)
+            self.assertIn(f"Wallpaper: {root / 'current.webp'}\n", stdout)
+
+    def test_human_output_omits_empty_optional_fields(self):
+        metadata = sample_current_metadata(
+            creator=None,
+            date="",
+            rights=None,
+            rights_url=None,
+        )
+        output = arts.format_current_metadata(metadata, Path("/tmp/current.webp"))
+        self.assertNotIn("Artist:", output)
+        self.assertNotIn("Date:", output)
+        self.assertNotIn("Rights:", output)
+        self.assertNotIn("Rights URL:", output)
+
+    def test_json_outputs_complete_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            metadata = sample_current_metadata(creator="Artista Exemplo")
+            (root / "current.json").write_text(
+                json.dumps(metadata),
+                encoding="utf-8",
+            )
+
+            result, stdout, stderr = self.run_main(root, ["--json"])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stderr, "")
+            self.assertEqual(json.loads(stdout), metadata)
+
+    def test_missing_metadata_does_not_create_data_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "missing"
+
+            result, stdout, stderr = self.run_main(root, [])
+
+            self.assertEqual(result, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("no current wallpaper metadata found", stderr)
+            self.assertFalse(root.exists())
+
+    def test_malformed_and_incomplete_metadata_fail(self):
+        fixtures = (
+            ("not json", "could not read current wallpaper metadata"),
+            (json.dumps(sample_current_metadata(title="")), "'title'"),
+        )
+        for content, expected in fixtures:
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "current.json").write_text(content, encoding="utf-8")
+
+                result, stdout, stderr = self.run_main(root, [])
+
+                self.assertEqual(result, 1)
+                self.assertEqual(stdout, "")
+                self.assertIn(expected, stderr)
+
+    def test_rotation_requires_explicit_command(self):
+        parser = arts.build_parser()
+        args = parser.parse_args(
+            [
+                "rotate",
+                "--provider",
+                "masp",
+                "--dry-run",
+                "--no-restart",
+            ]
+        )
+        self.assertEqual(args.command, "rotate")
+        self.assertEqual(args.provider, "masp")
+        self.assertTrue(args.dry_run)
+        self.assertTrue(args.no_restart)
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+            parser.parse_args(["--provider", "masp"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("error:", stderr.getvalue())
+        self.assertIn("rotate", stderr.getvalue())
+
+    def test_rotate_command_routes_to_rotation_workflow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(arts, "rotate_wallpaper", return_value=0) as rotate:
+                result, stdout, stderr = self.run_main(
+                    root,
+                    ["rotate", "--provider", "cleveland"],
+                )
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stdout, "")
+            self.assertEqual(stderr, "")
+            rotate.assert_called_once()
+            args, data_dir = rotate.call_args.args
+            self.assertEqual(args.provider, "cleveland")
+            self.assertEqual(data_dir, root)
+
+    def test_json_cannot_be_combined_with_rotate(self):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+            arts.main(["--json", "rotate"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("--json cannot be used with rotate", stderr.getvalue())
 
 
 if __name__ == "__main__":

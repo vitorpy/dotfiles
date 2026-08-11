@@ -18,7 +18,6 @@
     "cpu",
     "temperature",
     "custom/kblayout",
-    "custom/gmail",
     "tray",
     "custom/mako-dnd",
     "custom/mako-clear",
@@ -56,14 +55,14 @@
   "power-profiles-daemon": { "format": "{profile}" },
   "battery": {
     "format": "{capacity}% {icon}",
-    "format-icons": ["􀛪", "􀛩", "􀛨"],
+    "format-icons": ["􀛪", "􀛩", "􀺶", "􀺸", "􀛨"],
     "states": {
       "critical": 5,
       "warning": 10
     }
   },
   "battery#charging": {
-    "format-charging": "􀫮",
+    "format-charging": "􀢋",
     "format": "",
     "tooltip": false,
     "interval": 5
@@ -115,11 +114,5 @@
     "exec": "~/.config/waybar/scripts/reboot-required.sh",
     "interval": 300,
     "return-type": "json"
-  },
-  "custom/gmail": {
-    "exec": "/home/vitorpy/src/gmail-waybar/.venv/bin/gmail-waybar status",
-    "return-type": "json",
-    "interval": 300,
-    "on-click": "xdg-open https://mail.google.com"
   }
 }

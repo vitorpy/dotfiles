@@ -29,6 +29,17 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -- tailscale systray")
 end)
 
+local waybarReloadTimer = hl.timer(function()
+    hl.exec_cmd("systemctl --user reload waybar.service")
+end, { timeout = 1000, type = "oneshot" })
+
+waybarReloadTimer:set_enabled(false)
+
+hl.on("monitor.added", function()
+    waybarReloadTimer:set_enabled(false)
+    waybarReloadTimer:set_enabled(true)
+end)
+
 ----------------
 -- Environment
 ----------------

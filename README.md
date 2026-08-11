@@ -79,12 +79,15 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 ### Arts Wallpaper
 
 `~/.local/bin/arts-wallpaper` selects a random provider from Google Arts &
-Culture, Rijksmuseum, the Cleveland Museum of Art, and MASP. If the first
-provider fails, it tries the remaining providers before leaving the current
-wallpaper unchanged. Rijksmuseum and MASP progress is persisted so their
-collection pages advance through the available flat artwork over time. MASP
-uses the public JSON route behind its collection website and is configured for
-personal, non-distributed use with museum and photographer attribution.
+Culture, Rijksmuseum, the Cleveland Museum of Art, MASP, and Muzeum Narodowe w
+Warszawie (MNW). If the first provider fails, it tries the remaining providers
+before leaving the current wallpaper unchanged. Rijksmuseum and MASP progress
+is persisted so their collection pages advance through the available flat
+artwork over time. MASP uses the public JSON route behind its collection
+website and is configured for personal, non-distributed use with museum and
+photographer attribution. MNW uses its official digital-catalogue API and
+accepts only public-domain paintings, drawings, prints, and photographs with
+images.
 
 The user timer runs daily at 08:00 with up to five minutes of randomized delay,
 and one minute after boot when needed:
@@ -97,10 +100,11 @@ journalctl --user -u arts-wallpaper.service
 Test a provider without changing the wallpaper or saved cursor state:
 
 ```bash
-arts-wallpaper --provider google --dry-run
-arts-wallpaper --provider rijksmuseum --dry-run
-arts-wallpaper --provider cleveland --dry-run
-arts-wallpaper --provider masp --dry-run
+arts-wallpaper rotate --provider google --dry-run
+arts-wallpaper rotate --provider rijksmuseum --dry-run
+arts-wallpaper rotate --provider cleveland --dry-run
+arts-wallpaper rotate --provider masp --dry-run
+arts-wallpaper rotate --provider mnw --dry-run
 ```
 
 Published files are under `~/.local/share/arts-wallpaper/`. The service needs

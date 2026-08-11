@@ -47,6 +47,41 @@ def sample_current_metadata(**overrides):
     return metadata
 
 
+def sample_mnw_detail(**overrides):
+    detail = {
+        "id": 449940,
+        "title": "Szopka krakowska",
+        "authors": [
+            {"name": "Makowski, Tadeusz (1882-1932)"},
+            {"name": "Makowski, Tadeusz (1882-1932)"},
+            {"name": "Artysta pomocniczy"},
+        ],
+        "createDates": [{"name": "ok. 1906"}],
+        "types": [
+            {
+                "id": 116727,
+                "name": "obraz",
+                "hierarchyName": "rodzaje wg techniki / malarstwo / obraz",
+            }
+        ],
+        "techniques": [{"name": "olej"}],
+        "copyrights": [
+            {
+                "id": 500,
+                "name": "DOMENA PUBLICZNA",
+                "link": "https://pl.wikipedia.org/wiki/Domena_publiczna",
+                "restricted": False,
+            }
+        ],
+        "image": {
+            "filePath": "45/61/4561a2b9eae1fc4e5ef0459a6e9a5084",
+            "extension": "jpg",
+        },
+    }
+    detail.update(overrides)
+    return detail
+
+
 class FakeHTTP:
     def __init__(self, responses):
         self.responses = list(responses)
@@ -115,6 +150,149 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(candidate.artwork.record_id, "1940.1")
         self.assertEqual(candidate.artwork.image_url, "https://example.test/print.jpg")
         self.assertEqual(candidate.artwork.rights, "CC0 1.0")
+
+    def test_mnw_normalizes_filtered_public_domain_record(self):
+        page = {
+            "data": {
+                "items": [{"id": 449940}],
+                "paginatorDetails": {"totalPagesCount": 1},
+            }
+        }
+        http = FakeHTTP([page, {"data": sample_mnw_detail()}])
+
+        candidate = arts.MnwProvider(http, random.Random(1)).select({})
+
+        self.assertEqual(candidate.state_update, {})
+        self.assertEqual(candidate.artwork.provider, "mnw")
+        self.assertEqual(
+            candidate.artwork.provider_name,
+            "Muzeum Narodowe w Warszawie (MNW)",
+        )
+        self.assertEqual(candidate.artwork.record_id, "449940")
+        self.assertEqual(candidate.artwork.title, "Szopka krakowska")
+        self.assertEqual(
+            candidate.artwork.creator,
+            "Makowski, Tadeusz (1882-1932); Artysta pomocniczy",
+        )
+        self.assertEqual(candidate.artwork.date, "ok. 1906")
+        self.assertEqual(candidate.artwork.rights, "DOMENA PUBLICZNA")
+        self.assertEqual(
+            candidate.artwork.rights_url,
+            "https://pl.wikipedia.org/wiki/Domena_publiczna",
+        )
+        self.assertEqual(
+            candidate.artwork.source_url,
+            "https://cyfrowe.mnw.art.pl/pl/katalog/449940",
+        )
+        self.assertEqual(
+            candidate.artwork.image_url,
+            "https://cyfrowe-cdn.mnw.art.pl/upload/multimedia/"
+            "45/61/4561a2b9eae1fc4e5ef0459a6e9a5084.jpg",
+        )
+        self.assertEqual(
+            http.requests[0],
+            (
+                "https://cyfrowe-api.mnw.art.pl/api/search/Object/page/1",
+                [
+                    ("maxPerPage", 80),
+                    ("filter[types][]", 116727),
+                    ("filter[types][]", 116729),
+                    ("filter[types][]", 116786),
+                    ("filter[types][]", 116704),
+                    ("filter[copyrights][]", 500),
+                    ("filter[formFeature][]", 3),
+                ],
+            ),
+        )
+
+    def test_mnw_selects_a_random_filtered_page(self):
+        overview = {
+            "data": {
+                "items": [{"id": 1}],
+                "paginatorDetails": {"totalPagesCount": 3},
+            }
+        }
+        selected_page = {
+            "data": {
+                "items": [{"id": 449940}],
+                "paginatorDetails": {"totalPagesCount": 3},
+            }
+        }
+        rng = mock.Mock()
+        rng.randrange.return_value = 3
+        http = FakeHTTP([overview, selected_page, {"data": sample_mnw_detail()}])
+
+        candidate = arts.MnwProvider(http, rng).select({})
+
+        self.assertEqual(candidate.artwork.record_id, "449940")
+        self.assertEqual(
+            http.requests[1][0],
+            "https://cyfrowe-api.mnw.art.pl/api/search/Object/page/3",
+        )
+        rng.randrange.assert_called_once_with(1, 4)
+        rng.shuffle.assert_called_once()
+
+    def test_mnw_rejects_nonflat_protected_and_untrusted_records(self):
+        public_domain = sample_mnw_detail()["copyrights"][0]
+        fixtures = {
+            "missing rights": {"copyrights": []},
+            "unknown rights": {
+                "copyrights": [{**public_domain, "name": "NIEZNANE"}]
+            },
+            "restricted": {
+                "copyrights": [{**public_domain, "restricted": True}]
+            },
+            "mixed rights": {
+                "copyrights": [public_domain, {**public_domain, "id": 501}]
+            },
+            "sculpture": {
+                "types": [{"id": 42, "name": "rzeźba"}],
+                "techniques": [{"name": "odlewanie"}],
+            },
+            "traversal image": {
+                "image": {"filePath": "../../private/image", "extension": "jpg"}
+            },
+            "absolute image": {
+                "image": {
+                    "filePath": "https://example.test/image",
+                    "extension": "jpg",
+                }
+            },
+        }
+        for label, overrides in fixtures.items():
+            with self.subTest(label=label):
+                self.assertIsNone(
+                    arts.MnwProvider._candidate(
+                        sample_mnw_detail(**overrides),
+                        449940,
+                    )
+                )
+
+    def test_mnw_detail_checks_are_bounded(self):
+        page = {
+            "data": {
+                "items": [{"id": record_id} for record_id in range(1, 26)],
+                "paginatorDetails": {"totalPagesCount": 1},
+            }
+        }
+        invalid_details = [
+            {
+                "data": sample_mnw_detail(
+                    id=record_id,
+                    copyrights=[],
+                )
+            }
+            for record_id in range(1, 21)
+        ]
+        http = FakeHTTP([page, *invalid_details])
+
+        with self.assertRaisesRegex(
+            arts.ProviderError,
+            "after 20 detail checks",
+        ):
+            arts.MnwProvider(http, random.Random(1)).select({})
+
+        self.assertEqual(len(http.requests), 21)
 
     def test_masp_normalizes_flat_art_and_advances_page_cursor(self):
         response = {
@@ -341,6 +519,7 @@ class CoreTests(unittest.TestCase):
         )
         automatic = arts.provider_order("auto", random.Random(1))
         self.assertEqual(set(automatic), set(arts.PROVIDER_NAMES))
+        self.assertIn("mnw", automatic)
 
     def test_process_and_publish_webp_with_metadata_and_state(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -482,19 +661,19 @@ class CliTests(unittest.TestCase):
             [
                 "rotate",
                 "--provider",
-                "masp",
+                "mnw",
                 "--dry-run",
                 "--no-restart",
             ]
         )
         self.assertEqual(args.command, "rotate")
-        self.assertEqual(args.provider, "masp")
+        self.assertEqual(args.provider, "mnw")
         self.assertTrue(args.dry_run)
         self.assertTrue(args.no_restart)
 
         stderr = io.StringIO()
         with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
-            parser.parse_args(["--provider", "masp"])
+            parser.parse_args(["--provider", "mnw"])
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("error:", stderr.getvalue())
         self.assertIn("rotate", stderr.getvalue())

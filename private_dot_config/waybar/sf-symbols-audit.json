@@ -18,6 +18,8 @@
       "battery.75percent",
       "battery.100percent",
       "battery.100percent.bolt",
+      "cpu.fill",
+      "thermometer.medium",
       "power",
       "xmark"
     ],

@@ -67,8 +67,8 @@
     "tooltip": false,
     "interval": 5
   },
-  "cpu": { "format": "{usage}%"},
-  "temperature": { "format": "{temperatureC} °C" },
+  "cpu": { "format": "􀧓 {usage}%"},
+  "temperature": { "format": "􀇬 {temperatureC} °C" },
   "custom/clock": {
     "exec": "~/.config/waybar/scripts/smart-clock.sh",
     "interval": 30,

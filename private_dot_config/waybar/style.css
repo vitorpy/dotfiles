@@ -186,7 +186,7 @@ menu > menuitem:hover {
 #power-profiles-daemon { min-width: 100px; }
 #battery           { min-width: 34px; }
 #battery.warning   { color: @md3_error; }
-#battery.critical  { background: @md3_error; color: @md3_surface_container; }
+#battery.critical  { background: @md3_error; color: @md3_on_error; }
 #cpu               { min-width: 48px; }
 #temperature       { min-width: 56px; }
 #tray              { min-width: 36px; }   /* leaves room when few icons */

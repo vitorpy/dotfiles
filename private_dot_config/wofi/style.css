@@ -6,6 +6,7 @@ window {
     background-color: #000000;
     border-radius: 10px;
     font-family: "Avenir Next M for BBG", sans-serif;
+    font-weight: 500;
     font-size: 14px;
 }
 
@@ -60,7 +61,7 @@ window {
 
 #entry:selected #text {
     color: #f49f31;
-    font-weight: bold;
+    font-weight: 500;
 }
 
 #entry:hover {

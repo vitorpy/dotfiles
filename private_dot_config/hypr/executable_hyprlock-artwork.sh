@@ -17,7 +17,7 @@ jq -er '
     if type != "object" or (.title | nonempty_string | not) then
         empty
     else
-        "<b>\(.title | clipped(72) | @html)</b>"
+        "<span line_height=\"39936\"><b>\(.title | clipped(72) | @html)</b></span>"
         + (if .creator | nonempty_string
             then "\n<span size=\"smaller\" foreground=\"#d7d7d7\">\(.creator | clipped(56) | @html)</span>"
             else ""

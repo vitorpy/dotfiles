@@ -2,7 +2,7 @@
   "layer": "top",
   "spacing": 0,
   "modules-left": [
-    "battery#charging",
+    "battery#charging-indicator",
     "custom/dnf-updates",
     "custom/reboot-required"
   ],
@@ -61,7 +61,7 @@
       "warning": 10
     }
   },
-  "battery#charging": {
+  "battery#charging-indicator": {
     "format-charging": "􀢋",
     "format": "",
     "tooltip": false,

@@ -42,7 +42,7 @@ window#waybar {
   min-height: 68px;  /* Match charging pill height (measured via GTK Inspector) */
 }
 
-#battery.charging {
+#battery.charging-indicator {
   background: @md3_surface_container_high;
   color: @md3_on_surface;
   border: none;                        /* MD3: tonal elevation */

@@ -19,7 +19,7 @@ jq -er '
     else
         "<b>\(.title | clipped(72) | @html)</b>"
         + (if .creator | nonempty_string
-            then "\n<span size=\"smaller\">\(.creator | clipped(56) | @html)</span>"
+            then "\n<span size=\"smaller\" foreground=\"#acacae\">\(.creator | clipped(56) | @html)</span>"
             else ""
         end)
     end

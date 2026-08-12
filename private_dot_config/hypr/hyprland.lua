@@ -4,6 +4,7 @@
 -- Monitors
 ----------------
 
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 hl.monitor({ output = "DP-3", mode = "highres", position = "0x0", scale = 1 })
 hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1 })
 
@@ -13,7 +14,7 @@ hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1 })
 
 local terminal = "ghostty"
 local fileManager = "caja"
-local menu = "wofi --show drun"
+local menu = "hyprlauncher --toggle"
 local browser = "google-chrome-stable"
 local screenshot = [[grim -g "$(slurp)" - | wl-copy]]
 local mainMod = "SUPER"
@@ -23,6 +24,7 @@ local mainMod = "SUPER"
 ----------------
 
 hl.on("hyprland.start", function()
+    hl.exec_cmd("uwsm app -- hyprlauncher -d")
     hl.exec_cmd("uwsm app -- nm-applet")
     hl.exec_cmd("uwsm app -- /opt/1Password/1password --silent")
     hl.exec_cmd("uwsm app -- bitwarden-desktop")
@@ -41,25 +43,12 @@ hl.on("monitor.added", function()
 end)
 
 ----------------
--- Environment
-----------------
-
-hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_SIZE", "24")
-
-hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
-hl.env("XDG_SESSION_TYPE", "wayland")
-hl.env("XDG_SESSION_DESKTOP", "Hyprland")
-
-----------------
 -- Look and Feel
 ----------------
 
 hl.config({
-    debug = {
-        disable_logs = false,
-    },
     ecosystem = {
+        enforce_permissions = true,
         no_update_news = true,
         no_donation_nag = true,
     },
@@ -92,15 +81,17 @@ hl.config({
     dwindle = {
         preserve_split = true,
     },
-    master = {
-        new_status = "master",
-    },
     misc = {
         force_default_wallpaper = 0,
         disable_hyprland_logo = true,
         disable_splash_rendering = true,
     },
 })
+
+hl.permission({ binary = "/usr/bin/grim", type = "screencopy", mode = "allow" })
+hl.permission({ binary = "/usr/lib/xdg-desktop-portal-hyprland", type = "screencopy", mode = "allow" })
+hl.permission({ binary = "/usr/bin/hyprpm", type = "plugin", mode = "allow" })
+hl.permission({ binary = "/usr/bin/hyprctl", type = "plugin", mode = "deny" })
 
 hl.curve("myBezier", { type = "bezier", points = { { 0.05, 0.9 }, { 0.1, 1.05 } } })
 hl.animation({ leaf = "windows", enabled = true, speed = 7, bezier = "myBezier" })
@@ -143,7 +134,7 @@ hl.device({ name = "logitech-usb-receiver-consumer-control", natural_scroll = tr
 
 hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + C", hl.dsp.window.close())
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("uwsm stop"))
+hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("~/.config/hypr/session-exit.sh logout"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
@@ -151,9 +142,9 @@ hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
 hl.bind("Print", hl.dsp.exec_cmd(screenshot))
-hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("hyprctl switchxkblayout next"))
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("hyprctl switchxkblayout all next"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
-hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"))
+hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("systemctl --user reload waybar.service"))
 
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.window.move({ monitor = "+1" }))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.window.move({ workspace = "emptynm", follow = true }))
@@ -176,10 +167,10 @@ hl.bind(mainMod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true, repeating = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl s 10%+"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl s 10%-"), { locked = true, repeating = true })
 

@@ -230,9 +230,11 @@ arch_pacman_packages_hyprland:
   - hypridle
   - hyprlock
   - hyprsunset
+  - hyprlauncher
+  - hyprshutdown
+  - hyprpwcenter
   - xdg-desktop-portal-hyprland
   - xdg-desktop-portal-gtk
-  - wofi
   - grim
   - slurp
   - mako

@@ -81,6 +81,7 @@
     "interval": 1,
     "on-click": "/home/vitorpy/.config/waybar/scripts/kbtoggle-auto.sh"
   },
+  "tray": { "spacing": 8 },
   "custom/power": {
     "format": "􀆨",
     "tooltip": false,

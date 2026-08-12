@@ -1,46 +1,55 @@
-/* GTK 3 Color Overrides - Zenburn Green Accent */
+/* GTK 3 Color Overrides - Berg Orange Accent */
 
-@define-color accent_bg_color #8faf9f;
-@define-color accent_fg_color #1f1f1f;
-@define-color accent_color #8faf9f;
+* {
+    font-family: "Avenir Next M for BBG";
+    font-weight: 500;
+}
+
+@define-color accent_bg_color #f49f31;
+@define-color accent_fg_color #000000;
+@define-color accent_color #f49f31;
+@define-color theme_selected_bg_color #f49f31;
+@define-color theme_selected_fg_color #000000;
+@define-color theme_unfocused_selected_bg_color #f49f31;
+@define-color theme_unfocused_selected_fg_color #000000;
 
 /* Selection colors */
 *:selected,
 *:selected:focus {
-    background-color: #8faf9f;
-    color: #1f1f1f;
+    background-color: #f49f31;
+    color: #000000;
 }
 
 /* Checkboxes and radio buttons */
 check:checked,
 radio:checked {
-    background-color: #8faf9f;
-    border-color: #8faf9f;
+    background-color: #f49f31;
+    border-color: #f49f31;
 }
 
 /* Switches */
 switch:checked {
-    background-color: #8faf9f;
+    background-color: #f49f31;
 }
 
 /* Progress bars */
 progressbar progress {
-    background-color: #8faf9f;
+    background-color: #f49f31;
 }
 
 /* Links */
 link,
 link:link {
-    color: #8faf9f;
+    color: #f49f31;
 }
 
 /* Focus and active states */
 *:focus {
-    outline-color: #8faf9f;
+    outline-color: #f49f31;
 }
 
 button.suggested-action,
 .primary-toolbar button.suggested-action {
-    background-color: #8faf9f;
-    color: #1f1f1f;
+    background-color: #f49f31;
+    color: #000000;
 }

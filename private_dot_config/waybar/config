@@ -26,7 +26,7 @@
     "format-muted": "􀊣 off",
     "format-icons": { "default": ["􀊥", "􀊧"] },
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "on-click-right": "uwsm app -- hyprpwcenter",
+    "on-click-right": "/home/vitorpy/.config/waybar/scripts/hyprpwcenter-toggle.sh",
     "on-scroll-up": "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+",
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
     "scroll-step": 5
@@ -36,7 +36,7 @@
     "format-source": "􀊱 {volume}%",
     "format-source-muted": "􀊳 off",
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
-    "on-click-right": "uwsm app -- hyprpwcenter",
+    "on-click-right": "/home/vitorpy/.config/waybar/scripts/hyprpwcenter-toggle.sh",
     "on-scroll-up": "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SOURCE@ 5%+",
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 5%-",
     "scroll-step": 5

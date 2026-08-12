@@ -2,7 +2,6 @@
   "layer": "top",
   "spacing": 0,
   "modules-left": [
-    "battery#charging-indicator",
     "custom/dnf-updates",
     "custom/reboot-required"
   ],
@@ -55,16 +54,11 @@
   "battery": {
     "format": "{capacity}% {icon}",
     "format-icons": ["􀛪", "􀛩", "􀺶", "􀺸", "􀛨"],
+    "format-charging": "{capacity}% 􀢋",
     "states": {
       "critical": 5,
       "warning": 10
     }
-  },
-  "battery#charging-indicator": {
-    "format-charging": "􀢋",
-    "format": "",
-    "tooltip": false,
-    "interval": 5
   },
   "cpu": { "format": "􀧓 {usage}%"},
   "temperature": { "format": "􀇬 {temperatureC} °C" },

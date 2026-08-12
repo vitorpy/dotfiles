@@ -20,8 +20,7 @@
       "battery.100percent.bolt",
       "cpu.fill",
       "thermometer.medium",
-      "power",
-      "xmark"
+      "power"
     ],
     "scripts/brightness.sh": [
       "sun.max.fill"

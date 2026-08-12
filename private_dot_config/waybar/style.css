@@ -148,8 +148,7 @@ button:hover {
 
 /* Compact fixed-width cells for short text and icon-only actions. */
 #custom-kblayout,
-#custom-mako-dnd,
-#custom-mako-clear,
+#custom-mako,
 #custom-power {
   min-width: 44px;
   padding: 0;
@@ -182,13 +181,7 @@ menu > menuitem:hover {
   color: @md3_error;
 }
 
-#custom-mako-dnd:hover {
-  background-color: alpha(@md3_primary, 0.08);
-  color: @md3_on_surface;
-  border-radius: 8px;                  /* MD3 icon button hover */
-}
-
-#custom-mako-clear:hover {
+#custom-mako:hover {
   background-color: alpha(@md3_primary, 0.08);
   color: @md3_on_surface;
   border-radius: 8px;                  /* MD3 icon button hover */

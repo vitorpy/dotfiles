@@ -19,8 +19,7 @@
     "temperature",
     "custom/kblayout",
     "tray",
-    "custom/mako-dnd",
-    "custom/mako-clear",
+    "custom/mako",
     "custom/power"
   ],
   "pulseaudio": {
@@ -93,9 +92,10 @@
       "logout": "hyprctl dispatch exit"
     }
   },
-  "custom/mako-dnd": {
+  "custom/mako": {
     "exec": "/home/vitorpy/.config/waybar/scripts/dnd-status.sh",
     "on-click": "/home/vitorpy/.config/waybar/scripts/dnd-toggle.sh",
+    "on-click-right": "/usr/bin/makoctl dismiss -a",
     "interval": 2,
     "return-type": "json"
   },
@@ -103,13 +103,6 @@
     "exec": "~/.config/waybar/scripts/pacman-updates.sh",
     "interval": 300,
     "return-type": "json"
-  },
-  "custom/mako-clear": {
-    "format": "􀆄",
-    "tooltip": "Dismiss all notifications",
-    "on-click": "/usr/bin/makoctl dismiss -a",
-    "on-click-right": "/usr/bin/makoctl reload",
-    "signal": 0
   },
   "custom/reboot-required": {
     "exec": "~/.config/waybar/scripts/reboot-required.sh",

@@ -52,11 +52,9 @@ case "$1" in
         ;;
     reboot)
         label="Restarting..."
-        post_command="/usr/bin/systemctl reboot"
         ;;
     poweroff)
         label="Shutting down..."
-        post_command="/usr/bin/systemctl poweroff"
         ;;
     *)
         usage
@@ -79,13 +77,6 @@ if [[ ${HYPR_SESSION_EXIT_SCOPED:-0} != 1 ]]; then
         -- "$script_path" "$1"
 fi
 
-if [[ $1 != logout ]]; then
-    exec hyprshutdown \
-        --no-fork \
-        --top-label "$label" \
-        --post-cmd "$post_command"
-fi
-
 hyprshutdown --no-fork --no-exit --top-label "$label"
 shutdown_status=$?
 if (( shutdown_status != 0 )); then
@@ -99,4 +90,14 @@ if hyprland_has_remaining_apps; then
     exit 0
 fi
 
-exec uwsm stop
+case "$1" in
+    logout)
+        exec uwsm stop
+        ;;
+    reboot)
+        exec systemctl reboot
+        ;;
+    poweroff)
+        exec systemctl poweroff
+        ;;
+esac

@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Waybar clock weather cache
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/waybar/scripts/update-clock-weather.sh
+TimeoutStartSec=45s
+UMask=0077

@@ -89,6 +89,7 @@ hl.config({
 })
 
 hl.permission({ binary = "/usr/bin/grim", type = "screencopy", mode = "allow" })
+hl.permission({ binary = "/usr/bin/hyprlock", type = "screencopy", mode = "allow" })
 hl.permission({ binary = "/usr/lib/xdg-desktop-portal-hyprland", type = "screencopy", mode = "allow" })
 hl.permission({ binary = "/usr/bin/hyprpm", type = "plugin", mode = "allow" })
 hl.permission({ binary = "/usr/bin/hyprctl", type = "plugin", mode = "deny" })

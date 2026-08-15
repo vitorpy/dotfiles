@@ -157,7 +157,12 @@
     path: /etc/polkit-1/rules.d
     state: directory
     mode: "0755"
-  when: arch_fprintd_polkit_rule_enabled | bool
+  when:
+    - >-
+      (arch_fprintd_polkit_rule_enabled | bool) or
+      (arch_login1_power_polkit_rule_enabled | bool)
+  tags:
+    - polkit
 
 - name: Allow local fprintd use for configured users
   ansible.builtin.template:
@@ -165,6 +170,25 @@
     dest: /etc/polkit-1/rules.d/49-fprintd-local-users.rules
     mode: "0644"
   when: arch_fprintd_polkit_rule_enabled | bool
+  tags:
+    - polkit
+
+- name: Allow configured users to power off and reboot
+  ansible.builtin.template:
+    src: 49-login1-power-actions.rules.j2
+    dest: /etc/polkit-1/rules.d/49-login1-power-actions.rules
+    mode: "0644"
+  when: arch_login1_power_polkit_rule_enabled | bool
+  tags:
+    - polkit
+
+- name: Remove managed login1 power rule when disabled
+  ansible.builtin.file:
+    path: /etc/polkit-1/rules.d/49-login1-power-actions.rules
+    state: absent
+  when: not (arch_login1_power_polkit_rule_enabled | bool)
+  tags:
+    - polkit
 
 - name: Gather service facts for firewall migration
   ansible.builtin.service_facts:

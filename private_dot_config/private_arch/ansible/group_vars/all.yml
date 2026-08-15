@@ -137,6 +137,9 @@ arch_manage_grub_kernel_parameters: false
 arch_fprintd_polkit_rule_enabled: false
 arch_fprintd_polkit_users:
   - "{{ arch_primary_user }}"
+arch_login1_power_polkit_rule_enabled: false
+arch_login1_power_polkit_users:
+  - "{{ arch_primary_user }}"
 
 arch_pacman_packages: []
 arch_aur_packages: []

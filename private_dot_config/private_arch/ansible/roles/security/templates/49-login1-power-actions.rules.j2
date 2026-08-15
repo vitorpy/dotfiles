@@ -1,0 +1,15 @@
+// Allow configured users to request normal poweroff and reboot actions from
+// detached desktop services. Keep multiple-session and inhibitor-bypass
+// actions under Polkit's default authentication policy.
+polkit.addRule(function(action, subject) {
+    var allowedActions = [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.reboot"
+    ];
+    var allowedUsers = {{ arch_login1_power_polkit_users | to_json }};
+
+    if (allowedActions.indexOf(action.id) >= 0 &&
+        allowedUsers.indexOf(subject.user) >= 0) {
+        return polkit.Result.YES;
+    }
+});

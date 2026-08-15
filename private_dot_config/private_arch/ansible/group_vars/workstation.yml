@@ -5,6 +5,7 @@ arch_package_prune_explicit: true
 arch_ssh_allow_agent_forwarding_enabled: false
 arch_ssh_allow_tcp_forwarding_enabled: false
 arch_fprintd_polkit_rule_enabled: true
+arch_login1_power_polkit_rule_enabled: true
 arch_mdns_enabled: true
 arch_nsswitch_hosts_line: >-
   hosts: mymachines mdns_minimal [NOTFOUND=return] resolve

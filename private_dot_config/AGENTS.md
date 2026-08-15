@@ -177,7 +177,7 @@ vmstat 1               # Virtual memory statistics
 
 ## Dotfiles Management with Chezmoi
 
-My dotfiles are managed with chezmoi and backed up to GitHub at `jorgemanrubia/dotfiles`.
+My dotfiles are managed with chezmoi and backed up to GitHub at `vitorpy/dotfiles`.
 
 ### After modifying configuration files
 Always push changes using chezmoi after file modifications:

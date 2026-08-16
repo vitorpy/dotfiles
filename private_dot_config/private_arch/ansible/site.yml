@@ -30,5 +30,7 @@
       when: arch_desktop_enabled | bool
     - role: sddm
       when: arch_display_manager == "sddm"
+      tags:
+        - sddm
     - role: boot
       when: arch_boot_enabled | bool

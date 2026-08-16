@@ -6,12 +6,13 @@
     "**/*"
   ],
   "files": {
-    "config": [
+    "Theme.qml": [
       "speaker.slash.fill",
       "speaker.wave.1.fill",
       "speaker.wave.2.fill",
       "microphone.fill",
       "microphone.slash.fill",
+      "sun.max.fill",
       "battery.0percent",
       "battery.25percent",
       "battery.50percent",
@@ -22,11 +23,15 @@
       "thermometer.medium",
       "power"
     ],
-    "scripts/brightness.sh": [
-      "sun.max.fill"
+    "scripts/dnd-status.sh": [
+      "bell.slash.fill",
+      "bell.fill"
     ],
-    "scripts/dnf-updates.sh": [
+    "scripts/pacman-updates.sh": [
       "arrow.down.circle.fill"
+    ],
+    "scripts/reboot-required.sh": [
+      "arrow.clockwise.circle.fill"
     ]
   }
 }

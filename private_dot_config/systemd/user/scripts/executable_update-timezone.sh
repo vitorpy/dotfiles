@@ -100,8 +100,12 @@ if [ "$detected_tz" != "$current_tz" ]; then
         log "Timezone updated successfully"
         echo "$detected_tz" > "$CACHE_FILE"
 
-        # Trigger waybar reload to update clock
-        pkill -RTMIN+1 waybar 2>/dev/null
+        # Refresh the bar immediately when it is active.
+        if /usr/bin/systemctl --user is-active --quiet quickshell-berg.service; then
+            if ! /usr/bin/qs -c berg ipc call shell refreshClock >/dev/null 2>&1; then
+                log "Quickshell clock refresh failed"
+            fi
+        fi
     else
         if [ -n "$output" ]; then
             echo "$output" >> "$LOG_FILE"

@@ -1,0 +1,16 @@
+[Unit]
+Description=Berg desktop bar built with Quickshell
+Documentation=https://quickshell.org/
+PartOf=graphical-session.target
+After=graphical-session.target
+Requisite=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+ExecStart=/usr/bin/qs -c berg
+ExecReload=/usr/bin/qs -c berg ipc call shell reload
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=graphical-session.target

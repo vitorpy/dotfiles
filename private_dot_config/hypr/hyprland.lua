@@ -31,15 +31,15 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -- tailscale systray")
 end)
 
-local waybarReloadTimer = hl.timer(function()
-    hl.exec_cmd("systemctl --user reload waybar.service")
+local bergReloadTimer = hl.timer(function()
+    hl.exec_cmd("systemctl --user reload quickshell-berg.service")
 end, { timeout = 1000, type = "oneshot" })
 
-waybarReloadTimer:set_enabled(false)
+bergReloadTimer:set_enabled(false)
 
 hl.on("monitor.added", function()
-    waybarReloadTimer:set_enabled(false)
-    waybarReloadTimer:set_enabled(true)
+    bergReloadTimer:set_enabled(false)
+    bergReloadTimer:set_enabled(true)
 end)
 
 ----------------
@@ -145,7 +145,7 @@ hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
 hl.bind("Print", hl.dsp.exec_cmd(screenshot))
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("hyprctl switchxkblayout all next"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
-hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("systemctl --user reload waybar.service"))
+hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("systemctl --user reload quickshell-berg.service"))
 
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.window.move({ monitor = "+1" }))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.window.move({ workspace = "emptynm", follow = true }))

@@ -11,4 +11,3 @@ case "$active" in
   *intl*|*English*|*US*) echo "EN" ;;   # shows EN for US-Intl
   *)                     echo "${active:-?}" ;;
 esac
-

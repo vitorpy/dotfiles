@@ -14,6 +14,7 @@ arch_nsswitch_hosts_line: >-
 arch_workstation_system_services_extra:
   - cups
   - avahi-daemon
+  - power-profiles-daemon
 
 arch_system_services: >-
   {{ arch_system_services_base + arch_workstation_system_services_extra }}

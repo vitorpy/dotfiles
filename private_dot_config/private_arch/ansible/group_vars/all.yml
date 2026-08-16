@@ -211,6 +211,9 @@ arch_pacman_packages_hyprland:
   - uwsm
   - hyprpolkitagent
   - waybar
+  - quickshell
+  - power-profiles-daemon
+  - python-gobject
   - hyprpaper
   - hypridle
   - hyprlock

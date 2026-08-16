@@ -1,10 +1,11 @@
 [Unit]
-Description=Refresh Waybar clock weather cache
+Description=Refresh Berg bar clock weather cache
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/.config/waybar/scripts/update-clock-weather.sh
+ExecStart=%h/.config/quickshell/berg/scripts/update-clock-weather.sh
+ExecStartPost=-/usr/bin/qs -c berg ipc call shell refreshClock
 TimeoutStartSec=45s
 UMask=0077

@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh Waybar clock weather every 15 minutes
+Description=Refresh Berg bar clock weather every 15 minutes
 
 [Timer]
 OnBootSec=45s

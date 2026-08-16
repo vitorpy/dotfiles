@@ -255,6 +255,15 @@
     - arch_sddm_retire_ly | bool
     - sddm_ly_retirement_required | bool
 
+- name: Inspect tty2 recovery enablement before Ly retirement
+  ansible.builtin.stat:
+    path: /etc/systemd/system/getty.target.wants/getty@tty2.service
+    follow: false
+  register: sddm_tty2_recovery_link
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+
 - name: Verify accepted display-manager state before Ly retirement
   ansible.builtin.assert:
     that:
@@ -269,9 +278,11 @@
       - >-
         ansible_facts.services.get('getty@tty2.service', {}).get('state', '') ==
         'running'
+      - sddm_tty2_recovery_link.stat.exists
+      - sddm_tty2_recovery_link.stat.islnk | default(false)
       - >-
-        ansible_facts.services.get('getty@tty2.service', {}).get(
-        'status', '') == 'enabled'
+        sddm_tty2_recovery_link.stat.lnk_source | default('') ==
+        '/usr/lib/systemd/system/getty@.service'
       - >-
         ansible_facts.services.get('ly@tty2.service', {}).get(
         'state', 'stopped') != 'running'

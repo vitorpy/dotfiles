@@ -4,6 +4,17 @@
     name: "{{ arch_artwork_group }}"
     system: true
 
+- name: Check whether the shared artwork group exists
+  ansible.builtin.command:
+    argv:
+      - getent
+      - group
+      - "{{ arch_artwork_group }}"
+  register: sddm_artwork_group_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
 - name: Grant artwork access to the desktop user and SDDM
   ansible.builtin.user:
     name: "{{ item }}"
@@ -12,13 +23,23 @@
   loop:
     - "{{ arch_primary_user }}"
     - sddm
+  when:
+    - not ansible_check_mode or sddm_artwork_group_query.rc == 0
+
+- name: Inspect the shared artwork repository
+  ansible.builtin.stat:
+    path: "{{ arch_artwork_data_dir }}"
+  register: sddm_artwork_repository
 
 - name: Create shared artwork repository
   ansible.builtin.file:
     path: "{{ arch_artwork_data_dir }}"
     state: directory
     owner: "{{ arch_primary_user }}"
-    group: "{{ arch_artwork_group }}"
+    group: >-
+      {{ arch_artwork_group
+         if sddm_artwork_group_query.rc == 0
+         else omit }}
     mode: "2750"
 
 - name: Inspect legacy artwork files
@@ -41,7 +62,9 @@
     group: "{{ arch_artwork_group }}"
     mode: "0640"
   loop: "{{ sddm_legacy_artwork_files.results }}"
-  when: item.stat.exists
+  when:
+    - item.stat.exists
+    - not ansible_check_mode or sddm_artwork_repository.stat.exists
   register: sddm_seeded_artwork_files
 
 - name: Verify newly seeded artwork checksums
@@ -107,6 +130,11 @@
     - sddm_primary_user_bus.stat.exists
     - not ansible_check_mode
 
+- name: Inspect the SDDM configuration directory
+  ansible.builtin.stat:
+    path: /etc/sddm.conf.d
+  register: sddm_config_directory
+
 - name: Create SDDM configuration directory
   ansible.builtin.file:
     path: /etc/sddm.conf.d
@@ -122,6 +150,8 @@
     owner: root
     group: root
     mode: "0644"
+  when:
+    - not ansible_check_mode or sddm_config_directory.stat.exists
 
 - name: Install minimal SDDM Hyprland configuration
   ansible.builtin.template:

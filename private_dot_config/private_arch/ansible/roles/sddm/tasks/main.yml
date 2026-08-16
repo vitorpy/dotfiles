@@ -45,7 +45,8 @@
 - name: Inspect legacy artwork files
   ansible.builtin.stat:
     path: "{{ arch_artwork_legacy_data_dir }}/{{ item }}"
-    checksum_algorithm: sha256
+    # ansible.builtin.copy reports its result checksum as SHA-1.
+    checksum_algorithm: sha1
   loop:
     - current.webp
     - current.json

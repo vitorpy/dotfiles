@@ -44,6 +44,8 @@ require_literal "RememberLastUser=true" "${sddm_config}"
 
 require_literal 'mode: "2750"' "${sddm_tasks}"
 require_literal 'mode: "0640"' "${sddm_tasks}"
+require_literal "checksum_algorithm: sha1" "${sddm_tasks}"
+reject_literal "checksum_algorithm: sha256" "${sddm_tasks}"
 require_literal "sddm_artwork_group_query.rc == 0" "${sddm_tasks}"
 require_literal "sddm_artwork_repository.stat.exists" "${sddm_tasks}"
 require_literal "sddm_config_directory.stat.exists" "${sddm_tasks}"

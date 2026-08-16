@@ -1,6 +1,6 @@
 [%General]
 author=Tsu Jan; Berg palette customization by vitorpy
-comment=A dark Gnome-like theme aligned with the Berg Waybar palette
+comment=A dark Gnome-like theme aligned with the Berg bar palette
 x11drag=all
 alt_mnemonic=true
 left_tabs=false

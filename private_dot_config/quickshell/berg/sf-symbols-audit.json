@@ -27,16 +27,6 @@
       "arrow.down.circle.fill",
       "arrow.clockwise.circle.fill",
       "exclamationmark.triangle.fill"
-    ],
-    "scripts/dnd-status.sh": [
-      "bell.slash.fill",
-      "bell.fill"
-    ],
-    "scripts/pacman-updates.sh": [
-      "arrow.down.circle.fill"
-    ],
-    "scripts/reboot-required.sh": [
-      "arrow.clockwise.circle.fill"
     ]
   }
 }

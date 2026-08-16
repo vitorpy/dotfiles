@@ -107,9 +107,17 @@ arts-wallpaper rotate --provider masp --dry-run
 arts-wallpaper rotate --provider mnw --dry-run
 ```
 
-Published files are under `~/.local/share/arts-wallpaper/`. The service needs
-Python 3, ImageMagick, Hyprpaper, and network access; these packages are managed
-by the Arch configuration.
+Published files are under `/var/lib/arts-wallpaper/`. Each successful rotation
+atomically publishes `current.webp` for Hyprpaper and Quickshell,
+`current.png` for SDDM's Qt image loader, plus `current.json` and `state.json`.
+To rebuild only the SDDM derivative from the current wallpaper, run:
+
+```bash
+arts-wallpaper render-greeter
+```
+
+The service needs Python 3, ImageMagick, Hyprpaper, and network access; these
+packages are managed by the Arch configuration.
 
 To roll back, revert the wallpaper-service commit in the chezmoi source, apply
 chezmoi, reload the user systemd manager, and re-enable the restored timer. The

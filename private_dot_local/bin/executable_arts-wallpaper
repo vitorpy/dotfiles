@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -525,9 +525,7 @@ class MnwProvider:
         if (
             not file_path
             or not extension
-            or not re.fullmatch(
-                r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", file_path
-            )
+            or not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", file_path)
             or not re.fullmatch(r"[A-Za-z0-9]{2,5}", extension)
         ):
             return None
@@ -1146,6 +1144,44 @@ def process_image(source: Path, destination: Path) -> tuple[int, int]:
     return image_dimensions(destination)
 
 
+def render_greeter_image(source: Path, destination: Path) -> tuple[int, int]:
+    """Render the current wallpaper in Qt's built-in PNG format for SDDM."""
+    run_command(
+        [
+            "magick",
+            str(source),
+            "-strip",
+            "-define",
+            "png:compression-level=9",
+            f"PNG:{destination}",
+        ]
+    )
+    return image_dimensions(destination)
+
+
+def publish_greeter_image(data_dir: Path) -> tuple[int, int]:
+    source = data_dir / "current.webp"
+    if not source.is_file():
+        raise WallpaperError(f"no current wallpaper image found at {source}")
+
+    descriptor, name = tempfile.mkstemp(
+        prefix=".current-",
+        suffix=".png",
+        dir=data_dir,
+    )
+    os.close(descriptor)
+    temporary = Path(name)
+    try:
+        dimensions = render_greeter_image(source, temporary)
+        temporary.chmod(0o640)
+        with temporary.open("rb") as image:
+            os.fsync(image.fileno())
+        os.replace(temporary, data_dir / "current.png")
+        return dimensions
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def write_json_temp(directory: Path, prefix: str, value: Mapping[str, Any]) -> Path:
     descriptor, name = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=directory)
     path = Path(name)
@@ -1165,14 +1201,17 @@ def write_json_temp(directory: Path, prefix: str, value: Mapping[str, Any]) -> P
 def publish(
     data_dir: Path,
     image: Path,
+    greeter_image: Path,
     metadata: Mapping[str, Any],
     state: Mapping[str, Any],
 ) -> None:
     metadata_temp = write_json_temp(data_dir, ".current-", metadata)
     state_temp = write_json_temp(data_dir, ".state-", state)
     image.chmod(0o640)
+    greeter_image.chmod(0o640)
     try:
         os.replace(image, data_dir / "current.webp")
+        os.replace(greeter_image, data_dir / "current.png")
         os.replace(metadata_temp, data_dir / "current.json")
         os.replace(state_temp, data_dir / "state.json")
     finally:
@@ -1198,6 +1237,7 @@ def first_success(names: Sequence[str], attempt: Callable[[str], T]) -> T:
 class StagedArtwork:
     candidate: Candidate
     image: Path
+    greeter_image: Path
     width: int
     height: int
     temporary_directory: Path
@@ -1215,6 +1255,7 @@ def stage_provider(
         candidate = providers[name].select(state)
         source = temporary_directory / "download"
         processed = temporary_directory / "wallpaper.webp"
+        greeter_image = temporary_directory / "greeter.png"
         http.download(candidate.artwork.image_url, source)
         if candidate.artwork.provider == "masp":
             width, height = image_dimensions(source)
@@ -1224,7 +1265,21 @@ def stage_provider(
                     f"({width}x{height})"
                 )
         width, height = process_image(source, processed)
-        return StagedArtwork(candidate, processed, width, height, temporary_directory)
+        greeter_dimensions = render_greeter_image(processed, greeter_image)
+        if greeter_dimensions != (width, height):
+            raise WallpaperError(
+                "SDDM greeter image dimensions differ from the wallpaper "
+                f"({greeter_dimensions[0]}x{greeter_dimensions[1]} != "
+                f"{width}x{height})"
+            )
+        return StagedArtwork(
+            candidate,
+            processed,
+            greeter_image,
+            width,
+            height,
+            temporary_directory,
+        )
     except Exception:
         shutil.rmtree(temporary_directory, ignore_errors=True)
         raise
@@ -1253,10 +1308,14 @@ def load_current_metadata(path: Path) -> dict[str, Any]:
     except FileNotFoundError as exc:
         raise WallpaperError(f"no current wallpaper metadata found at {path}") from exc
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise WallpaperError(f"could not read current wallpaper metadata at {path}: {exc}") from exc
+        raise WallpaperError(
+            f"could not read current wallpaper metadata at {path}: {exc}"
+        ) from exc
 
     if not isinstance(metadata, dict):
-        raise WallpaperError(f"invalid current wallpaper metadata at {path}: expected an object")
+        raise WallpaperError(
+            f"invalid current wallpaper metadata at {path}: expected an object"
+        )
 
     required_strings = (
         "provider",
@@ -1347,7 +1406,36 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="publish the wallpaper without restarting hyprpaper.service",
     )
+    subparsers.add_parser(
+        "render-greeter",
+        help="render current.png for the SDDM greeter",
+        description=(
+            "Atomically render an SDDM-compatible PNG from the current WebP wallpaper."
+        ),
+    )
     return parser
+
+
+def render_greeter_wallpaper(data_dir: Path) -> int:
+    data_dir.mkdir(mode=0o750, parents=True, exist_ok=True)
+    lock_path = data_dir / ".lock"
+
+    with lock_path.open("a", encoding="utf-8") as lock:
+        os.fchmod(lock.fileno(), 0o640)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Another arts-wallpaper update is already running", file=sys.stderr)
+            return 1
+
+        try:
+            width, height = publish_greeter_image(data_dir)
+        except (WallpaperError, OSError) as exc:
+            print(f"SDDM greeter image render failed: {exc}", file=sys.stderr)
+            return 1
+
+        print(f"Rendered SDDM greeter image: {width}x{height}")
+        return 0
 
 
 def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
@@ -1390,7 +1478,13 @@ def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
                 return 0
 
             updated_state = merge_state(state, staged.candidate.state_update)
-            publish(data_dir, staged.image, metadata, updated_state)
+            publish(
+                data_dir,
+                staged.image,
+                staged.greeter_image,
+                metadata,
+                updated_state,
+            )
             artwork = staged.candidate.artwork
             print(f"Published: {artwork.title} — {artwork.creator or 'Unknown artist'}")
             print(f"Provider: {artwork.provider_name}")
@@ -1424,6 +1518,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.json:
             parser.error("--json cannot be used with rotate")
         return rotate_wallpaper(args, data_dir)
+
+    if args.command == "render-greeter":
+        if args.json:
+            parser.error("--json cannot be used with render-greeter")
+        return render_greeter_wallpaper(data_dir)
 
     try:
         return show_current(data_dir, args.json)

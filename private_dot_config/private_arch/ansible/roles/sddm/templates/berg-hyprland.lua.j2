@@ -1,0 +1,29 @@
+-- Minimal Hyprland compositor configuration for the SDDM greeter.
+-- Managed by Ansible.
+
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+
+hl.config({
+    input = {
+        kb_model = "pc105",
+        kb_layout = "pl,us",
+        kb_variant = ",intl",
+        kb_options = "grp:alt_shift_toggle",
+    },
+    animations = {
+        enabled = false,
+    },
+    decoration = {
+        shadow = {
+            enabled = false,
+        },
+    },
+    misc = {
+        disable_hyprland_logo = true,
+        disable_splash_rendering = true,
+        force_default_wallpaper = 0,
+    },
+    debug = {
+        disable_logs = false,
+    },
+})

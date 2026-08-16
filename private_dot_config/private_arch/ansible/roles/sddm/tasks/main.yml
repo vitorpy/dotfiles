@@ -80,7 +80,26 @@
   loop: "{{ sddm_seeded_artwork_files.results }}"
   loop_control:
     extended: true
-  when: item.changed | default(false)
+  when: item.checksum is defined
+
+- name: Inspect the current WebP artwork
+  ansible.builtin.stat:
+    path: "{{ arch_artwork_data_dir }}/current.webp"
+  register: sddm_current_webp
+
+- name: Render the SDDM-compatible PNG artwork
+  ansible.builtin.command:
+    argv:
+      - "{{ arch_primary_user_home }}/.local/bin/arts-wallpaper"
+      - render-greeter
+    creates: "{{ arch_artwork_data_dir }}/current.png"
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    ARTS_WALLPAPER_DATA_DIR: "{{ arch_artwork_data_dir }}"
+  when:
+    - sddm_current_webp.stat.exists
+    - not ansible_check_mode
 
 - name: Inspect shared artwork files
   ansible.builtin.stat:
@@ -88,6 +107,7 @@
   loop:
     - .lock
     - current.webp
+    - current.png
     - current.json
     - state.json
   register: sddm_shared_artwork_files
@@ -154,13 +174,18 @@
   when:
     - not ansible_check_mode or sddm_config_directory.stat.exists
 
-- name: Install minimal SDDM Hyprland configuration
+- name: Install minimal SDDM Hyprland Lua configuration
   ansible.builtin.template:
-    src: berg-hyprland.conf.j2
-    dest: /usr/share/sddm/berg-hyprland.conf
+    src: berg-hyprland.lua.j2
+    dest: /usr/share/sddm/berg-hyprland.lua
     owner: root
     group: root
     mode: "0644"
+
+- name: Remove deprecated SDDM Hyprland configuration
+  ansible.builtin.file:
+    path: /usr/share/sddm/berg-hyprland.conf
+    state: absent
 
 - name: Install Berg SDDM theme
   ansible.builtin.copy:

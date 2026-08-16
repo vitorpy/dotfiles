@@ -57,10 +57,12 @@ To target a different host or profile, extend `inventory/hosts.yml`.
 
 ## SDDM Migration and Recovery
 
-The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland
+The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland Lua
 greeter. Artwork and its public metadata live in
 `/var/lib/arts-wallpaper`, which is writable by the primary user and readable
-by the `sddm` user through the `arts-wallpaper` group.
+by the `sddm` user through the `arts-wallpaper` group. Hyprpaper and Quickshell
+use `current.webp`; the wallpaper publisher also atomically renders
+`current.png` for SDDM's Qt image loader.
 
 The first deployment must keep `arch_sddm_retire_ly: false`. The role installs
 and enables SDDM for the next boot without starting it in the active session,
@@ -71,6 +73,7 @@ If the SDDM boot fails, switch to tty2 and run:
 
 ```bash
 sudo systemctl disable sddm.service
+sudo systemctl disable getty@tty2.service
 sudo systemctl enable ly@tty2.service
 sudo reboot
 ```

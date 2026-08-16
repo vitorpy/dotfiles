@@ -236,12 +236,8 @@ class ProviderTests(unittest.TestCase):
         public_domain = sample_mnw_detail()["copyrights"][0]
         fixtures = {
             "missing rights": {"copyrights": []},
-            "unknown rights": {
-                "copyrights": [{**public_domain, "name": "NIEZNANE"}]
-            },
-            "restricted": {
-                "copyrights": [{**public_domain, "restricted": True}]
-            },
+            "unknown rights": {"copyrights": [{**public_domain, "name": "NIEZNANE"}]},
+            "restricted": {"copyrights": [{**public_domain, "restricted": True}]},
             "mixed rights": {
                 "copyrights": [public_domain, {**public_domain, "id": 501}]
             },
@@ -521,21 +517,31 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(set(automatic), set(arts.PROVIDER_NAMES))
         self.assertIn("mnw", automatic)
 
-    def test_process_and_publish_webp_with_metadata_and_state(self):
+    def test_process_and_publish_wallpaper_and_greeter_derivative(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source.ppm"
             source.write_bytes(b"P6\n2 2\n255\n" + bytes([0, 128, 255]) * 4)
             processed = root / "processed.webp"
+            greeter = root / "greeter.png"
             width, height = arts.process_image(source, processed)
             self.assertEqual((width, height), (2, 2))
+            self.assertEqual(
+                arts.render_greeter_image(processed, greeter),
+                (2, 2),
+            )
             arts.publish(
                 root,
                 processed,
+                greeter,
                 {"provider": "test", "width": width, "height": height},
                 {"version": 1},
             )
             self.assertTrue((root / "current.webp").is_file())
+            self.assertEqual(
+                (root / "current.png").read_bytes()[:8],
+                b"\x89PNG\r\n\x1a\n",
+            )
             self.assertEqual(
                 json.loads((root / "current.json").read_text()),
                 {"height": 2, "provider": "test", "width": 2},
@@ -543,8 +549,45 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(
                 json.loads((root / "state.json").read_text()), {"version": 1}
             )
-            for name in ("current.webp", "current.json", "state.json"):
+            for name in (
+                "current.webp",
+                "current.png",
+                "current.json",
+                "state.json",
+            ):
                 self.assertEqual((root / name).stat().st_mode & 0o777, 0o640)
+
+    def test_render_greeter_command_atomically_publishes_png(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ppm"
+            source.write_bytes(b"P6\n2 2\n255\n" + bytes([255, 64, 0]) * 4)
+            arts.process_image(source, root / "current.webp")
+
+            result, stdout, stderr = CliTests().run_main(root, ["render-greeter"])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Rendered SDDM greeter image: 2x2", stdout)
+            self.assertEqual(
+                (root / "current.png").read_bytes()[:8],
+                b"\x89PNG\r\n\x1a\n",
+            )
+            self.assertEqual((root / "current.png").stat().st_mode & 0o777, 0o640)
+
+    def test_failed_greeter_render_preserves_existing_png(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "current.webp").write_bytes(b"not an image")
+            current_png = root / "current.png"
+            current_png.write_bytes(b"old-greeter-image")
+
+            result, stdout, stderr = CliTests().run_main(root, ["render-greeter"])
+
+            self.assertEqual(result, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("SDDM greeter image render failed", stderr)
+            self.assertEqual(current_png.read_bytes(), b"old-greeter-image")
 
     def test_invalid_image_leaves_published_files_unchanged(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -647,7 +690,9 @@ class CliTests(unittest.TestCase):
             (json.dumps(sample_current_metadata(title="")), "'title'"),
         )
         for content, expected in fixtures:
-            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+            with self.subTest(
+                expected=expected
+            ), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "current.json").write_text(content, encoding="utf-8")
 
@@ -696,6 +741,21 @@ class CliTests(unittest.TestCase):
             args, data_dir = rotate.call_args.args
             self.assertEqual(args.provider, "cleveland")
             self.assertEqual(data_dir, root)
+
+    def test_render_greeter_command_routes_to_render_workflow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch.object(
+                arts,
+                "render_greeter_wallpaper",
+                return_value=0,
+            ) as render:
+                result, stdout, stderr = self.run_main(root, ["render-greeter"])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stdout, "")
+            self.assertEqual(stderr, "")
+            render.assert_called_once_with(root)
 
     def test_json_cannot_be_combined_with_rotate(self):
         stderr = io.StringIO()

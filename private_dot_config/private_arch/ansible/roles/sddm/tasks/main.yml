@@ -215,6 +215,151 @@
     name: sddm.service
     enabled: true
 
+- name: Query the Ly package before retirement
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/pacman
+      - -Q
+      - ly
+  register: sddm_ly_package_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: arch_sddm_retire_ly | bool
+
+- name: Inspect Ly retirement artifacts
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /etc/ly
+    - "{{ arch_primary_user_home }}/.config/ly"
+    - "{{ arch_artwork_legacy_data_dir }}"
+  register: sddm_ly_retirement_artifacts
+  when: arch_sddm_retire_ly | bool
+
+- name: Determine whether Ly retirement validation is required
+  ansible.builtin.set_fact:
+    sddm_ly_retirement_required: >-
+      {{
+        sddm_ly_package_query.rc == 0 or
+        (sddm_ly_retirement_artifacts.results
+         | selectattr('stat.exists')
+         | list
+         | length > 0)
+      }}
+  when: arch_sddm_retire_ly | bool
+
+- name: Refresh service state before Ly retirement
+  ansible.builtin.service_facts:
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+
+- name: Verify accepted display-manager state before Ly retirement
+  ansible.builtin.assert:
+    that:
+      - "'sddm.service' in ansible_facts.services"
+      - >-
+        ansible_facts.services.get('sddm.service', {}).get('state', '') ==
+        'running'
+      - >-
+        ansible_facts.services.get('sddm.service', {}).get('status', '') ==
+        'enabled'
+      - "'getty@tty2.service' in ansible_facts.services"
+      - >-
+        ansible_facts.services.get('getty@tty2.service', {}).get('state', '') ==
+        'running'
+      - >-
+        ansible_facts.services.get('getty@tty2.service', {}).get(
+        'status', '') == 'enabled'
+      - >-
+        ansible_facts.services.get('ly@tty2.service', {}).get(
+        'state', 'stopped') != 'running'
+      - >-
+        ansible_facts.services.get('ly@tty2.service', {}).get(
+        'status', 'disabled') == 'disabled'
+    fail_msg: >-
+      Refusing to retire Ly before active, enabled SDDM and the tty2 recovery
+      console have been verified and Ly has stopped.
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+
+- name: Inspect required artwork before Ly retirement
+  ansible.builtin.stat:
+    path: "{{ arch_artwork_data_dir }}/{{ item }}"
+  loop:
+    - current.webp
+    - current.png
+    - current.json
+    - state.json
+  register: sddm_retirement_artwork_files
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+
+- name: Verify required artwork before Ly retirement
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg | default(false)
+      - item.stat.size | default(0) | int > 0
+      - item.stat.pw_name | default('') == arch_primary_user
+      - item.stat.gr_name | default('') == arch_artwork_group
+      - item.stat.mode | default('') == '0640'
+    fail_msg: >-
+      Refusing to remove the legacy artwork store because
+      {{ arch_artwork_data_dir }}/{{ item.item }} is missing, empty, or has
+      unexpected ownership or permissions.
+  loop: "{{ sddm_retirement_artwork_files.results }}"
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+
+- name: Validate shared artwork JSON before Ly retirement
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python
+      - -m
+      - json.tool
+      - "{{ arch_artwork_data_dir }}/{{ item }}"
+  loop:
+    - current.json
+    - state.json
+  changed_when: false
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+    - not ansible_check_mode
+
+- name: Validate shared artwork images before Ly retirement
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/magick
+      - identify
+      - "{{ arch_artwork_data_dir }}/current.webp"
+      - "{{ arch_artwork_data_dir }}/current.png"
+  changed_when: false
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+    - not ansible_check_mode
+
+- name: Validate published artwork metadata as the desktop user
+  ansible.builtin.command:
+    argv:
+      - "{{ arch_primary_user_home }}/.local/bin/arts-wallpaper"
+      - --json
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    ARTS_WALLPAPER_DATA_DIR: "{{ arch_artwork_data_dir }}"
+  changed_when: false
+  when:
+    - arch_sddm_retire_ly | bool
+    - sddm_ly_retirement_required | bool
+    - not ansible_check_mode
+
 - name: Remove Ly package after SDDM acceptance
   ansible.builtin.package:
     name: ly
@@ -224,6 +369,12 @@
 - name: Remove legacy Ly system configuration after SDDM acceptance
   ansible.builtin.file:
     path: /etc/ly
+    state: absent
+  when: arch_sddm_retire_ly | bool
+
+- name: Remove managed Ly user configuration after SDDM acceptance
+  ansible.builtin.file:
+    path: "{{ arch_primary_user_home }}/.config/ly"
     state: absent
   when: arch_sddm_retire_ly | bool
 

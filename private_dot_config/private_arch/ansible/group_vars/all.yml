@@ -202,7 +202,6 @@ arch_pacman_packages_base:
   - linux-firmware
   - bitwarden-cli
   - bitwarden
-  - ly
   - gnome-keyring
   - fprintd
   - pacman-contrib

@@ -64,12 +64,12 @@ by the `sddm` user through the `arts-wallpaper` group. Hyprpaper and Quickshell
 use `current.webp`; the wallpaper publisher also atomically renders
 `current.png` for SDDM's Qt image loader.
 
-The first deployment must keep `arch_sddm_retire_ly: false`. The role installs
-and enables SDDM for the next boot without starting it in the active session,
-disables Ly for the next boot without stopping it, and enables tty2 as a
-recovery console.
+The migration was deployed first with `arch_sddm_retire_ly: false`. That pass
+installed and enabled SDDM for the next boot without starting it in the active
+session, disabled Ly for the next boot without stopping it, and enabled tty2 as
+a recovery console.
 
-If the SDDM boot fails, switch to tty2 and run:
+Before Ly is retired, an SDDM boot failure can be rolled back from tty2 with:
 
 ```bash
 sudo systemctl disable sddm.service
@@ -78,10 +78,17 @@ sudo systemctl enable ly@tty2.service
 sudo reboot
 ```
 
-Only after a successful cold boot, login, and logout cycle should
-`arch_sddm_retire_ly` be set to `true`. That retirement pass removes Ly's
-package and system configuration together with the verified legacy artwork
-store under the primary user's home directory.
+After successful cold-boot, login, and logout/login acceptance,
+`arch_sddm_retire_ly` is now `true` for the workstation. The retirement pass
+first verifies that SDDM and the tty2 recovery console are active and enabled,
+that Ly is stopped and disabled, and that the shared artwork files are valid.
+Package pruning preserves Ly until those checks run. The role then removes the
+Ly package, `/etc/ly`, the managed `~/.config/ly` files, and the verified legacy
+artwork store under the primary user's home directory. Migration-only checks
+are skipped on clean installs and on later runs where no Ly state remains.
+
+After retirement, tty2 remains the recovery path. SDDM can be repaired or Ly
+can be reinstalled explicitly from that console if a later regression occurs.
 
 ## Boot Role
 

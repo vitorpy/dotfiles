@@ -26,7 +26,7 @@ This single command will:
 - Restore SSH and GPG keys from Bitwarden
 - Switch to SSH remote
 - Apply the Arch system configuration with Ansible
-- Enable `ly` display manager
+- Enable the Berg-themed SDDM display manager
 
 After the bootstrap completes, reboot to start Hyprland.
 

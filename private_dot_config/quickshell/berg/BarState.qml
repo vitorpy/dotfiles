@@ -45,7 +45,13 @@ Scope {
     }
 
     function toggleNotificationCenter(screenName: string): void {
+        clockState.closePanel();
         notificationState.toggleCenter(screenName);
+    }
+
+    function toggleClockPanel(screenName: string): void {
+        notificationState.closeCenter();
+        clockState.togglePanel(screenName);
     }
 
     function cyclePowerProfile(): void {

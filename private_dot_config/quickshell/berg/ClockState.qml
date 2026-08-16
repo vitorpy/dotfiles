@@ -19,6 +19,8 @@ QtObject {
     property string warsawFull: ""
     property var weather: null
     property var artwork: null
+    property bool panelOpen: false
+    property string panelScreenName: ""
     property string timezoneError: ""
     property string warsawError: ""
     property string weatherError: ""
@@ -56,12 +58,60 @@ QtObject {
         return sections.join("\n\n");
     }
 
+    readonly property string compactTooltip: {
+        const lines = [Qt.formatDateTime(now, "dddd, d MMMM · HH:mm")];
+
+        if (currentTimezone !== warsawTimezone && warsawCompact)
+            lines.push(`Warsaw · ${warsawCompact}`);
+
+        if (weather)
+            lines.push(`${weather.current.condition} · ${rounded(weather.current.temperature_c)} °C in ${weather.location.city}`);
+
+        lines.push("Left click: open calendar · Right click: refresh");
+        return lines.join("\n");
+    }
+
     function finiteNumber(value: var): bool {
         return typeof value === "number" && Number.isFinite(value);
     }
 
     function rounded(value: real): string {
         return Math.round(value).toString();
+    }
+
+    function fallbackScreenName(): string {
+        return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "";
+    }
+
+    function screenExists(name: string): bool {
+        for (let index = 0; index < Quickshell.screens.length; ++index) {
+            if (Quickshell.screens[index].name === name)
+                return true;
+        }
+        return false;
+    }
+
+    function openPanel(screenName: string): void {
+        panelScreenName = screenName || fallbackScreenName();
+        panelOpen = true;
+        refresh();
+    }
+
+    function closePanel(): void {
+        panelOpen = false;
+        panelScreenName = "";
+    }
+
+    function togglePanel(screenName: string): void {
+        if (panelOpen && panelScreenName === screenName)
+            closePanel();
+        else
+            openPanel(screenName);
+    }
+
+    function rehomeMissingScreen(): void {
+        if (panelOpen && !screenExists(panelScreenName))
+            panelScreenName = fallbackScreenName();
     }
 
     function updateHealth(): void {
@@ -281,6 +331,14 @@ QtObject {
                 ? ""
                 : `Artwork metadata is unavailable: ${FileViewError.toString(error)}`;
             root.updateHealth();
+        }
+    }
+
+    readonly property Connections screenChanges: Connections {
+        target: Quickshell
+
+        function onScreensChanged(): void {
+            root.rehomeMissingScreen();
         }
     }
 

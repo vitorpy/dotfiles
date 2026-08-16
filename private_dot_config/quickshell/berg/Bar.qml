@@ -208,7 +208,10 @@ Scope {
 
                     anchors.centerIn: parent
                     theme: theme
-                    tooltipText: root.healthTooltip(root.barState.clock.tooltip, root.barState.clock)
+                    interactive: true
+                    tooltipText: root.healthTooltip(root.barState.clock.compactTooltip, root.barState.clock)
+                    onLeftClicked: root.barState.toggleClockPanel(root.modelData.name)
+                    onRightClicked: root.barState.refreshClock()
 
                     MetricLabel {
                         theme: theme
@@ -508,6 +511,12 @@ Scope {
                 screen: root.modelData
                 theme: root.palette
                 notificationState: root.barState.notifications
+            }
+
+            ClockPanel {
+                screen: root.modelData
+                theme: root.palette
+                clockState: root.barState.clock
             }
 
             Popup {

@@ -4,7 +4,7 @@
 # Each line is ellipsized to the card's 496px content width (544px - 2x24px).
 # Hyprlock treats an empty result as a hidden label.
 
-metadata_file="${ARTS_WALLPAPER_METADATA:-${XDG_DATA_HOME:-$HOME/.local/share}/arts-wallpaper/current.json}"
+metadata_file="${ARTS_WALLPAPER_METADATA:-/var/lib/arts-wallpaper/current.json}"
 
 [[ -r "$metadata_file" ]] || exit 0
 

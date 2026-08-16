@@ -12,7 +12,8 @@ This playbook is intended for **post-install host configuration**:
 - system services
 - SSH, firewall, and sysctl hardening
 - X11 keyboard defaults
-- `ly` deployment from `~/.config/ly`
+- SDDM deployment with a Wayland-native Berg greeter
+- shared artwork wallpaper state under `/var/lib/arts-wallpaper`
 - optional bootloader and mkinitcpio management
 
 The old destructive LUKS/bootstrap installer has been removed from this tree.
@@ -49,10 +50,35 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 ## Profiles
 
-- `group_vars/workstation.yml` enables desktop, `ly`, and the full package set.
+- `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
+
+## SDDM Migration and Recovery
+
+The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland
+greeter. Artwork and its public metadata live in
+`/var/lib/arts-wallpaper`, which is writable by the primary user and readable
+by the `sddm` user through the `arts-wallpaper` group.
+
+The first deployment must keep `arch_sddm_retire_ly: false`. The role installs
+and enables SDDM for the next boot without starting it in the active session,
+disables Ly for the next boot without stopping it, and enables tty2 as a
+recovery console.
+
+If the SDDM boot fails, switch to tty2 and run:
+
+```bash
+sudo systemctl disable sddm.service
+sudo systemctl enable ly@tty2.service
+sudo reboot
+```
+
+Only after a successful cold boot, login, and logout cycle should
+`arch_sddm_retire_ly` be set to `true`. That retirement pass removes Ly's
+package and system configuration together with the verified legacy artwork
+store under the primary user's home directory.
 
 ## Boot Role
 

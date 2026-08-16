@@ -1,0 +1,21 @@
+[Autologin]
+Relogin=false
+Session=
+User=
+
+[General]
+DisplayServer=wayland
+GreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1
+
+[Theme]
+Current={{ arch_sddm_theme }}
+EnableAvatars=false
+Font=Noto Sans
+
+[Users]
+MinimumUid=1000
+RememberLastSession=true
+RememberLastUser=true
+
+[Wayland]
+CompositorCommand=/usr/bin/start-hyprland -- --config /usr/share/sddm/berg-hyprland.conf

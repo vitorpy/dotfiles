@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Berg
+Description=Artwork-backed Berg greeter for Hyprland
+Author=Vitor Py
+Copyright=(c) 2026 Vitor Py
+License=MIT
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=berg
+Theme-API=2.0

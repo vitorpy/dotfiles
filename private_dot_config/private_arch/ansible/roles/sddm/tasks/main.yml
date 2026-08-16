@@ -1,0 +1,178 @@
+---
+- name: Create shared artwork group
+  ansible.builtin.group:
+    name: "{{ arch_artwork_group }}"
+    system: true
+
+- name: Grant artwork access to the desktop user and SDDM
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: "{{ arch_artwork_group }}"
+    append: true
+  loop:
+    - "{{ arch_primary_user }}"
+    - sddm
+
+- name: Create shared artwork repository
+  ansible.builtin.file:
+    path: "{{ arch_artwork_data_dir }}"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_artwork_group }}"
+    mode: "2750"
+
+- name: Inspect legacy artwork files
+  ansible.builtin.stat:
+    path: "{{ arch_artwork_legacy_data_dir }}/{{ item }}"
+    checksum_algorithm: sha256
+  loop:
+    - current.webp
+    - current.json
+    - state.json
+  register: sddm_legacy_artwork_files
+
+- name: Seed shared artwork repository from the legacy location
+  ansible.builtin.copy:
+    src: "{{ item.stat.path }}"
+    dest: "{{ arch_artwork_data_dir }}/{{ item.item }}"
+    remote_src: true
+    force: false
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_artwork_group }}"
+    mode: "0640"
+  loop: "{{ sddm_legacy_artwork_files.results }}"
+  when: item.stat.exists
+  register: sddm_seeded_artwork_files
+
+- name: Verify newly seeded artwork checksums
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.checksum ==
+        sddm_legacy_artwork_files.results[ansible_loop.index0].stat.checksum
+    fail_msg: >-
+      Seeded artwork checksum does not match
+      {{ sddm_legacy_artwork_files.results[ansible_loop.index0].stat.path }}.
+  loop: "{{ sddm_seeded_artwork_files.results }}"
+  loop_control:
+    extended: true
+  when: item.changed | default(false)
+
+- name: Inspect shared artwork files
+  ansible.builtin.stat:
+    path: "{{ arch_artwork_data_dir }}/{{ item }}"
+  loop:
+    - .lock
+    - current.webp
+    - current.json
+    - state.json
+  register: sddm_shared_artwork_files
+
+- name: Enforce shared artwork file permissions
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_artwork_group }}"
+    mode: "0640"
+  loop: "{{ sddm_shared_artwork_files.results }}"
+  when: item.stat.exists
+
+- name: Query primary user id for the user systemd manager
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ arch_primary_user }}"
+  register: sddm_primary_user_id
+  changed_when: false
+  check_mode: false
+
+- name: Check whether the primary user manager is running
+  ansible.builtin.stat:
+    path: "/run/user/{{ sddm_primary_user_id.stdout }}/bus"
+  register: sddm_primary_user_bus
+
+- name: Reload the primary user manager after artwork storage is ready
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ sddm_primary_user_id.stdout }}"
+    DBUS_SESSION_BUS_ADDRESS: >-
+      unix:path=/run/user/{{ sddm_primary_user_id.stdout }}/bus
+  changed_when: false
+  when:
+    - sddm_primary_user_bus.stat.exists
+    - not ansible_check_mode
+
+- name: Create SDDM configuration directory
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Berg SDDM configuration
+  ansible.builtin.template:
+    src: 10-berg.conf.j2
+    dest: /etc/sddm.conf.d/10-berg.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install minimal SDDM Hyprland configuration
+  ansible.builtin.template:
+    src: berg-hyprland.conf.j2
+    dest: /usr/share/sddm/berg-hyprland.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Berg SDDM theme
+  ansible.builtin.copy:
+    src: berg/
+    dest: /usr/share/sddm/themes/berg/
+    owner: root
+    group: root
+    mode: preserve
+    directory_mode: "0755"
+
+- name: Collect service state for the display-manager transition
+  ansible.builtin.service_facts:
+
+- name: Disable Ly for the next boot without interrupting this session
+  ansible.builtin.systemd:
+    name: ly@tty2.service
+    enabled: false
+  when: "'ly@tty2.service' in ansible_facts.services"
+
+- name: Enable tty2 recovery for the next boot
+  ansible.builtin.systemd:
+    name: getty@tty2.service
+    enabled: true
+
+- name: Enable SDDM for the next boot without starting it now
+  ansible.builtin.systemd:
+    name: sddm.service
+    enabled: true
+
+- name: Remove Ly package after SDDM acceptance
+  ansible.builtin.package:
+    name: ly
+    state: absent
+  when: arch_sddm_retire_ly | bool
+
+- name: Remove legacy Ly system configuration after SDDM acceptance
+  ansible.builtin.file:
+    path: /etc/ly
+    state: absent
+  when: arch_sddm_retire_ly | bool
+
+- name: Remove legacy home artwork repository after SDDM acceptance
+  ansible.builtin.file:
+    path: "{{ arch_artwork_legacy_data_dir }}"
+    state: absent
+  when: arch_sddm_retire_ly | bool

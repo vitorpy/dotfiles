@@ -7,7 +7,13 @@ arch_primary_user: vitorpy
 arch_primary_user_shell: /usr/bin/zsh
 arch_primary_user_home: "/home/{{ arch_primary_user }}"
 arch_primary_user_authorized_keys: []
-arch_ly_service_name: ly@tty2.service
+arch_display_manager: none
+arch_sddm_theme: berg
+arch_sddm_retire_ly: false
+arch_artwork_data_dir: /var/lib/arts-wallpaper
+arch_artwork_legacy_data_dir: >-
+  {{ arch_primary_user_home }}/.local/share/arts-wallpaper
+arch_artwork_group: arts-wallpaper
 
 arch_system_services_base:
   - NetworkManager
@@ -19,7 +25,6 @@ arch_system_services_base:
 arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
-arch_ly_enabled: false
 
 arch_manage_user: true
 arch_manage_sudoers: true
@@ -208,6 +213,7 @@ arch_pacman_packages_base:
 
 arch_pacman_packages_hyprland:
   - hyprland
+  - sddm
   - uwsm
   - hyprpolkitagent
   - quickshell

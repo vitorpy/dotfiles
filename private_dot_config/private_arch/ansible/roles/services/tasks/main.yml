@@ -1170,10 +1170,3 @@
   when:
     - 'item.default | default(false) | bool'
     - 'services_default_printer.stdout != "system default destination: " ~ item.name'
-
-- name: Disable getty on tty2 when using ly
-  ansible.builtin.systemd:
-    name: getty@tty2.service
-    enabled: false
-    state: stopped
-  when: arch_ly_enabled | bool

@@ -9,9 +9,8 @@ QtObject {
     readonly property int weatherMaxAgeSeconds: 10800
     readonly property string home: Quickshell.env("HOME")
     readonly property string cacheHome: Quickshell.env("XDG_CACHE_HOME") || `${home}/.cache`
-    readonly property string dataHome: Quickshell.env("XDG_DATA_HOME") || `${home}/.local/share`
     readonly property string weatherPath: `${cacheHome}/quickshell-berg/weather.json`
-    readonly property string artworkPath: `${dataHome}/arts-wallpaper/current.json`
+    readonly property string artworkPath: "/var/lib/arts-wallpaper/current.json"
 
     property var now: new Date()
     property string currentTimezone: warsawTimezone

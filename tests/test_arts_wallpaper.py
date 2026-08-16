@@ -543,6 +543,8 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(
                 json.loads((root / "state.json").read_text()), {"version": 1}
             )
+            for name in ("current.webp", "current.json", "state.json"):
+                self.assertEqual((root / name).stat().st_mode & 0o777, 0o640)
 
     def test_invalid_image_leaves_published_files_unchanged(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -11,6 +11,12 @@
           - ansible_facts["distribution"] == "Archlinux"
         fail_msg: "This playbook currently targets Arch Linux hosts only."
 
+    - name: Validate display manager selection
+      ansible.builtin.assert:
+        that:
+          - arch_display_manager in ["none", "sddm"]
+        fail_msg: "arch_display_manager must be either 'none' or 'sddm'."
+
   roles:
     - role: base
     - role: packages
@@ -22,7 +28,7 @@
         - bitmagnet
     - role: desktop
       when: arch_desktop_enabled | bool
-    - role: ly
-      when: arch_ly_enabled | bool
+    - role: sddm
+      when: arch_display_manager == "sddm"
     - role: boot
       when: arch_boot_enabled | bool

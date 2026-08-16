@@ -1,10 +1,7 @@
 ---
 arch_desktop_enabled: true
 arch_display_manager: sddm
-arch_sddm_retire_ly: true
 arch_package_prune_explicit: true
-arch_package_prune_exclude:
-  - ly
 arch_ssh_allow_agent_forwarding_enabled: false
 arch_ssh_allow_tcp_forwarding_enabled: false
 arch_fprintd_polkit_rule_enabled: true

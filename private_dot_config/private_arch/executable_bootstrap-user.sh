@@ -46,4 +46,4 @@ echo "==> Applying system configuration with Ansible..."
 
 echo
 echo "==> User bootstrap complete!"
-echo "Next step: reboot to start Hyprland with ly display manager"
+echo "Next step: reboot to start Hyprland through SDDM"

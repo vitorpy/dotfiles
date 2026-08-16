@@ -48,7 +48,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 
 ### Core System
 - **Hyprland** (`~/.config/hypr/`) - Wayland compositor configuration
-- **Waybar** (`~/.config/waybar/`) - Status bar configuration
+- **Quickshell** (`~/.config/quickshell/berg/`) - Panel and notification shell
 - **Hyprpaper** - Wallpaper daemon
 - **Hypridle** - Idle management
 - **Hyprlock** - Screen locker

@@ -22,7 +22,7 @@ The playbook will then handle:
 - hostname, timezone, locale, and `/etc/hosts`
 - package installation from `pacman` and AUR
 - core services like `NetworkManager` and `sshd`
-- desktop/session setup such as keyboard defaults and `ly`
+- desktop/session setup such as keyboard defaults and SDDM
 - optional bootloader and Secure Boot state if you enable that role explicitly
 
 ## Base Install

@@ -55,7 +55,7 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
-## SDDM Migration and Recovery
+## SDDM and Recovery
 
 The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland Lua
 greeter. Artwork and its public metadata live in
@@ -64,31 +64,22 @@ by the `sddm` user through the `arts-wallpaper` group. Hyprpaper and Quickshell
 use `current.webp`; the wallpaper publisher also atomically renders
 `current.png` for SDDM's Qt image loader.
 
-The migration was deployed first with `arch_sddm_retire_ly: false`. That pass
-installed and enabled SDDM for the next boot without starting it in the active
-session, disabled Ly for the next boot without stopping it, and enabled tty2 as
-a recovery console.
+The `sddm` role creates and maintains the shared artwork directory, installs the
+Berg theme and greeter configuration, enables SDDM, and keeps tty2 enabled as a
+recovery console. Applying the role does not start or restart SDDM in the active
+desktop session.
 
-Before Ly is retired, an SDDM boot failure can be rolled back from tty2 with:
+If the graphical greeter fails, switch to tty2 and inspect SDDM from there:
 
 ```bash
-sudo systemctl disable sddm.service
-sudo systemctl disable getty@tty2.service
-sudo systemctl enable ly@tty2.service
-sudo reboot
+sudo systemctl status sddm.service
+sudo journalctl -b -u sddm.service
+sudo systemctl restart sddm.service
 ```
 
-After successful cold-boot, login, and logout/login acceptance,
-`arch_sddm_retire_ly` is now `true` for the workstation. The retirement pass
-first verifies that SDDM and the tty2 recovery console are active and enabled,
-that Ly is stopped and disabled, and that the shared artwork files are valid.
-Package pruning preserves Ly until those checks run. The role then removes the
-Ly package, `/etc/ly`, the managed `~/.config/ly` files, and the verified legacy
-artwork store under the primary user's home directory. Migration-only checks
-are skipped on clean installs and on later runs where no Ly state remains.
-
-After retirement, tty2 remains the recovery path. SDDM can be repaired or Ly
-can be reinstalled explicitly from that console if a later regression occurs.
+To keep graphical login disabled across a reboot while repairing it, run
+`sudo systemctl disable sddm.service`. Re-enable it with
+`sudo systemctl enable sddm.service` after the repair; tty2 remains enabled.
 
 ## Boot Role
 

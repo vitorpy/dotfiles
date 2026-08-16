@@ -11,7 +11,7 @@ Scope {
     readonly property alias clock: clockState
     readonly property alias brightness: brightnessState
     readonly property alias keyboard: keyboardState
-    readonly property alias dnd: dndState
+    readonly property alias notifications: notificationState
     readonly property alias updates: updatesState
     readonly property alias reboot: kernelState
     readonly property alias powerProfile: powerProfileState
@@ -41,11 +41,11 @@ Scope {
     }
 
     function toggleDnd(): void {
-        dndState.toggle();
+        notificationState.toggleDnd();
     }
 
-    function dismissNotifications(): void {
-        Quickshell.execDetached(["/usr/bin/makoctl", "dismiss", "-a"]);
+    function toggleNotificationCenter(screenName: string): void {
+        notificationState.toggleCenter(screenName);
     }
 
     function cyclePowerProfile(): void {
@@ -79,8 +79,8 @@ Scope {
         id: keyboardState
     }
 
-    DndState {
-        id: dndState
+    NotificationState {
+        id: notificationState
     }
 
     PackageUpdatesState {

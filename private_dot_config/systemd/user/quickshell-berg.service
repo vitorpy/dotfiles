@@ -7,6 +7,8 @@ Requisite=graphical-session.target
 ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
+Type=dbus
+BusName=org.freedesktop.Notifications
 ExecStart=/usr/bin/qs -c berg
 ExecReload=/usr/bin/qs -c berg ipc call shell reload
 Restart=on-failure

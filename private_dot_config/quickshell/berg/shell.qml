@@ -15,6 +15,10 @@ ShellRoot {
         id: sharedState
     }
 
+    NotificationToasts {
+        notificationState: sharedState.notifications
+    }
+
     IpcHandler {
         target: "shell"
 

@@ -224,7 +224,6 @@ arch_pacman_packages_hyprland:
   - xdg-desktop-portal-gtk
   - grim
   - slurp
-  - mako
   - brightnessctl
   - playerctl
   - network-manager-applet

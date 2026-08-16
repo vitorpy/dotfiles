@@ -12,6 +12,7 @@ Scope {
     required property var modelData
     required property var barState
     property bool previewMode: false
+    readonly property var palette: theme
 
     Theme {
         id: theme
@@ -475,17 +476,15 @@ Scope {
                         horizontalPadding: 0
                         separator: true
                         interactive: true
-                        tooltipText: root.healthTooltip(root.barState.dnd.tooltip, root.barState.dnd)
-                        onLeftClicked: root.barState.toggleDnd()
-                        onRightClicked: root.barState.dismissNotifications()
+                        tooltipText: root.barState.notifications.tooltip
+                        onLeftClicked: root.barState.toggleNotificationCenter(root.modelData.name)
+                        onRightClicked: root.barState.toggleDnd()
 
                         MetricLabel {
                             theme: theme
-                            glyph: root.barState.dnd.hasValue
-                                ? (root.barState.dnd.enabled ? theme.dndEnabled : theme.dndDisabled)
-                                : ""
-                            foreground: root.unhealthy(root.barState.dnd) ? theme.error : theme.foreground
-                            warning: root.unhealthy(root.barState.dnd)
+                            glyph: root.barState.notifications.dnd ? theme.dndEnabled : theme.dndDisabled
+                            label: root.barState.notifications.badgeText
+                            foreground: root.barState.notifications.dnd ? theme.error : theme.foreground
                         }
                     }
 
@@ -503,6 +502,12 @@ Scope {
                         }
                     }
                 }
+            }
+
+            NotificationCenter {
+                screen: root.modelData
+                theme: root.palette
+                notificationState: root.barState.notifications
             }
 
             Popup {

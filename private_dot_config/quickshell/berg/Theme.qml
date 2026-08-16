@@ -30,4 +30,9 @@ QtObject {
     readonly property string cpu: "􀧓"
     readonly property string temperature: "􀇬"
     readonly property string power: "􀆨"
+    readonly property string dndEnabled: "􀋞"
+    readonly property string dndDisabled: "􀋚"
+    readonly property string updates: "􀁹"
+    readonly property string reboot: "􀚂"
+    readonly property string warning: "􀇿"
 }

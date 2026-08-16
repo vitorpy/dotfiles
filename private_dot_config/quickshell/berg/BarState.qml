@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 Scope {
@@ -9,55 +8,18 @@ Scope {
     readonly property var audioSink: Pipewire.defaultAudioSink
     readonly property var audioSource: Pipewire.defaultAudioSource
 
-    readonly property var brightnessData: parseJson(brightnessPoll.output, {
-        "percent": 0
-    })
-    readonly property var clockData: parseJson(clockPoll.output, {
-        "text": "",
-        "tooltip": ""
-    })
-    readonly property var keyboardData: ({
-        "text": keyboardPoll.output || "?"
-    })
-    readonly property var dndData: parseJson(dndPoll.output, {
-        "text": "",
-        "tooltip": ""
-    })
-    readonly property var updatesData: parseJson(updatesPoll.output, {
-        "text": "",
-        "tooltip": "",
-        "class": "up-to-date"
-    })
-    readonly property var rebootData: parseJson(rebootPoll.output, {
-        "text": "",
-        "tooltip": "",
-        "class": ""
-    })
-    readonly property var profileData: parseJson(profilePoll.output, {
-        "text": "",
-        "tooltip": "",
-        "available": []
-    })
+    readonly property alias clock: clockState
+    readonly property alias brightness: brightnessState
+    readonly property alias keyboard: keyboardState
+    readonly property alias dnd: dndState
+    readonly property alias updates: updatesState
+    readonly property alias reboot: kernelState
+    readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
-
-    function script(name: string): string {
-        return Quickshell.shellPath(`scripts/${name}`);
-    }
-
-    function parseJson(text: string, fallback: var): var {
-        if (!text)
-            return fallback;
-
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            console.warn(`Berg bar received invalid JSON: ${error}`);
-            return fallback;
-        }
-    }
+    readonly property alias pwCenter: pwCenterController
 
     function refreshClock(): void {
-        clockPoll.refresh();
+        clockState.refresh();
     }
 
     function toggleAudioMute(node: var): void {
@@ -71,15 +33,15 @@ Scope {
     }
 
     function changeBrightness(argument: string): void {
-        brightnessAction.exec(["/usr/bin/brightnessctl", "set", argument]);
+        brightnessState.change(argument);
     }
 
     function toggleKeyboard(): void {
-        keyboardAction.exec([script("kbtoggle.sh")]);
+        keyboardState.toggle();
     }
 
     function toggleDnd(): void {
-        dndAction.exec([script("dnd-toggle.sh")]);
+        dndState.toggle();
     }
 
     function dismissNotifications(): void {
@@ -87,11 +49,11 @@ Scope {
     }
 
     function cyclePowerProfile(): void {
-        profileAction.exec([script("power-profile.sh"), "cycle"]);
+        powerProfileState.cycle();
     }
 
     function togglePwCenter(): void {
-        Quickshell.execDetached([script("hyprpwcenter-toggle.sh")]);
+        pwCenterController.toggle();
     }
 
     function runSessionAction(action: string): void {
@@ -105,84 +67,39 @@ Scope {
         objects: [root.audioSink, root.audioSource]
     }
 
+    ClockState {
+        id: clockState
+    }
+
+    BrightnessState {
+        id: brightnessState
+    }
+
+    KeyboardState {
+        id: keyboardState
+    }
+
+    DndState {
+        id: dndState
+    }
+
+    PackageUpdatesState {
+        id: updatesState
+    }
+
+    KernelState {
+        id: kernelState
+    }
+
+    PowerProfileState {
+        id: powerProfileState
+    }
+
     SystemStats {
         id: stats
     }
 
-    CommandPoll {
-        id: brightnessPoll
-        command: [root.script("brightness-status.sh")]
-        intervalMs: 2000
-    }
-
-    CommandPoll {
-        id: clockPoll
-        command: [root.script("smart-clock.sh")]
-        intervalMs: 30000
-    }
-
-    CommandPoll {
-        id: keyboardPoll
-        command: [root.script("kblayout.sh")]
-        intervalMs: 1000
-    }
-
-    CommandPoll {
-        id: dndPoll
-        command: [root.script("dnd-status.sh")]
-        intervalMs: 2000
-    }
-
-    CommandPoll {
-        id: updatesPoll
-        command: [root.script("pacman-updates.sh")]
-        intervalMs: 300000
-    }
-
-    CommandPoll {
-        id: rebootPoll
-        command: [root.script("reboot-required.sh")]
-        intervalMs: 300000
-    }
-
-    CommandPoll {
-        id: profilePoll
-        command: [root.script("power-profile.sh"), "status"]
-        intervalMs: 5000
-    }
-
-    Process {
-        id: brightnessAction
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: brightnessRefreshDelay.restart()
-    }
-
-    Timer {
-        id: brightnessRefreshDelay
-        interval: 150
-        repeat: false
-        onTriggered: brightnessPoll.refresh()
-    }
-
-    Process {
-        id: keyboardAction
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: keyboardPoll.refresh()
-    }
-
-    Process {
-        id: dndAction
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: dndPoll.refresh()
-    }
-
-    Process {
-        id: profileAction
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: profilePoll.refresh()
+    PwCenterController {
+        id: pwCenterController
     }
 }

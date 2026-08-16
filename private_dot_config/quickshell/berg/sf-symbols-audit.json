@@ -21,7 +21,12 @@
       "battery.100percent.bolt",
       "cpu.fill",
       "thermometer.medium",
-      "power"
+      "power",
+      "bell.slash.fill",
+      "bell.fill",
+      "arrow.down.circle.fill",
+      "arrow.clockwise.circle.fill",
+      "exclamationmark.triangle.fill"
     ],
     "scripts/dnd-status.sh": [
       "bell.slash.fill",

@@ -62,6 +62,22 @@ Scope {
         return separator >= 0 ? value.substring(separator + 1) : "";
     }
 
+    function unhealthy(state: var): bool {
+        return state && (state.health === "stale" || state.health === "error");
+    }
+
+    function healthTooltip(base: string, state: var): string {
+        if (!unhealthy(state))
+            return base;
+
+        const lines = [base];
+        if (state.lastError && base.indexOf(state.lastError) < 0)
+            lines.push(state.lastError);
+        if (state.lastSuccess)
+            lines.push(`Last successful refresh: ${Qt.formatDateTime(state.lastSuccess, "dd.MM HH:mm:ss")}`);
+        return lines.filter(line => line && line.length > 0).join("\n");
+    }
+
     function batteryPercent(): int {
         const value = UPower.displayDevice.percentage;
         if (!Number.isFinite(value))
@@ -141,30 +157,34 @@ Scope {
 
                 BarCell {
                     theme: theme
-                    visible: root.barState.updatesData.text.length > 0
+                    visible: root.barState.updates.visible
                     horizontalPadding: 16
                     backgroundColor: theme.surfaceContainerHigh
                     cornerRadius: 12
-                    tooltipText: root.barState.updatesData.tooltip || ""
+                    tooltipText: root.healthTooltip(root.barState.updates.tooltip, root.barState.updates)
 
                     MetricLabel {
                         theme: theme
-                        glyph: root.firstCharacter(root.barState.updatesData.text || "")
-                        label: root.textAfterGlyph(root.barState.updatesData.text || "")
+                        glyph: root.barState.updates.total > 0 ? theme.updates : ""
+                        label: root.barState.updates.total > 0 ? root.barState.updates.total.toString() : ""
+                        foreground: root.unhealthy(root.barState.updates) ? theme.error : theme.foreground
+                        warning: root.unhealthy(root.barState.updates)
                     }
                 }
 
                 BarCell {
                     theme: theme
-                    visible: root.barState.rebootData.text.length > 0
+                    visible: root.barState.reboot.visible
                     horizontalPadding: 16
                     backgroundColor: theme.surfaceContainerHigh
                     cornerRadius: 12
-                    tooltipText: root.barState.rebootData.tooltip || ""
+                    tooltipText: root.healthTooltip(root.barState.reboot.tooltip, root.barState.reboot)
 
                     MetricLabel {
                         theme: theme
-                        glyph: root.firstCharacter(root.barState.rebootData.text || "")
+                        glyph: root.barState.reboot.rebootRequired ? theme.reboot : ""
+                        foreground: root.unhealthy(root.barState.reboot) ? theme.error : theme.foreground
+                        warning: root.unhealthy(root.barState.reboot)
                     }
                 }
             }
@@ -187,11 +207,13 @@ Scope {
 
                     anchors.centerIn: parent
                     theme: theme
-                    tooltipText: root.barState.clockData.tooltip || ""
+                    tooltipText: root.healthTooltip(root.barState.clock.tooltip, root.barState.clock)
 
                     MetricLabel {
                         theme: theme
-                        label: root.barState.clockData.text || ""
+                        label: root.barState.clock.text
+                        foreground: root.unhealthy(root.barState.clock) ? theme.error : theme.foreground
+                        warning: root.unhealthy(root.barState.clock)
                     }
                 }
             }
@@ -220,7 +242,7 @@ Scope {
                         theme: theme
                         minimumWidth: 54
                         interactive: true
-                        tooltipText: root.audioTooltip(root.barState.audioSink, "Audio output")
+                        tooltipText: root.healthTooltip(root.audioTooltip(root.barState.audioSink, "Audio output"), root.barState.pwCenter)
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink)
                         onRightClicked: root.barState.togglePwCenter()
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05)
@@ -230,6 +252,7 @@ Scope {
                             theme: theme
                             glyph: root.speakerGlyph()
                             label: `${root.volumePercent(root.barState.audioSink)}%`
+                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -238,7 +261,7 @@ Scope {
                         minimumWidth: 54
                         separator: true
                         interactive: true
-                        tooltipText: root.audioTooltip(root.barState.audioSource, "Audio input")
+                        tooltipText: root.healthTooltip(root.audioTooltip(root.barState.audioSource, "Audio input"), root.barState.pwCenter)
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource)
                         onRightClicked: root.barState.togglePwCenter()
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05)
@@ -248,6 +271,7 @@ Scope {
                             theme: theme
                             glyph: root.microphoneGlyph()
                             label: `${root.volumePercent(root.barState.audioSource)}%`
+                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -256,7 +280,12 @@ Scope {
                         minimumWidth: 54
                         separator: true
                         interactive: true
-                        tooltipText: `Brightness: ${root.barState.brightnessData.percent || 0}%`
+                        tooltipText: root.healthTooltip(
+                            root.barState.brightness.hasValue
+                                ? `Brightness: ${root.barState.brightness.percent}%`
+                                : "Brightness: unavailable",
+                            root.barState.brightness
+                        )
                         onLeftClicked: root.barState.changeBrightness("100%")
                         onWheelUp: root.barState.changeBrightness("+5%")
                         onWheelDown: root.barState.changeBrightness("5%-")
@@ -264,22 +293,25 @@ Scope {
                         MetricLabel {
                             theme: theme
                             glyph: theme.brightness
-                            label: `${root.barState.brightnessData.percent || 0}%`
+                            label: root.barState.brightness.hasValue ? `${root.barState.brightness.percent}%` : "—"
+                            foreground: root.unhealthy(root.barState.brightness) ? theme.error : theme.foreground
+                            warning: root.unhealthy(root.barState.brightness)
                         }
                     }
 
                     BarCell {
                         theme: theme
-                        visible: (root.barState.profileData.text || "").length > 0
                         minimumWidth: 100
                         separator: true
                         interactive: true
-                        tooltipText: root.barState.profileData.tooltip || ""
+                        tooltipText: root.healthTooltip(root.barState.powerProfile.tooltip, root.barState.powerProfile)
                         onLeftClicked: root.barState.cyclePowerProfile()
 
                         MetricLabel {
                             theme: theme
-                            label: root.barState.profileData.text || ""
+                            label: root.barState.powerProfile.label
+                            foreground: root.unhealthy(root.barState.powerProfile) ? theme.error : theme.foreground
+                            warning: root.unhealthy(root.barState.powerProfile)
                         }
                     }
 
@@ -304,12 +336,16 @@ Scope {
                         theme: theme
                         minimumWidth: 48
                         separator: true
-                        tooltipText: `CPU utilization: ${root.barState.systemStats.cpuUsage}%`
+                        tooltipText: root.barState.systemStats.cpuError
+                            ? `CPU utilization: ${root.barState.systemStats.cpuHasValue ? root.barState.systemStats.cpuUsage + "%" : "unavailable"}\n${root.barState.systemStats.cpuError}`
+                            : `CPU utilization: ${root.barState.systemStats.cpuUsage}%`
 
                         MetricLabel {
                             theme: theme
                             glyph: theme.cpu
-                            label: `${root.barState.systemStats.cpuUsage}%`
+                            label: root.barState.systemStats.cpuHasValue ? `${root.barState.systemStats.cpuUsage}%` : "—"
+                            foreground: root.barState.systemStats.cpuError ? theme.error : theme.foreground
+                            warning: root.barState.systemStats.cpuError.length > 0
                         }
                     }
 
@@ -317,12 +353,16 @@ Scope {
                         theme: theme
                         minimumWidth: 56
                         separator: true
-                        tooltipText: `Temperature: ${root.barState.systemStats.temperatureC} °C`
+                        tooltipText: root.barState.systemStats.temperatureError
+                            ? `Temperature: ${root.barState.systemStats.temperatureHasValue ? root.barState.systemStats.temperatureC + " °C" : "unavailable"}\n${root.barState.systemStats.temperatureError}`
+                            : `Temperature: ${root.barState.systemStats.temperatureC} °C`
 
                         MetricLabel {
                             theme: theme
                             glyph: theme.temperature
-                            label: `${root.barState.systemStats.temperatureC} °C`
+                            label: root.barState.systemStats.temperatureHasValue ? `${root.barState.systemStats.temperatureC} °C` : "—"
+                            foreground: root.barState.systemStats.temperatureError ? theme.error : theme.foreground
+                            warning: root.barState.systemStats.temperatureError.length > 0
                         }
                     }
 
@@ -332,12 +372,14 @@ Scope {
                         horizontalPadding: 0
                         separator: true
                         interactive: true
-                        tooltipText: "Keyboard layout"
+                        tooltipText: root.healthTooltip("Keyboard layout", root.barState.keyboard)
                         onLeftClicked: root.barState.toggleKeyboard()
 
                         MetricLabel {
                             theme: theme
-                            label: root.barState.keyboardData.text || "?"
+                            label: root.barState.keyboard.layout
+                            foreground: root.unhealthy(root.barState.keyboard) ? theme.error : theme.foreground
+                            warning: root.unhealthy(root.barState.keyboard)
                         }
                     }
 
@@ -433,13 +475,17 @@ Scope {
                         horizontalPadding: 0
                         separator: true
                         interactive: true
-                        tooltipText: root.barState.dndData.tooltip || ""
+                        tooltipText: root.healthTooltip(root.barState.dnd.tooltip, root.barState.dnd)
                         onLeftClicked: root.barState.toggleDnd()
                         onRightClicked: root.barState.dismissNotifications()
 
                         MetricLabel {
                             theme: theme
-                            glyph: root.firstCharacter(root.barState.dndData.text || "")
+                            glyph: root.barState.dnd.hasValue
+                                ? (root.barState.dnd.enabled ? theme.dndEnabled : theme.dndDisabled)
+                                : ""
+                            foreground: root.unhealthy(root.barState.dnd) ? theme.error : theme.foreground
+                            warning: root.unhealthy(root.barState.dnd)
                         }
                     }
 

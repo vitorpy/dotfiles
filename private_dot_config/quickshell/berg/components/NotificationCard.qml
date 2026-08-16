@@ -87,6 +87,8 @@ Rectangle {
         spacing: root.iconSource ? 12 : 0
 
         Item {
+            id: iconItem
+
             width: root.iconSource ? 48 : 0
             height: 48
             visible: width > 0
@@ -101,15 +103,20 @@ Rectangle {
         Column {
             id: textColumn
 
-            width: contentRow.width - (root.iconSource ? 60 : 0)
+            width: contentRow.width - iconItem.width - contentRow.spacing
             spacing: 5
 
-            Row {
+            Item {
                 width: parent.width
-                spacing: 8
+                height: closeButton.height
 
                 Text {
-                    width: parent.width - closeButton.width - timeLabel.width - parent.spacing * 2
+                    anchors {
+                        left: parent.left
+                        right: timeLabel.visible ? timeLabel.left : closeButton.left
+                        rightMargin: 8
+                        verticalCenter: parent.verticalCenter
+                    }
                     text: root.groupAppName || (root.notification ? (root.notification.appName || root.notification.desktopEntry || "Unknown application") : "")
                     color: root.theme.foregroundMuted
                     font.family: root.theme.textFont
@@ -121,6 +128,11 @@ Rectangle {
                 Text {
                     id: timeLabel
 
+                    anchors {
+                        right: closeButton.left
+                        rightMargin: 8
+                        verticalCenter: parent.verticalCenter
+                    }
                     visible: !root.toastMode
                     text: root.timestamp()
                     color: root.theme.foregroundMuted
@@ -131,17 +143,21 @@ Rectangle {
                 Rectangle {
                     id: closeButton
 
-                    width: 22
-                    height: 22
+                    anchors {
+                        right: parent.right
+                        verticalCenter: parent.verticalCenter
+                    }
+                    width: 28
+                    height: 28
                     color: closeMouse.containsMouse ? root.theme.hoverLayer : "transparent"
-                    radius: 6
+                    radius: 7
 
                     Text {
                         anchors.centerIn: parent
                         text: "×"
                         color: root.theme.foregroundMuted
                         font.family: root.theme.textFont
-                        font.pixelSize: 17
+                        font.pixelSize: 18
                     }
 
                     MouseArea {

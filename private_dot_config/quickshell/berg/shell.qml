@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 //@ pragma ShellId berg
 //@ pragma AppId org.vitorpy.berg
 //@ pragma NativeTextRendering

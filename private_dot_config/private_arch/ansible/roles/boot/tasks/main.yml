@@ -1,74 +1,66 @@
 ---
-- name: Require LUKS UUID when boot role is enabled
+- name: Validate boot role inputs
   ansible.builtin.assert:
     that:
-      - arch_luks_uuid | length > 0
-    fail_msg: "Set arch_luks_uuid before enabling the boot role."
+      - arch_root_kernel_cmdline | trim | length > 0
+      - arch_esp_uuid | trim | length > 0
+      - arch_mkinitcpio_modules | length > 0
+      - arch_mkinitcpio_hooks | length > 0
+      - arch_uki_default_path != arch_uki_fallback_path
+    fail_msg: >-
+      The boot role requires an explicit root kernel command line, ESP UUID,
+      mkinitcpio configuration, and distinct default/fallback UKI paths.
 
-- name: Ensure kernel config directories exist
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: "0755"
-  loop:
-    - /etc/kernel
-    - /boot/EFI/Linux
-    - /boot/loader
-    - /boot/loader/entries
-    - /boot/EFI/BOOT
+- name: Query currently booted unified kernel image
+  ansible.builtin.command: bootctl --print-stub-path
+  register: boot_running_stub
+  changed_when: false
+  failed_when: false
+  check_mode: false
 
-- name: Manage mkinitcpio hooks
-  ansible.builtin.lineinfile:
-    path: /etc/mkinitcpio.conf
-    regexp: "^HOOKS="
-    line: "{{ arch_mkinitcpio_hooks }}"
+- name: Record whether the managed default UKI booted this session
+  ansible.builtin.set_fact:
+    boot_running_managed_uki: >-
+      {{
+        boot_running_stub.rc == 0
+        and (boot_running_stub.stdout | trim | basename)
+          == (arch_uki_default_path | basename)
+      }}
 
-- name: Write kernel cmdline
-  ansible.builtin.copy:
-    dest: /etc/kernel/cmdline
-    mode: "0644"
-    content: >-
-      {{ arch_kernel_cmdline }} cryptdevice=UUID={{ arch_luks_uuid }}:{{ arch_root_mapper_name }}
-      root=/dev/mapper/{{ arch_root_mapper_name }} rootflags=subvol=@ rw
+- name: Require recovery readiness before the initial UKI boot
+  ansible.builtin.assert:
+    that:
+      - arch_boot_recovery_confirmed | bool
+    fail_msg: >-
+      Refusing the initial UKI migration until recovery is confirmed. Verify a
+      bootable Arch installation medium and the passphrase or recovery method
+      for encrypted home, then rerun with
+      -e arch_boot_recovery_confirmed=true.
+  when:
+    - not boot_running_managed_uki
+    - not ansible_check_mode
 
-- name: Write mkinitcpio preset
-  ansible.builtin.copy:
-    dest: "/etc/mkinitcpio.d/{{ arch_kernel_pkg }}.preset"
-    mode: "0644"
-    content: |
-      ALL_config="/etc/mkinitcpio.conf"
-      ALL_kver="/boot/vmlinuz-{{ arch_kernel_pkg }}"
+- name: Read the mounted ESP UUID
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - UUID
+      - --target
+      - "{{ arch_esp_mountpoint }}"
+  register: boot_mounted_esp_uuid
+  changed_when: false
+  check_mode: false
 
-      PRESETS=('default')
-
-      default_uki="/boot/EFI/Linux/arch-linux.efi"
-      default_options="--cmdline /etc/kernel/cmdline"
-
-- name: Regenerate initramfs and UKI
-  ansible.builtin.command: mkinitcpio -P
-  changed_when: true
-
-- name: Install systemd-boot
-  ansible.builtin.command: bootctl install
-  changed_when: true
-
-- name: Write systemd-boot loader.conf
-  ansible.builtin.copy:
-    dest: /boot/loader/loader.conf
-    mode: "0644"
-    content: |
-      default arch
-      timeout 3
-      console-mode max
-      editor no
-
-- name: Write systemd-boot entry
-  ansible.builtin.copy:
-    dest: /boot/loader/entries/arch.conf
-    mode: "0644"
-    content: |
-      title   Arch Linux
-      efi     /EFI/Linux/arch-linux.efi
+- name: Verify the expected ESP is mounted
+  ansible.builtin.assert:
+    that:
+      - boot_mounted_esp_uuid.stdout | trim == arch_esp_uuid
+    fail_msg: >-
+      Refusing to modify {{ arch_esp_mountpoint }}: mounted UUID
+      {{ boot_mounted_esp_uuid.stdout | trim }} does not match configured ESP
+      UUID {{ arch_esp_uuid }}.
 
 - name: Check Secure Boot key material
   ansible.builtin.stat:
@@ -87,34 +79,321 @@
 - name: Require Secure Boot key material
   ansible.builtin.assert:
     that:
-      - (boot_sbctl_key_files.results | map(attribute='stat.exists') | min)
-    fail_msg: "Secure Boot signing requested, but sbctl key material is missing."
+      - boot_sbctl_key_files.results | map(attribute='stat.exists') | min
+    fail_msg: Secure Boot signing requested, but sbctl key material is missing.
   when: arch_manage_secure_boot | bool
 
-- name: Sign boot artifacts with sbctl
+- name: Mount the ESP with root-only host permissions
+  ansible.posix.mount:
+    src: "UUID={{ arch_esp_uuid }}"
+    path: "{{ arch_esp_mountpoint }}"
+    fstype: vfat
+    opts: "{{ arch_esp_mount_options }}"
+    dump: "0"
+    passno: "2"
+    state: mounted
+    backup: true
+
+- name: Validate the managed fstab before the reboot boundary
   ansible.builtin.command:
-    cmd: "sbctl sign -s {{ item }}"
-  loop:
-    - /boot/EFI/systemd/systemd-bootx64.efi
-    - /boot/EFI/Linux/arch-linux.efi
-  when: arch_manage_secure_boot | bool
-  changed_when: true
+    argv:
+      - findmnt
+      - --verify
+      - --tab-file
+      - /etc/fstab
+  changed_when: false
+  check_mode: false
 
-- name: Copy fallback bootloader path
+- name: Read live ESP mount options
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - OPTIONS
+      - --target
+      - "{{ arch_esp_mountpoint }}"
+  register: boot_live_esp_options
+  changed_when: false
+  check_mode: false
+
+- name: Verify root-only ESP options after a managed UKI boot
+  ansible.builtin.assert:
+    that:
+      - >-
+        arch_esp_mount_options.split(',')
+        | difference((boot_live_esp_options.stdout | trim).split(','))
+        | length == 0
+    fail_msg: >-
+      This session booted the managed UKI, but the ESP is not mounted with all
+      required root-only options. Legacy boot files will not be retired.
+  when:
+    - boot_running_managed_uki
+    - not ansible_check_mode
+
+- name: Report ESP option activation pending a clean boot
+  ansible.builtin.debug:
+    msg: >-
+      The managed fstab is valid. Root-only ESP options will be asserted after
+      rebooting into the managed UKI; this session retains its original mount.
+  when:
+    - not boot_running_managed_uki
+    - >-
+      arch_esp_mount_options.split(',')
+      | difference((boot_live_esp_options.stdout | trim).split(','))
+      | length > 0
+
+- name: Ensure the kernel configuration directory exists
+  ansible.builtin.file:
+    path: /etc/kernel
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure boot-loader directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /boot/EFI/Linux
+    - /boot/loader
+    - /boot/loader/entries
+    - /boot/EFI/BOOT
+
+- name: Render mkinitcpio configuration
+  ansible.builtin.template:
+    src: mkinitcpio.conf.j2
+    dest: /etc/mkinitcpio.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: boot_mkinitcpio_config
+
+- name: Render embedded kernel command line
+  ansible.builtin.template:
+    src: kernel-cmdline.j2
+    dest: /etc/kernel/cmdline
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: boot_kernel_cmdline
+
+- name: Render mkinitcpio UKI preset
+  ansible.builtin.template:
+    src: linux.preset.j2
+    dest: "/etc/mkinitcpio.d/{{ arch_kernel_pkg }}.preset"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: boot_mkinitcpio_preset
+
+- name: Check existing managed UKIs
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_uki_files_before
+
+- name: Decide whether UKIs must be regenerated
+  ansible.builtin.set_fact:
+    boot_regenerate_ukis: >-
+      {{
+        boot_mkinitcpio_config.changed
+        or boot_kernel_cmdline.changed
+        or boot_mkinitcpio_preset.changed
+        or not (boot_uki_files_before.results
+          | map(attribute='stat.exists') | min)
+      }}
+
+- name: Regenerate default and fallback UKIs
+  ansible.builtin.command: mkinitcpio -P
+  changed_when: true
+  when:
+    - boot_regenerate_ukis | bool
+    - not ansible_check_mode
+
+- name: Check generated UKIs
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_generated_uki_files
+  when: not ansible_check_mode
+
+- name: Require non-empty generated UKIs
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - item.stat.size | int > 0
+    fail_msg: "Expected generated UKI {{ item.item }} is missing or empty."
+  loop: "{{ boot_generated_uki_files.results }}"
+  when: not ansible_check_mode
+
+- name: Identify generated artifacts as UKIs
+  ansible.builtin.command:
+    argv:
+      - bootctl
+      - kernel-identify
+      - "{{ item }}"
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_uki_identity
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify generated artifact types
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim == 'uki'
+    fail_msg: "Generated artifact {{ item.item }} is not a UKI."
+  loop: "{{ boot_uki_identity.results }}"
+  when: not ansible_check_mode
+
+- name: Inspect generated UKI metadata
+  ansible.builtin.command:
+    argv:
+      - bootctl
+      - kernel-inspect
+      - "{{ item }}"
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_uki_inspection
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify embedded root and security command line
+  ansible.builtin.assert:
+    that:
+      - arch_root_kernel_cmdline | trim in item.stdout
+      - >-
+        not (arch_apparmor_enabled | bool)
+        or arch_apparmor_boot_parameters | trim in item.stdout
+      - >-
+        not (arch_lockdown_enabled | bool)
+        or ('lockdown=' ~ arch_lockdown_mode) in item.stdout
+    fail_msg: "UKI {{ item.item }} is missing managed kernel parameters."
+  loop: "{{ boot_uki_inspection.results }}"
+  when: not ansible_check_mode
+
+- name: Install or update systemd-boot
+  ansible.builtin.command: bootctl install
+  changed_when: true
+  when: not ansible_check_mode
+
+- name: Copy systemd-boot to the removable fallback path
   ansible.builtin.copy:
     src: /boot/EFI/systemd/systemd-bootx64.efi
     dest: /boot/EFI/BOOT/BOOTX64.EFI
     remote_src: true
-    mode: "0644"
-  when: arch_manage_secure_boot | bool
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
 
-- name: Sign fallback bootloader path
+- name: Sign and enroll all managed boot artifacts with sbctl
   ansible.builtin.command:
-    cmd: sbctl sign -s /boot/EFI/BOOT/BOOTX64.EFI
-  when: arch_manage_secure_boot | bool
+    argv:
+      - sbctl
+      - sign
+      - --save
+      - "{{ item }}"
+  loop:
+    - "/boot/vmlinuz-{{ arch_kernel_pkg }}"
+    - /boot/EFI/systemd/systemd-bootx64.efi
+    - /boot/EFI/BOOT/BOOTX64.EFI
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
   changed_when: true
 
-- name: Verify sbctl signatures
+- name: Verify the signed boot chain with sbctl
   ansible.builtin.command: sbctl verify
-  when: arch_manage_secure_boot | bool
+  register: boot_sbctl_verification
   changed_when: false
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
+
+- name: Verify managed artifacts appear in the sbctl report
+  ansible.builtin.assert:
+    that:
+      - item in boot_sbctl_verification.stdout
+    fail_msg: "sbctl verification did not report managed artifact {{ item }}."
+  loop:
+    - /boot/EFI/systemd/systemd-bootx64.efi
+    - /boot/EFI/BOOT/BOOTX64.EFI
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
+
+- name: Render systemd-boot loader configuration
+  ansible.builtin.template:
+    src: loader.conf.j2
+    dest: /boot/loader/loader.conf
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Render systemd-boot UKI entries
+  ansible.builtin.template:
+    src: uki-entry.conf.j2
+    dest: "/boot/loader/entries/{{ item.id }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    boot_entry_title: "{{ item.title }}"
+    boot_entry_uki: "{{ item.uki }}"
+  loop:
+    - id: arch
+      title: Arch Linux
+      uki: /EFI/Linux/arch-linux.efi
+    - id: arch-fallback
+      title: Arch Linux (fallback)
+      uki: /EFI/Linux/arch-linux-fallback.efi
+
+- name: List boot-loader entries after migration
+  ansible.builtin.command: bootctl list --no-pager
+  register: boot_loader_entries
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify both managed boot-loader entries are discoverable
+  ansible.builtin.assert:
+    that:
+      - "'Arch Linux' in boot_loader_entries.stdout"
+      - "'Arch Linux (fallback)' in boot_loader_entries.stdout"
+    fail_msg: systemd-boot did not discover both managed UKI entries.
+  when: not ansible_check_mode
+
+- name: Retire legacy split boot entries after a confirmed UKI boot
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ arch_boot_legacy_entries }}"
+  when: boot_running_managed_uki
+
+- name: Retire legacy split initramfs artifacts after a confirmed UKI boot
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ arch_boot_legacy_artifacts }}"
+  when: boot_running_managed_uki

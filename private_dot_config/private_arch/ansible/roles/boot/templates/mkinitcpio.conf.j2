@@ -1,0 +1,6 @@
+# Managed by Ansible. Package updates are reconciled through the pacnew role.
+MODULES=({{ arch_mkinitcpio_modules | join(' ') }})
+BINARIES=({{ arch_mkinitcpio_binaries | join(' ') }})
+FILES=()
+HOOKS=({{ arch_mkinitcpio_hooks | join(' ') }})
+COMPRESSION="{{ arch_mkinitcpio_compression }}"

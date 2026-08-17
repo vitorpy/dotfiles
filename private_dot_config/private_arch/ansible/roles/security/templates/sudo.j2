@@ -1,0 +1,8 @@
+#%PAM-1.0
+{% if arch_sudo_fingerprint_auth_enabled | bool %}
+auth            sufficient      pam_fprintd.so
+{% endif %}
+auth            include         system-auth
+account         include         system-auth
+session         include         system-auth
+session         optional        pam_systemd.so class=none

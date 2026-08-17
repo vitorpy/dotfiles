@@ -6,6 +6,9 @@ arch_ssh_allow_agent_forwarding_enabled: false
 arch_ssh_allow_tcp_forwarding_enabled: false
 arch_fprintd_polkit_rule_enabled: true
 arch_login1_power_polkit_rule_enabled: true
+arch_sudo_pam_managed: true
+arch_sudo_fingerprint_auth_enabled: true
+arch_gnome_keyring_systemd_activation_enabled: true
 arch_mdns_enabled: true
 arch_nsswitch_hosts_line: >-
   hosts: mymachines mdns_minimal [NOTFOUND=return] resolve
@@ -24,6 +27,55 @@ arch_printers:
     uri: ipp://192.168.1.64/ipp/print
     model: everywhere
     default: true
+
+# The ESP is /dev/nvme0n1p1 and the plaintext Btrfs root is
+# /dev/nvme0n1p2 subvolume @. The first real UKI migration run also requires
+# -e arch_boot_recovery_confirmed=true after recovery media and the encrypted
+# home passphrase have been checked.
+arch_boot_enabled: true
+arch_manage_secure_boot: true
+arch_esp_uuid: 7F53-362E
+arch_root_kernel_cmdline: >-
+  root=PARTUUID=c38a539b-1954-45af-b933-78f2b88f2fc3
+  rootflags=subvol=@ rw rootfstype=btrfs
+arch_boot_legacy_entries:
+  - /boot/loader/entries/2025-10-10_11-03-24_linux.conf
+  - /boot/loader/entries/2025-10-10_11-03-24_linux-fallback.conf
+arch_boot_legacy_artifacts:
+  - /boot/initramfs-linux.img
+  - /boot/initramfs-linux-fallback.img
+
+# These hashes deliberately pin the reviewed 2026-08-17 pacnew set. A later
+# package update must fail closed for a new review instead of being discarded.
+arch_pacnew_reconciliation_enabled: true
+arch_pacnew_expected_checksums:
+  /etc/locale.gen.pacnew: 339b027dc9363b7bf3d6f55052b08eb23d54ca34ecc23407ea003b277dbac53e
+  /etc/mkinitcpio.conf.pacnew: 8730ff014170a3017c3845ccdfca67f09668adc11a4b5678c0541f1b45ef1e6b
+  /etc/makepkg.conf.d/fortran.conf.pacnew: 933b0b878fa611bf24b92f655040a3bcb4a1b67841d929013802abbb09b2ccf4
+  /etc/pacman.d/mirrorlist.pacnew: 9932c3a3d3bdbfb7e60501afda1bd8e591a7672df9c221dcf5083b48fbf7f83a
+  /etc/pam.d/sudo.pacnew: 7ec1c668c10e0f83d00e25f336872212fe04ce2c2563e1d661d34d28852f4649
+  /etc/tpm2-tss/fapi-profiles/P_ECCP384SHA384.json.pacnew:
+    65bfbfa3ec7837b2b75c08a50ffe3d5289cd9d7deb9eb68f7e6c6c271b654e4f
+  /etc/tpm2-tss/fapi-profiles/P_RSA3072SHA384.json.pacnew:
+    b21127bb30d0a2740fdb0ecb2d8b9504d8ee6e8d647e3ebb2c4a88b882764bbb
+arch_pacnew_accept_files:
+  - pacnew: /etc/locale.gen.pacnew
+    dest: /etc/locale.gen
+    mode: "0644"
+  - pacnew: /etc/makepkg.conf.d/fortran.conf.pacnew
+    dest: /etc/makepkg.conf.d/fortran.conf
+    mode: "0644"
+  - pacnew: /etc/tpm2-tss/fapi-profiles/P_ECCP384SHA384.json.pacnew
+    dest: /etc/tpm2-tss/fapi-profiles/P_ECCP384SHA384.json
+    mode: "0644"
+  - pacnew: /etc/tpm2-tss/fapi-profiles/P_RSA3072SHA384.json.pacnew
+    dest: /etc/tpm2-tss/fapi-profiles/P_RSA3072SHA384.json
+    mode: "0644"
+arch_pacnew_managed_files:
+  - /etc/mkinitcpio.conf.pacnew
+  - /etc/pam.d/sudo.pacnew
+arch_pacnew_preserve_current_files:
+  - /etc/pacman.d/mirrorlist.pacnew
 
 arch_pacman_packages: "{{ arch_pacman_packages_base + arch_pacman_packages_hyprland + arch_pacman_packages_multimedia + arch_pacman_packages_development + arch_pacman_packages_communication + arch_pacman_packages_theming + arch_pacman_packages_utilities + arch_pacman_packages_browsers + arch_pacman_packages_shells + arch_pacman_packages_system_extras + arch_pacman_packages_cli_extras + arch_pacman_packages_desktop_extras + arch_pacman_packages_dev_extras }}"
 

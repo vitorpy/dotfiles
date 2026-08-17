@@ -1,4 +1,17 @@
 ---
+- name: Manage sudo PAM authentication and session setup
+  ansible.builtin.template:
+    src: sudo.j2
+    dest: /etc/pam.d/sudo
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  when: arch_sudo_pam_managed | bool
+  tags:
+    - security
+    - pacnew
+
 - name: Ensure sshd drop-in directory exists
   ansible.builtin.file:
     path: /etc/ssh/sshd_config.d

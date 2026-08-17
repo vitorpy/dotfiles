@@ -1,0 +1,4 @@
+---
+- name: Regenerate locales after pacnew reconciliation
+  ansible.builtin.command: locale-gen
+  changed_when: true

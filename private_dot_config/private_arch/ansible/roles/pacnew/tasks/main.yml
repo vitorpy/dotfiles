@@ -1,0 +1,137 @@
+---
+- name: Build the reviewed pacnew policy path list
+  ansible.builtin.set_fact:
+    pacnew_policy_path_occurrences: >-
+      {{
+        arch_pacnew_accept_files | map(attribute='pacnew') | list
+        + arch_pacnew_managed_files
+        + arch_pacnew_preserve_current_files
+      }}
+
+- name: Deduplicate the reviewed pacnew policy path list
+  ansible.builtin.set_fact:
+    pacnew_policy_paths: "{{ pacnew_policy_path_occurrences | unique }}"
+
+- name: Verify every pinned pacnew has exactly one policy
+  ansible.builtin.assert:
+    that:
+      - >-
+        arch_pacnew_expected_checksums.keys() | list
+        | difference(pacnew_policy_paths) | length == 0
+      - >-
+        pacnew_policy_paths
+        | difference(arch_pacnew_expected_checksums.keys() | list) | length == 0
+      - pacnew_policy_paths | length == arch_pacnew_expected_checksums | length
+      - pacnew_policy_paths | length == pacnew_policy_path_occurrences | length
+    fail_msg: >-
+      Pacnew checksum and action policies must cover the same unique paths.
+
+- name: Find pending pacnew files
+  ansible.builtin.command: pacdiff -o
+  register: pacnew_pending_query
+  changed_when: false
+  check_mode: false
+
+- name: Record pending pacnew paths
+  ansible.builtin.set_fact:
+    pacnew_pending_paths: >-
+      {{
+        pacnew_pending_query.stdout_lines
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+
+- name: Reject unreviewed pacnew files
+  ansible.builtin.assert:
+    that:
+      - >-
+        pacnew_pending_paths
+        | difference(arch_pacnew_expected_checksums.keys() | list) | length == 0
+    fail_msg: >-
+      Refusing pacnew reconciliation because unreviewed files are present:
+      {{ pacnew_pending_paths
+         | difference(arch_pacnew_expected_checksums.keys() | list)
+         | join(', ') }}
+
+- name: Require managed merge roles for coupled pacnew files
+  ansible.builtin.assert:
+    that:
+      - >-
+        '/etc/mkinitcpio.conf.pacnew' not in pacnew_pending_paths
+        or arch_boot_enabled | bool
+      - >-
+        '/etc/pam.d/sudo.pacnew' not in pacnew_pending_paths
+        or arch_sudo_pam_managed | bool
+    fail_msg: >-
+      mkinitcpio and sudo pacnew files may only be retired after their managed
+      merge roles are enabled.
+
+- name: Hash pending pacnew files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    checksum_algorithm: sha256
+  loop: "{{ pacnew_pending_paths }}"
+  register: pacnew_pending_stats
+
+- name: Reject changed pacnew contents
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - item.stat.checksum == arch_pacnew_expected_checksums[item.item]
+    fail_msg: >-
+      {{ item.item }} no longer matches its reviewed SHA-256 checksum. Review
+      the new package file and update its explicit policy before proceeding.
+  loop: "{{ pacnew_pending_stats.results }}"
+
+- name: Accept reviewed upstream pacnew files
+  ansible.builtin.copy:
+    src: "{{ item.pacnew }}"
+    dest: "{{ item.dest }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+    backup: true
+  loop: "{{ arch_pacnew_accept_files }}"
+  when: item.pacnew in pacnew_pending_paths
+
+- name: Re-enable the managed locale after accepting locale.gen
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: "^#?{{ arch_locale | regex_escape() }} "
+    line: "{{ arch_locale }} {{ arch_locale.split('.')[-1] }}"
+  when: arch_pacnew_locale_path in pacnew_pending_paths
+  notify: Regenerate locales after pacnew reconciliation
+
+- name: Remove only reviewed pacnew files after their policies succeed
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ pacnew_pending_paths }}"
+
+- name: Apply pacnew handlers before final verification
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify no pacnew files remain
+  ansible.builtin.command: pacdiff -o
+  register: pacnew_final_query
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Require a clean pacnew state
+  ansible.builtin.assert:
+    that:
+      - pacnew_final_query.stdout_lines | length == 0
+    fail_msg: >-
+      Pacnew reconciliation completed with unresolved files:
+      {{ pacnew_final_query.stdout_lines | join(', ') }}
+  when: not ansible_check_mode
+
+- name: Report check-mode pacnew convergence boundary
+  ansible.builtin.debug:
+    msg: >-
+      Check mode validated every pending pacnew path and checksum. A real run
+      is required before the final empty-state assertion can execute.
+  when: ansible_check_mode

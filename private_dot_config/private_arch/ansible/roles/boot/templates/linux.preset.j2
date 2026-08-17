@@ -1,0 +1,10 @@
+# Managed by Ansible for mkinitcpio {{ arch_kernel_pkg }} UKIs.
+ALL_kver="/boot/vmlinuz-{{ arch_kernel_pkg }}"
+ALL_cmdline="/etc/kernel/cmdline"
+
+PRESETS=('default' 'fallback')
+
+default_uki="{{ arch_uki_default_path }}"
+
+fallback_uki="{{ arch_uki_fallback_path }}"
+fallback_options="-S autodetect"

@@ -1,0 +1,118 @@
+---
+- name: Check the packaged GNOME Keyring user service
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/user/gnome-keyring-daemon.service
+  register: keyring_systemd_service
+
+- name: Require the packaged GNOME Keyring user service
+  ansible.builtin.assert:
+    that:
+      - keyring_systemd_service.stat.exists
+      - keyring_systemd_service.stat.isreg
+    fail_msg: >-
+      GNOME Keyring systemd activation was requested, but the packaged user
+      service is missing.
+
+- name: Check packaged GNOME Keyring D-Bus activation files
+  ansible.builtin.stat:
+    path: "/usr/share/dbus-1/services/{{ item }}.service"
+  loop: "{{ arch_gnome_keyring_dbus_names }}"
+  register: keyring_packaged_dbus_services
+
+- name: Require all packaged GNOME Keyring activation names
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+    fail_msg: "Packaged D-Bus activation file for {{ item.item }} is missing."
+  loop: "{{ keyring_packaged_dbus_services.results }}"
+
+- name: Ensure the user D-Bus activation override directory exists
+  ansible.builtin.file:
+    path: "{{ arch_primary_user_home }}/.local/share/dbus-1/services"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0755"
+
+- name: Route GNOME Keyring D-Bus activation through systemd
+  ansible.builtin.template:
+    src: gnome-keyring-dbus.service.j2
+    dest: "{{ arch_primary_user_home }}/.local/share/dbus-1/services/{{ item }}.service"
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0644"
+  vars:
+    keyring_dbus_name: "{{ item }}"
+  loop: "{{ arch_gnome_keyring_dbus_names }}"
+  register: keyring_dbus_overrides
+
+- name: Read the primary user UID
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ arch_primary_user }}"
+  register: keyring_primary_user_uid
+  changed_when: false
+  check_mode: false
+
+- name: Check for a live primary user bus
+  ansible.builtin.stat:
+    path: "/run/user/{{ keyring_primary_user_uid.stdout | trim }}/bus"
+  register: keyring_user_bus
+
+- name: Reload the live user bus after activation override changes
+  ansible.builtin.command:
+    argv:
+      - busctl
+      - --user
+      - call
+      - org.freedesktop.DBus
+      - /org/freedesktop/DBus
+      - org.freedesktop.DBus
+      - ReloadConfig
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: >-
+      /run/user/{{ keyring_primary_user_uid.stdout | trim }}
+    DBUS_SESSION_BUS_ADDRESS: >-
+      unix:path=/run/user/{{ keyring_primary_user_uid.stdout | trim }}/bus
+  changed_when: true
+  when:
+    - keyring_user_bus.stat.exists
+    - >-
+      keyring_dbus_overrides.results
+      | selectattr('changed') | list | length > 0
+    - not ansible_check_mode
+
+- name: List live user-bus activation names
+  ansible.builtin.command:
+    argv:
+      - busctl
+      - --user
+      - list
+      - --no-pager
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  environment:
+    XDG_RUNTIME_DIR: >-
+      /run/user/{{ keyring_primary_user_uid.stdout | trim }}
+    DBUS_SESSION_BUS_ADDRESS: >-
+      unix:path=/run/user/{{ keyring_primary_user_uid.stdout | trim }}/bus
+  register: keyring_user_bus_names
+  changed_when: false
+  when:
+    - keyring_user_bus.stat.exists
+    - not ansible_check_mode
+
+- name: Verify GNOME Keyring names remain available on the user bus
+  ansible.builtin.assert:
+    that:
+      - item in keyring_user_bus_names.stdout
+    fail_msg: "GNOME Keyring D-Bus name {{ item }} is no longer available."
+  loop: "{{ arch_gnome_keyring_dbus_names }}"
+  when:
+    - keyring_user_bus.stat.exists
+    - not ansible_check_mode

@@ -1,0 +1,1 @@
+{{ arch_kernel_cmdline | trim }} {{ arch_root_kernel_cmdline | trim }}{% if arch_apparmor_enabled | bool %} {{ arch_apparmor_boot_parameters | trim }}{% endif %}{% if arch_lockdown_enabled | bool %} lockdown={{ arch_lockdown_mode }}{% endif %}

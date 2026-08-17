@@ -28,9 +28,19 @@
         - bitmagnet
     - role: desktop
       when: arch_desktop_enabled | bool
+    - role: keyring
+      when: arch_gnome_keyring_systemd_activation_enabled | bool
+      tags:
+        - keyring
     - role: sddm
       when: arch_display_manager == "sddm"
       tags:
         - sddm
     - role: boot
       when: arch_boot_enabled | bool
+      tags:
+        - boot
+    - role: pacnew
+      when: arch_pacnew_reconciliation_enabled | bool
+      tags:
+        - pacnew

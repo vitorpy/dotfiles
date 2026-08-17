@@ -22,6 +22,11 @@ arch_system_services_base:
 arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
+arch_gnome_keyring_systemd_activation_enabled: false
+arch_gnome_keyring_dbus_names:
+  - org.freedesktop.secrets
+  - org.gnome.keyring
+  - org.freedesktop.impl.portal.Secret
 
 arch_manage_user: true
 arch_manage_sudoers: true
@@ -142,6 +147,8 @@ arch_fprintd_polkit_users:
 arch_login1_power_polkit_rule_enabled: false
 arch_login1_power_polkit_users:
   - "{{ arch_primary_user }}"
+arch_sudo_pam_managed: false
+arch_sudo_fingerprint_auth_enabled: false
 
 arch_pacman_packages: []
 arch_aur_packages: []
@@ -159,15 +166,43 @@ arch_package_prune_exclude: []
 
 arch_boot_enabled: false
 arch_kernel_pkg: linux
-arch_root_mapper_name: cryptroot
-arch_luks_uuid: ""
+arch_root_kernel_cmdline: ""
 arch_kernel_cmdline: >-
   quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_level=3
-  vt.global_cursor_default=0 video=2256x1504
-arch_mkinitcpio_hooks: >-
-  HOOKS=(base udev autodetect microcode modconf kms keyboard keymap
-  consolefont block encrypt filesystems fsck)
+  vt.global_cursor_default=0 video=2256x1504 zswap.enabled=0
+arch_mkinitcpio_modules:
+  - btrfs
+arch_mkinitcpio_binaries:
+  - /usr/bin/btrfs
+arch_mkinitcpio_hooks:
+  - base
+  - systemd
+  - autodetect
+  - microcode
+  - modconf
+  - kms
+  - keyboard
+  - sd-vconsole
+  - block
+  - filesystems
+  - fsck
+arch_mkinitcpio_compression: zstd
 arch_manage_secure_boot: false
+arch_esp_mountpoint: /boot
+arch_esp_uuid: ""
+arch_esp_mount_options: "rw,relatime,nosuid,nodev,noexec,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+arch_uki_default_path: /boot/EFI/Linux/arch-linux.efi
+arch_uki_fallback_path: /boot/EFI/Linux/arch-linux-fallback.efi
+arch_boot_recovery_confirmed: false
+arch_boot_legacy_entries: []
+arch_boot_legacy_artifacts: []
+
+arch_pacnew_reconciliation_enabled: false
+arch_pacnew_expected_checksums: {}
+arch_pacnew_accept_files: []
+arch_pacnew_managed_files: []
+arch_pacnew_preserve_current_files: []
+arch_pacnew_locale_path: /etc/locale.gen.pacnew
 
 arch_x11_keymap_layouts: "pl,us"
 arch_x11_keymap_model: pc105

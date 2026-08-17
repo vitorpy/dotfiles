@@ -88,10 +88,57 @@ The `boot` role is off by default because it needs machine-specific values.
 Before enabling it, set:
 
 - `arch_boot_enabled: true`
-- `arch_luks_uuid`
+- `arch_root_kernel_cmdline`
+- `arch_esp_uuid`
 - optionally `arch_manage_secure_boot: true`
 
-This role manages `/etc/kernel/cmdline`, mkinitcpio hooks, UKI preset, `systemd-boot`, and optional `sbctl` signing.
+This role manages `/etc/kernel/cmdline`, the complete mkinitcpio configuration,
+default and fallback UKIs, `systemd-boot`, ESP permissions, and optional `sbctl`
+signing. It verifies the ESP UUID, generated UKI metadata, embedded root and
+security parameters, signatures, and both loader entries before changing the
+loader default.
+
+The role validates the root-only ESP fstab policy before the first reboot. It
+does not cycle the ESP under a running system; after a managed UKI boot, the
+role requires those options to be active before it retires any legacy entry.
+
+The initial migration is intentionally gated. First verify that an Arch
+installation medium boots and that the encrypted-home passphrase or recovery
+method works. Then run the scoped play with
+`-e arch_boot_recovery_confirmed=true`. The existing split boot entries remain
+available for that first reboot. Once the running session is the managed
+default UKI, the next play removes only the explicitly configured legacy entry
+and initramfs paths.
+
+For this workstation, the scoped migration command is:
+
+```bash
+cd ~/.config/arch/ansible
+ansible-playbook -K --limit localhost \
+  --tags boot,pacnew,keyring \
+  -e arch_boot_recovery_confirmed=true site.yml
+```
+
+After the first reboot, run the same command without the extra variable to
+retire the accepted split boot entries. Verify the result with `bootctl status`
+and `sbctl verify` as root.
+
+## Pacnew Reconciliation
+
+The `pacnew` role is fail-closed. Every pending path must have a reviewed
+SHA-256 checksum and exactly one action: accept upstream, preserve the current
+file, or defer to a managed role. Any new or changed pacnew aborts the play for
+a fresh review. The role verifies `pacdiff -o` is empty after a real run; check
+mode validates the paths and checksums without claiming live convergence.
+
+## GNOME Keyring Activation
+
+The `keyring` role installs higher-priority per-user D-Bus service files for all
+three GNOME Keyring activation names. They retain the packaged executable as a
+fallback and add `SystemdService=gnome-keyring-daemon.service`, ensuring D-Bus
+activation joins the existing supervised user service instead of starting a
+second secrets-only daemon. A reboot or fresh login clears any daemon created
+before the override was installed.
 
 ## BitMagnet Role
 

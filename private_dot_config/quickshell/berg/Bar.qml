@@ -486,8 +486,8 @@ Scope {
                         MetricLabel {
                             theme: theme
                             glyph: root.barState.notifications.dnd ? theme.dndEnabled : theme.dndDisabled
-                            label: root.barState.notifications.badgeText
-                            foreground: root.barState.notifications.dnd ? theme.error : theme.foreground
+                            label: root.barState.notifications.dnd ? "" : root.barState.notifications.badgeText
+                            foreground: theme.foreground
                         }
                     }
 

@@ -627,6 +627,13 @@ class CliTests(unittest.TestCase):
             result = arts.main(argv)
         return result, stdout.getvalue(), stderr.getvalue()
 
+    def test_default_data_dir_matches_shared_publisher_path(self):
+        with mock.patch.dict(os.environ, {"ARTS_WALLPAPER_DATA_DIR": ""}):
+            self.assertEqual(
+                arts.default_data_dir(),
+                Path("/var/lib/arts-wallpaper"),
+            )
+
     def test_bare_command_shows_human_current_info(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

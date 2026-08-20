@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -1295,11 +1295,7 @@ def provider_order(requested: str, rng: random.Random) -> list[str]:
 
 def default_data_dir() -> Path:
     override = os.environ.get("ARTS_WALLPAPER_DATA_DIR")
-    return (
-        Path(override).expanduser()
-        if override
-        else Path.home() / ".local/share/arts-wallpaper"
-    )
+    return Path(override).expanduser() if override else Path("/var/lib/arts-wallpaper")
 
 
 def load_current_metadata(path: Path) -> dict[str, Any]:

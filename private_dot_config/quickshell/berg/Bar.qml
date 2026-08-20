@@ -342,6 +342,7 @@ Scope {
 
                     BarCell {
                         theme: theme
+                        visible: root.barState.systemStats.cpuNeedsAttention
                         minimumWidth: 48
                         separator: true
                         tooltipText: root.barState.systemStats.cpuError
@@ -359,6 +360,7 @@ Scope {
 
                     BarCell {
                         theme: theme
+                        visible: root.barState.systemStats.temperatureNeedsAttention
                         minimumWidth: 56
                         separator: true
                         tooltipText: root.barState.systemStats.temperatureError

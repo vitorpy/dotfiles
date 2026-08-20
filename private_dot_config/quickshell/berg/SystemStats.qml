@@ -6,6 +6,8 @@ QtObject {
 
     readonly property string cpuPath: "/proc/stat"
     readonly property string temperaturePath: "/sys/class/thermal/thermal_zone0/temp"
+    readonly property int cpuAttentionThreshold: 70
+    readonly property int temperatureAttentionThresholdC: 55
 
     property int cpuUsage: 0
     property int temperatureC: 0
@@ -18,6 +20,11 @@ QtObject {
     property var lastSuccess: null
     property real previousCpuTotal: -1
     property real previousCpuIdle: -1
+
+    readonly property bool cpuNeedsAttention: cpuError.length > 0
+        || (cpuHasValue && cpuUsage > cpuAttentionThreshold)
+    readonly property bool temperatureNeedsAttention: temperatureError.length > 0
+        || (temperatureHasValue && temperatureC > temperatureAttentionThresholdC)
 
     function updateHealth(): void {
         const errors = [cpuError, temperatureError].filter(message => message.length > 0);

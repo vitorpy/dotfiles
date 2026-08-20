@@ -22,6 +22,7 @@ QtObject {
     readonly property string speakerMuted: "􀊣"
     readonly property string speakerLow: "􀊥"
     readonly property string speakerHigh: "􀊧"
+    readonly property string headphones: "􀑼"
     readonly property string microphone: "􀊱"
     readonly property string microphoneMuted: "􀊳"
     readonly property string brightness: "􀆮"

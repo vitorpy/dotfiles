@@ -26,7 +26,11 @@ Scope {
 
     function speakerGlyph(): string {
         const sink = root.barState.audioSink;
-        if (!sink || !sink.audio || sink.audio.muted)
+        if (!sink || !sink.audio)
+            return theme.speakerMuted;
+        if (root.barState.headphonesActive)
+            return theme.headphones;
+        if (sink.audio.muted)
             return theme.speakerMuted;
         return sink.audio.volume < 0.5 ? theme.speakerLow : theme.speakerHigh;
     }

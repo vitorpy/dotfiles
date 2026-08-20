@@ -7,6 +7,7 @@ Scope {
 
     readonly property var audioSink: Pipewire.defaultAudioSink
     readonly property var audioSource: Pipewire.defaultAudioSource
+    readonly property bool headphonesActive: audioRouteState.headphonesActive
 
     readonly property alias clock: clockState
     readonly property alias brightness: brightnessState
@@ -71,6 +72,12 @@ Scope {
 
     PwObjectTracker {
         objects: [root.audioSink, root.audioSource]
+    }
+
+    AudioRouteState {
+        id: audioRouteState
+
+        sink: root.audioSink
     }
 
     ClockState {

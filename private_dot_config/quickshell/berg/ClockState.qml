@@ -1,18 +1,23 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "ClockFreshness.js" as ClockFreshness
 
 QtObject {
     id: root
 
     readonly property string warsawTimezone: "Europe/Warsaw"
     readonly property int weatherMaxAgeSeconds: 10800
+    readonly property int resumeGapSeconds: 300
+    readonly property int postResumeWeatherGraceSeconds: 1200
     readonly property string home: Quickshell.env("HOME")
     readonly property string cacheHome: Quickshell.env("XDG_CACHE_HOME") || `${home}/.cache`
     readonly property string weatherPath: `${cacheHome}/quickshell-berg/weather.json`
     readonly property string artworkPath: "/var/lib/arts-wallpaper/current.json"
 
     property var now: new Date()
+    property double lastClockUpdateMs: -1
+    property double weatherFreshnessGraceUntilMs: -1
     property string currentTimezone: warsawTimezone
     property string warsawCompact: ""
     property string warsawFull: ""
@@ -76,6 +81,17 @@ QtObject {
 
     function rounded(value: real): string {
         return Math.round(value).toString();
+    }
+
+    function advanceClock(value: var): void {
+        const currentMs = value.getTime();
+
+        // A large gap is how a continuously running shell observes suspend.
+        if (ClockFreshness.resumeDetected(lastClockUpdateMs, currentMs, resumeGapSeconds))
+            weatherFreshnessGraceUntilMs = currentMs + postResumeWeatherGraceSeconds * 1000;
+
+        lastClockUpdateMs = currentMs;
+        now = value;
     }
 
     function fallbackScreenName(): string {
@@ -197,11 +213,22 @@ QtObject {
     function validateWeatherAge(): void {
         if (!weather)
             return;
-        const age = Math.floor(now.getTime() / 1000) - weather.updated_at;
-        if (age < 0 || age > weatherMaxAgeSeconds)
+
+        const currentMs = now.getTime();
+        const age = ClockFreshness.cacheAgeSeconds(weather.updated_at, currentMs);
+        const stale = ClockFreshness.cacheIsStale(
+            weather.updated_at,
+            currentMs,
+            weatherMaxAgeSeconds
+        );
+
+        if (stale && !ClockFreshness.withinGracePeriod(currentMs, weatherFreshnessGraceUntilMs))
             weatherError = `Weather cache is stale (${Math.max(0, Math.floor(age / 60))} minutes old)`;
-        else
+        else {
             weatherError = "";
+            if (!stale)
+                weatherFreshnessGraceUntilMs = -1;
+        }
         updateHealth();
     }
 
@@ -256,7 +283,7 @@ QtObject {
     }
 
     function refresh(): void {
-        now = new Date();
+        advanceClock(new Date());
         timezoneQuery.refresh();
         weatherFile.reload();
         artworkFile.reload();
@@ -266,7 +293,7 @@ QtObject {
     readonly property SystemClock clock: SystemClock {
         precision: SystemClock.Minutes
         onDateChanged: {
-            root.now = date;
+            root.advanceClock(date);
             root.refreshWarsaw();
             root.validateWeatherAge();
         }

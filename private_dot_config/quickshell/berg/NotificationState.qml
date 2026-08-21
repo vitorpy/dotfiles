@@ -1,7 +1,9 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Services.Notifications
+import "NotificationPersistence.js" as NotificationPersistence
 
 Scope {
     id: root
@@ -9,13 +11,15 @@ Scope {
     readonly property int historyLimit: 100
     readonly property int maxVisibleGroups: 5
     readonly property int defaultTimeoutMs: 5000
+    readonly property string dndStatePath: Quickshell.statePath("notifications.json")
 
     property var entries: []
     property int revision: 0
     property bool centerOpen: false
     property string centerScreenName: ""
+    property bool dndStateLoaded: false
 
-    readonly property bool dnd: persisted.dnd
+    readonly property bool dnd: !dndStateLoaded || persisted.dnd
     readonly property int count: {
         const ignored = revision;
         return entries.filter(entry => entry.inCenter).length;
@@ -41,6 +45,28 @@ Scope {
     function touch(): void {
         revision += 1;
         entries = entries.slice();
+    }
+
+    function restoreDndState(): void {
+        const text = dndStateFile.text();
+        let shouldSeed = !text.trim();
+
+        try {
+            persisted.dnd = NotificationPersistence.decodeDnd(text, persisted.dnd);
+        } catch (error) {
+            console.warn(`Notification state: unable to restore DND: ${error}`);
+            shouldSeed = true;
+        }
+
+        dndStateLoaded = true;
+        if (shouldSeed)
+            persistDndState();
+    }
+
+    function persistDndState(): void {
+        if (!dndStateLoaded)
+            return;
+        dndStateFile.setText(NotificationPersistence.encodeDnd(persisted.dnd));
     }
 
     function applicationKey(notification: var): string {
@@ -231,6 +257,7 @@ Scope {
         if (persisted.dnd === value)
             return;
         persisted.dnd = value;
+        persistDndState();
         if (value) {
             for (const entry of entries) {
                 entry.popupVisible = false;
@@ -347,6 +374,25 @@ Scope {
         reloadableId: "bergNotificationSession"
         property bool dnd: false
         property var readIds: []
+        onLoaded: root.restoreDndState()
+    }
+
+    FileView {
+        id: dndStateFile
+
+        path: root.dndStatePath
+        preload: false
+        blockLoading: true
+        blockWrites: true
+        atomicWrites: true
+        printErrors: false
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound)
+                console.warn(`Notification state: unable to load ${path}: ${FileViewError.toString(error)}`);
+        }
+        onSaveFailed: error => {
+            console.warn(`Notification state: unable to save ${path}: ${FileViewError.toString(error)}`);
+        }
     }
 
     NotificationServer {

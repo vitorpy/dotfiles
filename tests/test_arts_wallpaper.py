@@ -290,6 +290,18 @@ class ProviderTests(unittest.TestCase):
 
         self.assertEqual(len(http.requests), 21)
 
+    def test_mnw_propagates_network_failure_from_detail_lookup(self):
+        page = {
+            "data": {
+                "items": [{"id": 449940}],
+                "paginatorDetails": {"totalPagesCount": 1},
+            }
+        }
+        http = FakeHTTP([page, arts.NetworkUnavailableError("offline")])
+
+        with self.assertRaises(arts.NetworkUnavailableError):
+            arts.MnwProvider(http, random.Random(1)).select({})
+
     def test_masp_normalizes_flat_art_and_advances_page_cursor(self):
         response = {
             "result": {
@@ -571,6 +583,20 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(len(http.requests), 6)
         rng.shuffle.assert_called_once()
 
+    def test_rijksmuseum_propagates_network_failure_from_detail_lookup(self):
+        page = {
+            "orderedItems": [{"id": "https://id.rijksmuseum.nl/2001"}],
+            "next": None,
+        }
+        provider = arts.RijksmuseumProvider(FakeHTTP([page]), random.Random(1))
+
+        with mock.patch.object(
+            provider,
+            "_resolve",
+            side_effect=arts.NetworkUnavailableError("offline"),
+        ), self.assertRaises(arts.NetworkUnavailableError):
+            provider.select({})
+
 
 class CoreTests(unittest.TestCase):
     def test_flat_art_filter(self):
@@ -610,6 +636,51 @@ class CoreTests(unittest.TestCase):
             arts.first_success(["google", "cleveland"], attempt), "cleveland"
         )
         self.assertEqual(attempted, ["google", "cleveland"])
+
+    def test_first_network_failure_stops_provider_fallback(self):
+        attempted = []
+
+        def attempt(name):
+            attempted.append(name)
+            raise arts.NetworkUnavailableError("offline")
+
+        with self.assertRaises(arts.NetworkUnavailableError):
+            arts.first_success(["google", "cleveland"], attempt)
+        self.assertEqual(attempted, ["google"])
+
+    def test_http_client_distinguishes_network_and_http_failures(self):
+        request = arts.urllib.request.Request("https://example.test/data")
+        client = arts.HTTPClient(attempts=1)
+
+        with mock.patch.object(
+            arts.urllib.request,
+            "urlopen",
+            side_effect=arts.urllib.error.URLError("name resolution failed"),
+        ), self.assertRaises(arts.NetworkUnavailableError):
+            client._open(request)
+
+        http_error = arts.urllib.error.HTTPError(
+            request.full_url,
+            503,
+            "Service Unavailable",
+            None,
+            None,
+        )
+        with mock.patch.object(
+            arts.urllib.request,
+            "urlopen",
+            side_effect=http_error,
+        ), self.assertRaises(arts.ProviderError) as raised:
+            client._open(request)
+        self.assertNotIsInstance(raised.exception, arts.NetworkUnavailableError)
+
+        response = mock.Mock()
+        with mock.patch.object(
+            arts.urllib.request,
+            "urlopen",
+            side_effect=[http_error, response],
+        ), mock.patch.object(arts.time, "sleep"):
+            self.assertIs(arts.HTTPClient(attempts=2)._open(request), response)
 
     def test_all_provider_failure_is_bounded(self):
         with self.assertRaises(arts.AllProvidersError) as raised:
@@ -667,6 +738,241 @@ class CoreTests(unittest.TestCase):
                 "state.json",
             ):
                 self.assertEqual((root / name).stat().st_mode & 0o777, 0o640)
+
+    def test_archive_keeps_the_latest_thirty_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ppm"
+            source.write_bytes(b"P6\n2 2\n255\n" + bytes([0, 128, 255]) * 4)
+            processed = root / "processed.webp"
+            arts.process_image(source, processed)
+            start = arts.dt.datetime(2026, 7, 1, tzinfo=arts.dt.timezone.utc)
+
+            first_entry = None
+            for index in range(31):
+                metadata = sample_current_metadata(
+                    record_id=f"record-{index}",
+                    downloaded=(start + arts.dt.timedelta(days=index)).isoformat(),
+                    width=2,
+                    height=2,
+                )
+                entry = arts.archive_artwork(root, processed, metadata)
+                if index == 0:
+                    first_entry = entry
+
+            duplicate = arts.archive_artwork(
+                root,
+                processed,
+                sample_current_metadata(
+                    record_id="record-30",
+                    downloaded=(start + arts.dt.timedelta(days=30)).isoformat(),
+                    width=2,
+                    height=2,
+                ),
+            )
+            self.assertEqual(len(arts.load_archive(root)), 31)
+            self.assertEqual(
+                {path.name for path in duplicate.directory.iterdir()},
+                {arts.ARCHIVE_IMAGE, arts.ARCHIVE_METADATA},
+            )
+            self.assertEqual(
+                (duplicate.directory / arts.ARCHIVE_IMAGE).stat().st_mode & 0o777,
+                0o640,
+            )
+            self.assertEqual(
+                (duplicate.directory / arts.ARCHIVE_METADATA).stat().st_mode & 0o777,
+                0o640,
+            )
+
+            self.assertEqual(arts.prune_archive(root), 1)
+            entries = arts.load_archive(root)
+            self.assertEqual(len(entries), 30)
+            self.assertEqual(entries[0].metadata["record_id"], "record-30")
+            self.assertIsNotNone(first_entry)
+            self.assertFalse(first_entry.directory.exists())
+
+    def test_archive_bootstraps_current_wallpaper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ppm"
+            source.write_bytes(b"P6\n2 2\n255\n" + bytes([255, 64, 0]) * 4)
+            arts.process_image(source, root / "current.webp")
+            metadata = sample_current_metadata(width=2, height=2)
+            (root / "current.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+            first = arts.archive_current(root)
+            second = arts.archive_current(root)
+
+            self.assertIsNotNone(first)
+            self.assertIsNotNone(second)
+            self.assertEqual(first.identifier, second.identifier)
+            self.assertEqual(len(arts.load_archive(root)), 1)
+
+    def test_offline_rotation_avoids_current_and_preserves_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_one = root / "one.ppm"
+            source_two = root / "two.ppm"
+            source_one.write_bytes(b"P6\n2 2\n255\n" + bytes([255, 0, 0]) * 4)
+            source_two.write_bytes(b"P6\n2 2\n255\n" + bytes([0, 0, 255]) * 4)
+            image_one = root / "one.webp"
+            image_two = root / "two.webp"
+            arts.process_image(source_one, image_one)
+            arts.process_image(source_two, image_two)
+            metadata_one = sample_current_metadata(
+                record_id="one",
+                title="One",
+                downloaded="2026-08-20T08:00:00+00:00",
+                width=2,
+                height=2,
+            )
+            metadata_two = sample_current_metadata(
+                record_id="two",
+                title="Two",
+                downloaded="2026-08-21T08:00:00+00:00",
+                width=2,
+                height=2,
+            )
+            entry_one = arts.archive_artwork(root, image_one, metadata_one)
+            entry_two = arts.archive_artwork(root, image_two, metadata_two)
+            (root / "current.webp").write_bytes(entry_one.image.read_bytes())
+            (root / "current.json").write_text(
+                json.dumps(metadata_one), encoding="utf-8"
+            )
+            state = b'{"version": 1, "cursor": "unchanged"}\n'
+            (root / "state.json").write_bytes(state)
+            rng = mock.Mock()
+
+            selected = arts.publish_from_archive(root, rng)
+
+            self.assertEqual(selected.identifier, entry_two.identifier)
+            self.assertEqual(
+                json.loads((root / "current.json").read_text()), metadata_two
+            )
+            self.assertEqual(
+                (root / "current.webp").read_bytes(), entry_two.image.read_bytes()
+            )
+            self.assertEqual(
+                (root / "current.png").read_bytes()[:8], b"\x89PNG\r\n\x1a\n"
+            )
+            self.assertEqual((root / "state.json").read_bytes(), state)
+            rng.shuffle.assert_called_once()
+
+    def test_offline_rotation_skips_a_corrupt_cached_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.ppm"
+            source.write_bytes(b"P6\n2 2\n255\n" + bytes([0, 255, 0]) * 4)
+            image = root / "valid.webp"
+            arts.process_image(source, image)
+            valid = arts.archive_artwork(
+                root,
+                image,
+                sample_current_metadata(
+                    record_id="valid",
+                    downloaded="2026-08-20T08:00:00+00:00",
+                    width=2,
+                    height=2,
+                ),
+            )
+            corrupt_image = root / "corrupt.webp"
+            corrupt_image.write_bytes(b"not an image")
+            arts.archive_artwork(
+                root,
+                corrupt_image,
+                sample_current_metadata(
+                    record_id="corrupt",
+                    downloaded="2026-08-21T08:00:00+00:00",
+                    width=2,
+                    height=2,
+                ),
+            )
+            rng = mock.Mock()
+            stderr = io.StringIO()
+
+            with redirect_stderr(stderr):
+                selected = arts.publish_from_archive(root, rng)
+
+            self.assertEqual(selected.identifier, valid.identifier)
+            self.assertIn("Cached wallpaper", stderr.getvalue())
+            self.assertEqual(
+                json.loads((root / "current.json").read_text())["record_id"],
+                "valid",
+            )
+
+    def test_offline_rotation_fails_without_usable_cache(self):
+        with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(
+            arts.WallpaperError, "no usable offline wallpapers"
+        ):
+            arts.publish_from_archive(Path(directory), random.Random(1))
+
+    def test_automatic_rotation_uses_archive_on_first_network_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            args = arts.argparse.Namespace(
+                provider="auto",
+                dry_run=False,
+                no_restart=True,
+            )
+            cached = arts.ArchiveEntry(
+                identifier="20260820T080000Z-0000000000000000",
+                directory=root,
+                metadata=sample_current_metadata(),
+                downloaded=arts.dt.datetime(
+                    2026, 8, 20, 8, tzinfo=arts.dt.timezone.utc
+                ),
+            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(
+                    arts,
+                    "stage_provider",
+                    side_effect=arts.NetworkUnavailableError("offline"),
+                ) as stage,
+                mock.patch.object(arts, "publish_from_archive", return_value=cached),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                result = arts.rotate_wallpaper(args, root)
+
+            self.assertEqual(result, 0)
+            self.assertEqual(stage.call_count, 1)
+            self.assertIn("Published cached: Vestes", stdout.getvalue())
+            self.assertIn("rotating from offline archive", stderr.getvalue())
+
+    def test_forced_and_dry_run_rotations_do_not_use_archive_fallback(self):
+        fixtures = (
+            arts.argparse.Namespace(
+                provider="mnw",
+                dry_run=False,
+                no_restart=True,
+            ),
+            arts.argparse.Namespace(
+                provider="auto",
+                dry_run=True,
+                no_restart=True,
+            ),
+        )
+        for args in fixtures:
+            with self.subTest(provider=args.provider, dry_run=args.dry_run), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with (
+                    mock.patch.object(
+                        arts,
+                        "stage_provider",
+                        side_effect=arts.NetworkUnavailableError("offline"),
+                    ),
+                    mock.patch.object(arts, "publish_from_archive") as cached,
+                    redirect_stdout(io.StringIO()),
+                    redirect_stderr(io.StringIO()),
+                ):
+                    result = arts.rotate_wallpaper(args, root)
+
+                self.assertEqual(result, 1)
+                cached.assert_not_called()
+                if args.dry_run:
+                    self.assertFalse((root / arts.ARCHIVE_DIRECTORY).exists())
 
     def test_render_greeter_command_atomically_publishes_png(self):
         with tempfile.TemporaryDirectory() as directory:

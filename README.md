@@ -80,16 +80,18 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 
 `~/.local/bin/arts-wallpaper` selects a random provider from Google Arts &
 Culture, Rijksmuseum, the Cleveland Museum of Art, MASP, and Muzeum Narodowe w
-Warszawie (MNW). If the first provider fails, it tries the remaining providers
-before leaving the current wallpaper unchanged. Rijksmuseum and MASP progress
-is persisted so their collection pages advance through the available flat
-artwork over time. Rijksmuseum accepts only paintings and drawings while
-rejecting photographic and printmaking classifications and techniques. MASP
-uses the public JSON route behind its collection
-website and is configured for personal, non-distributed use with museum and
-photographer attribution. MNW uses its official digital-catalogue API and
-accepts only public-domain paintings, drawings, prints, and photographs with
-images.
+Warszawie (MNW). If a provider returns an HTTP, data, or image-validation
+failure, it tries the remaining providers before leaving the current wallpaper
+unchanged. A transport failure such as unavailable DNS, a connection failure,
+or a timeout immediately switches an automatic rotation to the local wallpaper
+archive. Rijksmuseum and MASP progress is persisted so their collection pages
+advance through the available flat artwork over time. Rijksmuseum accepts only
+paintings and drawings while rejecting photographic and printmaking
+classifications and techniques. MASP uses the public JSON route behind its
+collection website and is configured for personal, non-distributed use with
+museum and photographer attribution. MNW uses its official digital-catalogue
+API and accepts only public-domain paintings, drawings, prints, and photographs
+with images.
 
 The user timer runs daily at 08:00 with up to five minutes of randomized delay,
 and one minute after boot when needed:
@@ -112,17 +114,28 @@ arts-wallpaper rotate --provider mnw --dry-run
 Published files are under `/var/lib/arts-wallpaper/`. Each successful rotation
 atomically publishes `current.webp` for Hyprpaper and Quickshell,
 `current.png` for SDDM's Qt image loader, plus `current.json` and `state.json`.
+The 30 most recent successful online wallpapers are retained under `archive/`
+as processed WebP and metadata pairs. This rolling item limit approximates 30
+days with the daily timer but does not expire during a longer outage. Offline
+rotation randomly selects a valid archived item other than the current one
+when possible, regenerates `current.png`, and leaves provider cursor state
+unchanged. Forced-provider and `--dry-run` commands remain strict network
+diagnostics and do not use the archive fallback.
+
 To rebuild only the SDDM derivative from the current wallpaper, run:
 
 ```bash
 arts-wallpaper render-greeter
 ```
 
-The service needs Python 3, ImageMagick, Hyprpaper, and network access; these
-packages are managed by the Arch configuration.
+The service needs Python 3, ImageMagick, and Hyprpaper. Network access is needed
+to add new artwork; once at least one entry is archived, automatic rotations
+can continue from local data while offline. These packages are managed by the
+Arch configuration.
 
 To roll back, revert the wallpaper-service commit in the chezmoi source, apply
 chezmoi, reload the user systemd manager, and re-enable the restored timer. The
+archive is inert after rollback and can be retained or removed separately. The
 legacy `~/.local/share/google-arts/` data is intentionally retained.
 
 ### System Reconciliation

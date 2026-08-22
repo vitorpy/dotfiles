@@ -8,6 +8,7 @@ import copy
 import dataclasses
 import datetime as dt
 import fcntl
+import hashlib
 import html
 import json
 import os
@@ -25,10 +26,15 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.4.3"
+VERSION = "1.5.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
+ARCHIVE_LIMIT = 30
+ARCHIVE_DIRECTORY = "archive"
+ARCHIVE_IMAGE = "wallpaper.webp"
+ARCHIVE_METADATA = "metadata.json"
+ARCHIVE_ENTRY_PATTERN = re.compile(r"\A\d{8}T\d{6}Z-[0-9a-f]{16}\Z")
 PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland", "masp", "mnw")
 FLAT_ART_TERMS = (
     "painting",
@@ -86,6 +92,10 @@ class WallpaperError(RuntimeError):
 
 class ProviderError(WallpaperError):
     """A provider could not return a usable artwork."""
+
+
+class NetworkUnavailableError(ProviderError):
+    """A provider request failed before receiving a usable HTTP response."""
 
 
 class AllProvidersError(WallpaperError):
@@ -170,19 +180,25 @@ class HTTPClient:
 
     def _open(self, request: urllib.request.Request):
         last_error: Exception | None = None
+        network_unavailable = False
         for attempt in range(self.attempts):
             try:
                 return urllib.request.urlopen(request, timeout=self.timeout)
-            except (
-                urllib.error.HTTPError,
-                urllib.error.URLError,
-                TimeoutError,
-                OSError,
-            ) as exc:
+            except urllib.error.HTTPError as exc:
                 last_error = exc
-                if attempt + 1 < self.attempts:
-                    time.sleep(attempt + 1)
-        raise ProviderError(f"request failed for {request.full_url}: {last_error}")
+                network_unavailable = False
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                last_error = exc
+                network_unavailable = True
+            if attempt + 1 < self.attempts:
+                time.sleep(attempt + 1)
+        if not network_unavailable and isinstance(last_error, urllib.error.HTTPError):
+            raise ProviderError(
+                f"request failed for {request.full_url}: HTTP {last_error.code}"
+            ) from last_error
+        raise NetworkUnavailableError(
+            f"network unavailable for {request.full_url}: {last_error}"
+        )
 
     def get_json(
         self,
@@ -202,6 +218,10 @@ class HTTPClient:
                 body = response.read(MAX_DOWNLOAD_BYTES + 1)
         except ProviderError:
             raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+            raise NetworkUnavailableError(
+                f"network unavailable while reading {request_url}: {exc}"
+            ) from exc
         except Exception as exc:
             raise ProviderError(
                 f"could not read JSON from {request_url}: {exc}"
@@ -221,17 +241,53 @@ class HTTPClient:
                 "User-Agent": USER_AGENT,
             },
         )
+        response = self._open(request)
+
         try:
-            with self._open(request) as response, destination.open("wb") as output:
+            output = destination.open("wb")
+        except OSError as exc:
+            response.close()
+            raise ProviderError(
+                f"could not create image download at {destination}: {exc}"
+            ) from exc
+
+        try:
+            with response, output:
                 content_type = response.headers.get_content_type()
                 downloaded = 0
-                while chunk := response.read(1024 * 1024):
+                while True:
+                    try:
+                        chunk = response.read(1024 * 1024)
+                    except (
+                        urllib.error.URLError,
+                        TimeoutError,
+                        ConnectionError,
+                        OSError,
+                    ) as exc:
+                        raise NetworkUnavailableError(
+                            f"network unavailable while downloading {url}: {exc}"
+                        ) from exc
+                    if not chunk:
+                        break
                     downloaded += len(chunk)
                     if downloaded > MAX_DOWNLOAD_BYTES:
                         raise ProviderError(f"image from {url} exceeded size limit")
-                    output.write(chunk)
+                    try:
+                        output.write(chunk)
+                    except OSError as exc:
+                        raise ProviderError(
+                            f"could not write image download at {destination}: {exc}"
+                        ) from exc
         except ProviderError:
             raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            raise NetworkUnavailableError(
+                f"network unavailable while downloading {url}: {exc}"
+            ) from exc
+        except OSError as exc:
+            raise ProviderError(
+                f"could not finish image download at {destination}: {exc}"
+            ) from exc
         except Exception as exc:
             raise ProviderError(f"could not download image from {url}: {exc}") from exc
         if downloaded == 0:
@@ -614,6 +670,8 @@ class MnwProvider:
                 response = self.http.get_json(
                     self.detail_endpoint.format(record_id=record_id)
                 )
+            except NetworkUnavailableError:
+                raise
             except ProviderError as exc:
                 errors.append(str(exc))
                 continue
@@ -1097,6 +1155,8 @@ class RijksmuseumProvider:
                 continue
             try:
                 artwork = self._resolve(object_identifier, artwork_type)
+            except NetworkUnavailableError:
+                raise
             except ProviderError as exc:
                 errors.append(str(exc))
                 continue
@@ -1254,20 +1314,24 @@ def publish(
     image: Path,
     greeter_image: Path,
     metadata: Mapping[str, Any],
-    state: Mapping[str, Any],
+    state: Mapping[str, Any] | None,
 ) -> None:
     metadata_temp = write_json_temp(data_dir, ".current-", metadata)
-    state_temp = write_json_temp(data_dir, ".state-", state)
+    state_temp = (
+        write_json_temp(data_dir, ".state-", state) if state is not None else None
+    )
     image.chmod(0o640)
     greeter_image.chmod(0o640)
     try:
         os.replace(image, data_dir / "current.webp")
         os.replace(greeter_image, data_dir / "current.png")
         os.replace(metadata_temp, data_dir / "current.json")
-        os.replace(state_temp, data_dir / "state.json")
+        if state_temp is not None:
+            os.replace(state_temp, data_dir / "state.json")
     finally:
         metadata_temp.unlink(missing_ok=True)
-        state_temp.unlink(missing_ok=True)
+        if state_temp is not None:
+            state_temp.unlink(missing_ok=True)
 
 
 T = TypeVar("T")
@@ -1278,6 +1342,8 @@ def first_success(names: Sequence[str], attempt: Callable[[str], T]) -> T:
     for name in names:
         try:
             return attempt(name)
+        except NetworkUnavailableError:
+            raise
         except (WallpaperError, OSError, ValueError, KeyError) as exc:
             errors[name] = str(exc)
             print(f"Provider {name} failed: {exc}", file=sys.stderr)
@@ -1391,6 +1457,232 @@ def load_current_metadata(path: Path) -> dict[str, Any]:
             )
 
     return metadata
+
+
+def metadata_downloaded_at(metadata: Mapping[str, Any]) -> dt.datetime:
+    value = metadata.get("downloaded")
+    try:
+        downloaded = dt.datetime.fromisoformat(value) if isinstance(value, str) else None
+    except ValueError as exc:
+        raise WallpaperError(f"invalid downloaded timestamp: {value!r}") from exc
+    if downloaded is None or downloaded.tzinfo is None or downloaded.utcoffset() is None:
+        raise WallpaperError(f"invalid downloaded timestamp: {value!r}")
+    return downloaded.astimezone(dt.timezone.utc)
+
+
+def archive_entry_identifier(metadata: Mapping[str, Any]) -> str:
+    downloaded = metadata_downloaded_at(metadata)
+    try:
+        canonical = json.dumps(
+            dict(metadata),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise WallpaperError(f"could not identify wallpaper metadata: {exc}") from exc
+    digest = hashlib.sha256(canonical).hexdigest()[:16]
+    return f"{downloaded:%Y%m%dT%H%M%SZ}-{digest}"
+
+
+@dataclasses.dataclass(frozen=True)
+class ArchiveEntry:
+    identifier: str
+    directory: Path
+    metadata: dict[str, Any]
+    downloaded: dt.datetime
+
+    @property
+    def image(self) -> Path:
+        return self.directory / ARCHIVE_IMAGE
+
+
+def load_archive_entry(directory: Path) -> ArchiveEntry:
+    if (
+        not ARCHIVE_ENTRY_PATTERN.fullmatch(directory.name)
+        or directory.is_symlink()
+        or not directory.is_dir()
+    ):
+        raise WallpaperError(f"invalid archive entry path: {directory}")
+    metadata = load_current_metadata(directory / ARCHIVE_METADATA)
+    identifier = archive_entry_identifier(metadata)
+    if directory.name != identifier:
+        raise WallpaperError(
+            f"archive metadata does not match entry identifier: {directory}"
+        )
+    image = directory / ARCHIVE_IMAGE
+    if image.is_symlink() or not image.is_file():
+        raise WallpaperError(f"archive entry has no wallpaper image: {directory}")
+    return ArchiveEntry(
+        identifier=identifier,
+        directory=directory,
+        metadata=metadata,
+        downloaded=metadata_downloaded_at(metadata),
+    )
+
+
+def load_archive(data_dir: Path) -> list[ArchiveEntry]:
+    archive_dir = data_dir / ARCHIVE_DIRECTORY
+    if not archive_dir.exists():
+        return []
+    if archive_dir.is_symlink() or not archive_dir.is_dir():
+        raise WallpaperError(f"invalid wallpaper archive directory: {archive_dir}")
+
+    try:
+        directories = list(archive_dir.iterdir())
+    except OSError as exc:
+        raise WallpaperError(f"could not read wallpaper archive: {exc}") from exc
+
+    entries: list[ArchiveEntry] = []
+    for directory in directories:
+        if not ARCHIVE_ENTRY_PATTERN.fullmatch(directory.name):
+            continue
+        try:
+            entries.append(load_archive_entry(directory))
+        except WallpaperError as exc:
+            print(f"Warning: skipping unusable archive entry: {exc}", file=sys.stderr)
+    entries.sort(key=lambda entry: (entry.downloaded, entry.identifier), reverse=True)
+    return entries
+
+
+def copy_file_synced(source: Path, destination: Path) -> None:
+    try:
+        shutil.copyfile(source, destination)
+        destination.chmod(0o640)
+        with destination.open("rb") as copied:
+            os.fsync(copied.fileno())
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        raise WallpaperError(f"could not copy {source} to {destination}: {exc}") from exc
+
+
+def archive_artwork(
+    data_dir: Path,
+    image: Path,
+    metadata: Mapping[str, Any],
+) -> ArchiveEntry:
+    if image.is_symlink() or not image.is_file():
+        raise WallpaperError(f"wallpaper image is not a regular file: {image}")
+
+    archive_dir = data_dir / ARCHIVE_DIRECTORY
+    try:
+        archive_dir.mkdir(mode=0o2750, exist_ok=True)
+    except OSError as exc:
+        raise WallpaperError(f"could not create wallpaper archive: {exc}") from exc
+    if archive_dir.is_symlink() or not archive_dir.is_dir():
+        raise WallpaperError(f"invalid wallpaper archive directory: {archive_dir}")
+
+    identifier = archive_entry_identifier(metadata)
+    final_directory = archive_dir / identifier
+    if final_directory.exists() or final_directory.is_symlink():
+        try:
+            return load_archive_entry(final_directory)
+        except WallpaperError as exc:
+            print(f"Warning: replacing unusable archive entry: {exc}", file=sys.stderr)
+            try:
+                if final_directory.is_symlink() or not final_directory.is_dir():
+                    final_directory.unlink()
+                else:
+                    shutil.rmtree(final_directory)
+            except OSError as remove_error:
+                raise WallpaperError(
+                    f"could not replace archive entry {final_directory}: {remove_error}"
+                ) from remove_error
+
+    temporary_directory = Path(tempfile.mkdtemp(prefix=".entry-", dir=archive_dir))
+    try:
+        temporary_directory.chmod(0o2750)
+        copy_file_synced(image, temporary_directory / ARCHIVE_IMAGE)
+        metadata_temp = write_json_temp(temporary_directory, ".metadata-", metadata)
+        os.replace(metadata_temp, temporary_directory / ARCHIVE_METADATA)
+        os.replace(temporary_directory, final_directory)
+    except Exception:
+        shutil.rmtree(temporary_directory, ignore_errors=True)
+        raise
+    return load_archive_entry(final_directory)
+
+
+def archive_current(data_dir: Path) -> ArchiveEntry | None:
+    image = data_dir / "current.webp"
+    metadata_path = data_dir / "current.json"
+    if not image.exists() and not metadata_path.exists():
+        return None
+    try:
+        metadata = load_current_metadata(metadata_path)
+        return archive_artwork(data_dir, image, metadata)
+    except WallpaperError as exc:
+        print(f"Warning: could not archive current wallpaper: {exc}", file=sys.stderr)
+        return None
+
+
+def prune_archive(data_dir: Path, limit: int = ARCHIVE_LIMIT) -> int:
+    if limit < 1:
+        raise ValueError("archive limit must be positive")
+    removed = 0
+    for entry in load_archive(data_dir)[limit:]:
+        try:
+            shutil.rmtree(entry.directory)
+        except OSError as exc:
+            print(
+                f"Warning: could not remove old archive entry {entry.directory}: {exc}",
+                file=sys.stderr,
+            )
+        else:
+            removed += 1
+    return removed
+
+
+def current_archive_identifier(data_dir: Path) -> str | None:
+    try:
+        metadata = load_current_metadata(data_dir / "current.json")
+        return archive_entry_identifier(metadata)
+    except WallpaperError:
+        return None
+
+
+def publish_from_archive(
+    data_dir: Path,
+    rng: random.Random,
+) -> ArchiveEntry:
+    entries = load_archive(data_dir)
+    if not entries:
+        raise WallpaperError("no usable offline wallpapers are available")
+
+    current_identifier = current_archive_identifier(data_dir)
+    alternatives = [
+        entry for entry in entries if entry.identifier != current_identifier
+    ]
+    candidates = alternatives or entries
+    rng.shuffle(candidates)
+    errors: list[str] = []
+
+    for entry in candidates:
+        temporary_directory = Path(
+            tempfile.mkdtemp(prefix=".offline-", dir=data_dir)
+        )
+        try:
+            image = temporary_directory / "wallpaper.webp"
+            greeter_image = temporary_directory / "greeter.png"
+            copy_file_synced(entry.image, image)
+            dimensions = render_greeter_image(image, greeter_image)
+            expected = (entry.metadata["width"], entry.metadata["height"])
+            if dimensions != expected:
+                raise WallpaperError(
+                    "archived image dimensions differ from metadata "
+                    f"({dimensions[0]}x{dimensions[1]} != "
+                    f"{expected[0]}x{expected[1]})"
+                )
+            publish(data_dir, image, greeter_image, entry.metadata, None)
+            return entry
+        except (WallpaperError, OSError, KeyError) as exc:
+            errors.append(f"{entry.identifier}: {exc}")
+            print(f"Cached wallpaper {entry.identifier} failed: {exc}", file=sys.stderr)
+        finally:
+            shutil.rmtree(temporary_directory, ignore_errors=True)
+
+    detail = "; ".join(errors)
+    raise WallpaperError(f"no cached wallpaper could be published ({detail})")
 
 
 def format_current_metadata(metadata: Mapping[str, Any], wallpaper_path: Path) -> str:
@@ -1513,29 +1805,61 @@ def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
 
         staged: StagedArtwork | None = None
         try:
-            staged = first_success(
-                order,
-                lambda name: stage_provider(name, providers, state, http, data_dir),
-            )
-            metadata = staged.candidate.artwork.metadata(staged.width, staged.height)
-            if args.dry_run:
-                print(
-                    json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True)
-                )
-                return 0
+            if not args.dry_run:
+                archive_current(data_dir)
+                prune_archive(data_dir)
 
-            updated_state = merge_state(state, staged.candidate.state_update)
-            publish(
-                data_dir,
-                staged.image,
-                staged.greeter_image,
-                metadata,
-                updated_state,
-            )
-            artwork = staged.candidate.artwork
-            print(f"Published: {artwork.title} — {artwork.creator or 'Unknown artist'}")
-            print(f"Provider: {artwork.provider_name}")
-            print(f"Source: {artwork.source_url}")
+            try:
+                staged = first_success(
+                    order,
+                    lambda name: stage_provider(
+                        name, providers, state, http, data_dir
+                    ),
+                )
+            except NetworkUnavailableError as exc:
+                if args.dry_run or args.provider != "auto":
+                    raise
+                print(
+                    f"Network unavailable; rotating from offline archive: {exc}",
+                    file=sys.stderr,
+                )
+                cached = publish_from_archive(data_dir, rng)
+                metadata = cached.metadata
+                print(
+                    "Published cached: "
+                    f"{metadata['title']} — {metadata.get('creator') or 'Unknown artist'}"
+                )
+                print(f"Provider: {metadata['provider_name']}")
+                print(f"Source: {metadata['source_url']}")
+            else:
+                metadata = staged.candidate.artwork.metadata(
+                    staged.width, staged.height
+                )
+                if args.dry_run:
+                    print(
+                        json.dumps(
+                            metadata, ensure_ascii=False, indent=2, sort_keys=True
+                        )
+                    )
+                    return 0
+
+                archive_artwork(data_dir, staged.image, metadata)
+                updated_state = merge_state(state, staged.candidate.state_update)
+                publish(
+                    data_dir,
+                    staged.image,
+                    staged.greeter_image,
+                    metadata,
+                    updated_state,
+                )
+                prune_archive(data_dir)
+                artwork = staged.candidate.artwork
+                print(
+                    f"Published: {artwork.title} — "
+                    f"{artwork.creator or 'Unknown artist'}"
+                )
+                print(f"Provider: {artwork.provider_name}")
+                print(f"Source: {artwork.source_url}")
         except WallpaperError as exc:
             print(f"Wallpaper update failed: {exc}", file=sys.stderr)
             return 1

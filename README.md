@@ -90,8 +90,8 @@ paintings and drawings while rejecting photographic and printmaking
 classifications and techniques. MASP uses the public JSON route behind its
 collection website and is configured for personal, non-distributed use with
 museum and photographer attribution. MNW uses its official digital-catalogue
-API and accepts only public-domain paintings, drawings, prints, and photographs
-with images.
+API and accepts only public-domain records in its exact `obraz` (painting)
+category with images.
 
 The user timer runs daily at 08:00 with up to five minutes of randomized delay,
 and one minute after boot when needed:

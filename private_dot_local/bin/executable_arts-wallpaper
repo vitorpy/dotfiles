@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -44,14 +44,6 @@ FLAT_ART_TERMS = (
     "pintura",
     "desenho",
     "gravura",
-    "fotografia",
-)
-MNW_FLAT_ART_TERMS = (
-    "obraz",
-    "malarstwo",
-    "rysunek",
-    "grafika",
-    "rycina",
     "fotografia",
 )
 MASP_MIN_LONG_EDGE = 2560
@@ -475,7 +467,7 @@ class MnwProvider:
     detail_endpoint = "https://cyfrowe-api.mnw.art.pl/api/object/{record_id}"
     source_base = "https://cyfrowe.mnw.art.pl/pl/katalog/"
     image_base = "https://cyfrowe-cdn.mnw.art.pl/upload/multimedia/"
-    object_type_ids = (116727, 116729, 116786, 116704)
+    painting_type_id = 116727
     public_domain_id = 500
     max_per_page = 80
     max_detail_attempts = 20
@@ -486,15 +478,12 @@ class MnwProvider:
 
     @classmethod
     def _search_params(cls) -> list[tuple[str, Any]]:
-        params: list[tuple[str, Any]] = [("maxPerPage", cls.max_per_page)]
-        params.extend(("filter[types][]", type_id) for type_id in cls.object_type_ids)
-        params.extend(
-            (
-                ("filter[copyrights][]", cls.public_domain_id),
-                ("filter[formFeature][]", 3),
-            )
-        )
-        return params
+        return [
+            ("maxPerPage", cls.max_per_page),
+            ("filter[types][]", cls.painting_type_id),
+            ("filter[copyrights][]", cls.public_domain_id),
+            ("filter[formFeature][]", 3),
+        ]
 
     @staticmethod
     def _record_id(value: Any) -> int | None:
@@ -540,21 +529,16 @@ class MnwProvider:
         return "; ".join(names) or None
 
     @classmethod
-    def _is_flat_art(cls, record: Mapping[str, Any]) -> bool:
-        values: list[Any] = []
-        for field in ("types", "techniques"):
-            entries = record.get(field)
-            if not isinstance(entries, list):
-                continue
-            for entry in entries:
-                if not isinstance(entry, Mapping):
-                    continue
-                values.extend(
-                    entry.get(key)
-                    for key in ("name", "title", "hierarchy", "hierarchyName")
-                )
-        text = " ".join(iter_text(values)).casefold()
-        return any(term in text for term in MNW_FLAT_ART_TERMS)
+    def _is_painting(cls, record: Mapping[str, Any]) -> bool:
+        types = record.get("types")
+        if not isinstance(types, list):
+            return False
+        return any(
+            isinstance(entry, Mapping)
+            and cls._record_id(entry.get("id")) == cls.painting_type_id
+            and clean_text(entry.get("name")) == "obraz"
+            for entry in types
+        )
 
     @classmethod
     def _public_domain_rights(
@@ -625,7 +609,7 @@ class MnwProvider:
         title = clean_text(record.get("title"))
         rights = cls._public_domain_rights(record)
         image_url = cls._image_url(record)
-        if not title or not rights or not image_url or not cls._is_flat_art(record):
+        if not title or not rights or not image_url or not cls._is_painting(record):
             return None
         return Candidate(
             Artwork(

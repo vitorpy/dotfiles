@@ -196,9 +196,6 @@ class ProviderTests(unittest.TestCase):
                 [
                     ("maxPerPage", 80),
                     ("filter[types][]", 116727),
-                    ("filter[types][]", 116729),
-                    ("filter[types][]", 116786),
-                    ("filter[types][]", 116704),
                     ("filter[copyrights][]", 500),
                     ("filter[formFeature][]", 3),
                 ],
@@ -232,7 +229,7 @@ class ProviderTests(unittest.TestCase):
         rng.randrange.assert_called_once_with(1, 4)
         rng.shuffle.assert_called_once()
 
-    def test_mnw_rejects_nonflat_protected_and_untrusted_records(self):
+    def test_mnw_rejects_nonpaintings_protected_and_untrusted_records(self):
         public_domain = sample_mnw_detail()["copyrights"][0]
         fixtures = {
             "missing rights": {"copyrights": []},
@@ -241,9 +238,24 @@ class ProviderTests(unittest.TestCase):
             "mixed rights": {
                 "copyrights": [public_domain, {**public_domain, "id": 501}]
             },
+            "drawing": {
+                "types": [{"id": 116729, "name": "rysunek"}],
+                "techniques": [{"name": "ołówek"}],
+            },
+            "graphic print": {
+                "types": [{"id": 116061, "name": "odbitka graficzna"}],
+                "techniques": [{"name": "litografia tonowana"}],
+            },
+            "photograph": {
+                "types": [{"id": 116704, "name": "fotografia"}],
+                "techniques": [{"name": "odbitka żelatynowo-srebrowa"}],
+            },
             "sculpture": {
                 "types": [{"id": 42, "name": "rzeźba"}],
                 "techniques": [{"name": "odlewanie"}],
+            },
+            "painting id with wrong name": {
+                "types": [{"id": 116727, "name": "grafika"}],
             },
             "traversal image": {
                 "image": {"filePath": "../../private/image", "extension": "jpg"}

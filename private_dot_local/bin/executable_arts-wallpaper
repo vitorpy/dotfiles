@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -50,6 +50,20 @@ MNW_FLAT_ART_TERMS = (
 )
 MASP_MIN_LONG_EDGE = 2560
 MASP_MIN_SHORT_EDGE = 1440
+RIJKSMUSEUM_PHOTOGRAPHY_TERMS = (
+    "photo",
+    "foto",
+    "gelatin silver",
+    "silver gelatin",
+    "albumen",
+    "cyanotype",
+    "daguerreotype",
+    "ambrotype",
+    "calotype",
+    "chromogenic",
+    "salted paper",
+    "platinum print",
+)
 USER_AGENT = f"arts-wallpaper/{VERSION} (personal desktop wallpaper service)"
 
 
@@ -821,7 +835,7 @@ def first_mapping(value: Any) -> Mapping[str, Any] | None:
 class RijksmuseumProvider:
     name = "rijksmuseum"
     search_endpoint = "https://data.rijksmuseum.nl/search/collection"
-    artwork_types = ("painting", "drawing", "print", "photograph")
+    artwork_types = ("painting", "drawing", "print")
 
     def __init__(self, http: HTTPClientProtocol, rng: random.Random):
         self.http = http
@@ -960,11 +974,23 @@ class RijksmuseumProvider:
                 return labels[0]
         return None
 
+    @staticmethod
+    def _record_is_photography(record: Mapping[str, Any]) -> bool:
+        descriptive_values = [
+            record.get("classified_as"),
+            record.get("made_of"),
+            find_nested_values(record.get("produced_by"), "technique"),
+        ]
+        text = " ".join(iter_text(descriptive_values)).casefold()
+        return any(term in text for term in RIJKSMUSEUM_PHOTOGRAPHY_TERMS)
+
     def _resolve(self, object_identifier: str, artwork_type: str) -> Artwork:
         object_url = rijks_data_url(object_identifier)
         record = self.http.get_json(object_url, {"_profile": "la-framed"})
         if not isinstance(record, Mapping):
             raise ProviderError("Rijksmuseum object record was not an object")
+        if self._record_is_photography(record):
+            raise ProviderError("Rijksmuseum object is photography")
 
         visual = first_mapping(record.get("shows"))
         visual_id = clean_text(visual.get("id")) if visual else None

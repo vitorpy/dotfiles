@@ -460,6 +460,84 @@ class ProviderTests(unittest.TestCase):
         )
         self.assertIn("next", candidate.state_update["rijksmuseum"]["painting"])
 
+    def test_rijksmuseum_excludes_photography(self):
+        self.assertEqual(
+            arts.RijksmuseumProvider.artwork_types,
+            ("painting", "drawing", "print"),
+        )
+        self.assertTrue(
+            arts.RijksmuseumProvider._record_is_photography(
+                {
+                    "classified_as": [
+                        {"notation": [{"@language": "en", "@value": "photograph"}]}
+                    ]
+                }
+            )
+        )
+        self.assertTrue(
+            arts.RijksmuseumProvider._record_is_photography(
+                {
+                    "classified_as": [{"notation": [{"@value": "print"}]}],
+                    "produced_by": {
+                        "technique": [
+                            {"notation": [{"@value": "gelatin silver print"}]}
+                        ]
+                    },
+                }
+            )
+        )
+        self.assertFalse(
+            arts.RijksmuseumProvider._record_is_photography(
+                {
+                    "_label": "Portrait of a photographer",
+                    "classified_as": [{"notation": [{"@value": "print"}]}],
+                    "produced_by": {
+                        "technique": [{"notation": [{"@value": "engraving"}]}]
+                    },
+                }
+            )
+        )
+
+    def test_rijksmuseum_skips_photography_returned_as_a_print(self):
+        page = {
+            "orderedItems": [
+                {"id": "https://id.rijksmuseum.nl/200100001"},
+                {"id": "https://id.rijksmuseum.nl/200100002"},
+            ]
+        }
+        photograph = {
+            "classified_as": [
+                {"notation": [{"@language": "en", "@value": "photographic print"}]}
+            ]
+        }
+        engraving = {
+            "identified_by": [
+                {"type": "Identifier", "content": "RP-P-1"},
+                {"type": "Name", "content": "River Engraving"},
+            ],
+            "classified_as": [{"notation": [{"@value": "print"}]}],
+            "produced_by": {"technique": [{"notation": [{"@value": "engraving"}]}]},
+            "shows": [{"id": "https://id.rijksmuseum.nl/202100001"}],
+        }
+        visual_record = {
+            "digitally_shown_by": [{"id": "https://id.rijksmuseum.nl/500100001"}]
+        }
+        digital_record = {
+            "access_point": [
+                {"id": "https://iiif.micr.io/PRINT/full/max/0/default.jpg"}
+            ]
+        }
+        rng = mock.Mock()
+        rng.choice.return_value = "print"
+        http = FakeHTTP([page, photograph, engraving, visual_record, digital_record])
+
+        candidate = arts.RijksmuseumProvider(http, rng).select({})
+
+        self.assertEqual(candidate.artwork.record_id, "RP-P-1")
+        self.assertEqual(candidate.artwork.title, "River Engraving")
+        self.assertEqual(len(http.requests), 5)
+        rng.shuffle.assert_called_once()
+
 
 class CoreTests(unittest.TestCase):
     def test_flat_art_filter(self):

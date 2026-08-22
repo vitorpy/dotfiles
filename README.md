@@ -83,7 +83,9 @@ Culture, Rijksmuseum, the Cleveland Museum of Art, MASP, and Muzeum Narodowe w
 Warszawie (MNW). If the first provider fails, it tries the remaining providers
 before leaving the current wallpaper unchanged. Rijksmuseum and MASP progress
 is persisted so their collection pages advance through the available flat
-artwork over time. MASP uses the public JSON route behind its collection
+artwork over time. Rijksmuseum accepts paintings, drawings, and
+non-photographic prints while rejecting photographic classifications and
+techniques. MASP uses the public JSON route behind its collection
 website and is configured for personal, non-distributed use with museum and
 photographer attribution. MNW uses its official digital-catalogue API and
 accepts only public-domain paintings, drawings, prints, and photographs with

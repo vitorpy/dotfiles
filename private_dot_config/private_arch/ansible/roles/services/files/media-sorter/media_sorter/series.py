@@ -54,6 +54,11 @@ def jellyfin_series_name(filename: str, season: int | None = None) -> str:
             lambda match: f"S{season:02d}E{int(match.group(1)):02d}",
             filename,
         )
+    if re.search(
+        r"(?i)(?:(?<![A-Z0-9])S\d{1,2}E\d{1,3}(?![A-Z0-9])|Season[ ._-]*\d{1,2}[ ._-]*Episode[ ._-]*\d{1,3})",
+        filename,
+    ):
+        return filename
     return re.sub(
         r"(?i)([ ._]*-[ ._]*)(\d{1,3})(?![A-Z0-9])",
         lambda match: f"{match.group(1)}S{season:02d}E{int(match.group(2)):02d}",

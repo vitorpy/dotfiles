@@ -73,8 +73,19 @@ def test_jellyfin_series_name_adds_known_season_to_e_only_names() -> None:
     assert jellyfin_series_name("Show S01E01E02 Pilot.mkv", 1) == "Show S01E01-E02 Pilot.mkv"
     assert jellyfin_series_name("Show 5x01 Title.mkv") == "Show S05E01 Title.mkv"
     assert jellyfin_series_name("Show - 01 Title.mkv", 1) == "Show - S01E01 Title.mkv"
+    assert jellyfin_series_name("Show - 16 - Title.mkv", 8) == "Show - S08E16 - Title.mkv"
     assert jellyfin_series_name("301 Show Title.avi", 3) == "S03E01 Show Title.avi"
     assert jellyfin_series_name("301 Show Title.avi", 1) == "301 Show Title.avi"
+
+
+def test_jellyfin_series_name_preserves_explicit_episode_marker_with_numeric_title() -> None:
+    assert (
+        jellyfin_series_name(
+            "The Blacklist (2013) - S08E03 - 16 Ounces (1080p BluRay x265 Bandi).mkv",
+            season=8,
+        )
+        == "The Blacklist (2013) - S08E03 - 16 Ounces (1080p BluRay x265 Bandi).mkv"
+    )
 
 
 def test_episode_range_pack_can_infer_season_one() -> None:

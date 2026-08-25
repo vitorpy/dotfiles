@@ -36,11 +36,14 @@ TestCase {
         const sinks = [{
             name: "bluez_output.example",
             properties: {
-                "device.icon_name": "audio-headset-bluetooth"
+                "device.icon_name": "audio-headset-bluetooth",
+                "api.bluez5.address": "44:73:d6:ca:87:f8"
             }
         }];
 
-        verify(AudioRoute.activeSinkUsesHeadphones(serialized(sinks), "bluez_output.example"));
+        const info = AudioRoute.activeSinkInfo(serialized(sinks), "bluez_output.example");
+        verify(info.headphonesActive);
+        compare(info.bluetoothAddress, "44:73:D6:CA:87:F8");
     }
 
     function test_usbHeadphoneFormFactor() {
@@ -58,14 +61,17 @@ TestCase {
         const sinks = [{
             name: "bluetooth-headset",
             properties: {
-                "device.icon_name": "audio-headset-bluetooth"
+                "device.icon_name": "audio-headset-bluetooth",
+                "api.bluez5.address": "44:73:D6:CA:87:F8"
             }
         }, {
             name: "internal",
             active_port: "analog-output-speaker"
         }];
 
-        verify(!AudioRoute.activeSinkUsesHeadphones(serialized(sinks), "internal"));
+        const info = AudioRoute.activeSinkInfo(serialized(sinks), "internal");
+        verify(!info.headphonesActive);
+        compare(info.bluetoothAddress, "");
     }
 
     function test_unknownSinkUsesSpeakerFallback() {

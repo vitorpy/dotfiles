@@ -42,13 +42,16 @@ Scope {
         return theme.microphone;
     }
 
-    function audioTooltip(node: var, label: string): string {
+    function audioTooltip(node: var, label: string, showBattery: bool, deviceBatteryPercent: int): string {
         if (!node || !node.audio)
             return `${label}: unavailable`;
 
         const description = node.description || node.name || label;
         const muted = node.audio.muted ? " · muted" : "";
-        return `${description}\n${volumePercent(node)}%${muted}`;
+        const lines = [description, `${volumePercent(node)}%${muted}`];
+        if (showBattery)
+            lines.push(`Battery: ${deviceBatteryPercent}%`);
+        return lines.join("\n");
     }
 
     function firstCharacter(value: string): string {
@@ -250,7 +253,15 @@ Scope {
                         theme: theme
                         minimumWidth: 54
                         interactive: true
-                        tooltipText: root.healthTooltip(root.audioTooltip(root.barState.audioSink, "Audio output"), root.barState.pwCenter)
+                        tooltipText: root.healthTooltip(
+                            root.audioTooltip(
+                                root.barState.audioSink,
+                                "Audio output",
+                                root.barState.audioSinkBatteryAvailable,
+                                root.barState.audioSinkBatteryPercent
+                            ),
+                            root.barState.pwCenter
+                        )
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink)
                         onRightClicked: root.barState.togglePwCenter()
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05)
@@ -269,7 +280,10 @@ Scope {
                         minimumWidth: 54
                         separator: true
                         interactive: true
-                        tooltipText: root.healthTooltip(root.audioTooltip(root.barState.audioSource, "Audio input"), root.barState.pwCenter)
+                        tooltipText: root.healthTooltip(
+                            root.audioTooltip(root.barState.audioSource, "Audio input", false, 0),
+                            root.barState.pwCenter
+                        )
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource)
                         onRightClicked: root.barState.togglePwCenter()
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05)

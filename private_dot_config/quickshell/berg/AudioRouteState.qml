@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Bluetooth
 import Quickshell.Io
 import "AudioRoute.js" as AudioRoute
 
@@ -7,10 +8,29 @@ QtObject {
 
     property var sink: null
     property bool headphonesActive: false
+    property string bluetoothAddress: ""
     property string health: "loading"
     property string lastError: ""
     property var lastSuccess: null
     property bool subscriptionStarted: false
+
+    readonly property var bluetoothDevice: {
+        if (!bluetoothAddress)
+            return null;
+
+        return Bluetooth.devices.values.find(device =>
+            device && AudioRoute.normalizeBluetoothAddress(device.address) === bluetoothAddress
+        ) || null;
+    }
+    readonly property bool batteryAvailable: Boolean(
+        bluetoothDevice && bluetoothDevice.connected && bluetoothDevice.batteryAvailable
+    )
+    readonly property int batteryPercent: {
+        if (!batteryAvailable || !Number.isFinite(bluetoothDevice.battery))
+            return 0;
+
+        return Math.round(Math.max(0, Math.min(1, bluetoothDevice.battery)) * 100);
+    }
 
     function refreshSoon(): void {
         refreshTimer.restart();
@@ -25,7 +45,9 @@ QtObject {
     function updateFromPactl(output: string): void {
         try {
             const sinkName = sink ? sink.name : "";
-            headphonesActive = AudioRoute.activeSinkUsesHeadphones(output, sinkName);
+            const activeSink = AudioRoute.activeSinkInfo(output, sinkName);
+            headphonesActive = activeSink.headphonesActive;
+            bluetoothAddress = activeSink.bluetoothAddress;
             health = "ready";
             lastError = "";
             lastSuccess = new Date();

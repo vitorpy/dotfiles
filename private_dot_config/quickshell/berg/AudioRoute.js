@@ -26,11 +26,29 @@ function sinkUsesHeadphones(sink) {
     return candidates.some(hasHeadphoneMarker);
 }
 
-function activeSinkUsesHeadphones(serializedSinks, defaultSinkName) {
+function normalizeBluetoothAddress(value) {
+    const normalized = String(value || "")
+        .trim()
+        .replace(/[-_]/g, ":")
+        .toUpperCase();
+
+    return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(normalized) ? normalized : "";
+}
+
+function activeSinkInfo(serializedSinks, defaultSinkName) {
     const sinks = JSON.parse(serializedSinks);
     if (!Array.isArray(sinks))
         throw new Error("pactl sink data is not an array");
 
     const sink = sinks.find(candidate => candidate && candidate.name === defaultSinkName);
-    return sinkUsesHeadphones(sink);
+    const properties = sink && sink.properties ? sink.properties : {};
+
+    return {
+        headphonesActive: sinkUsesHeadphones(sink),
+        bluetoothAddress: normalizeBluetoothAddress(properties["api.bluez5.address"])
+    };
+}
+
+function activeSinkUsesHeadphones(serializedSinks, defaultSinkName) {
+    return activeSinkInfo(serializedSinks, defaultSinkName).headphonesActive;
 }

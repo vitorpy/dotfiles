@@ -8,6 +8,8 @@ Scope {
     readonly property var audioSink: Pipewire.defaultAudioSink
     readonly property var audioSource: Pipewire.defaultAudioSource
     readonly property bool headphonesActive: audioRouteState.headphonesActive
+    readonly property bool audioSinkBatteryAvailable: audioRouteState.batteryAvailable
+    readonly property int audioSinkBatteryPercent: audioRouteState.batteryPercent
 
     readonly property alias clock: clockState
     readonly property alias brightness: brightnessState

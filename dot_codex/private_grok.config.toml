@@ -1,5 +1,6 @@
 model = "grok-4.5"
 model_provider = "xai"
+model_catalog_json = "/home/vitorpy/.codex/grok-model-catalog.json"
 model_reasoning_effort = "high"
 service_tier = "default"
 web_search = "disabled"
@@ -17,3 +18,6 @@ refresh_interval_ms = 0
 
 [features]
 image_generation = false
+
+[projects."/home/vitorpy/sysadmin/pdf"]
+trust_level = "trusted"

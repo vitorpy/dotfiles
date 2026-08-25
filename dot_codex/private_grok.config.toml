@@ -7,9 +7,13 @@ web_search = "disabled"
 [model_providers.xai]
 name = "xAI"
 base_url = "https://api.x.ai/v1"
-env_key = "XAI_API_KEY"
-env_key_instructions = "Set XAI_API_KEY to an API key created in the xAI Console."
 wire_api = "responses"
+
+[model_providers.xai.auth]
+command = "/usr/bin/bw"
+args = ["--nointeraction", "get", "password", "GROK_API_KEY"]
+timeout_ms = 15000
+refresh_interval_ms = 0
 
 [features]
 image_generation = false

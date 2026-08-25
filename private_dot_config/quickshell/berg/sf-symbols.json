@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "artifact_profile": "sf-symbols-8-build-135",
+  "font_sha256": "c408c880b28c21a42bb86cba37b4add3d33ca27db211f8791d4d6e4381027182",
+  "constants": [
+    {
+      "property": "speakerMuted",
+      "symbol": "speaker.slash.fill"
+    },
+    {
+      "property": "speakerLow",
+      "symbol": "speaker.wave.1.fill"
+    },
+    {
+      "property": "speakerHigh",
+      "symbol": "speaker.wave.2.fill"
+    },
+    {
+      "property": "headphones",
+      "symbol": "headphones"
+    },
+    {
+      "property": "microphone",
+      "symbol": "microphone.fill"
+    },
+    {
+      "property": "microphoneMuted",
+      "symbol": "microphone.slash.fill"
+    },
+    {
+      "property": "brightness",
+      "symbol": "sun.max.fill"
+    },
+    {
+      "property": "batteryLevels",
+      "symbols": [
+        "battery.0percent",
+        "battery.25percent",
+        "battery.50percent",
+        "battery.75percent",
+        "battery.100percent"
+      ]
+    },
+    {
+      "property": "batteryCharging",
+      "symbol": "battery.100percent.bolt"
+    },
+    {
+      "property": "cpu",
+      "symbol": "cpu.fill"
+    },
+    {
+      "property": "temperature",
+      "symbol": "thermometer.medium"
+    },
+    {
+      "property": "power",
+      "symbol": "power"
+    },
+    {
+      "property": "dndEnabled",
+      "symbol": "bell.slash.fill"
+    },
+    {
+      "property": "dndDisabled",
+      "symbol": "bell.fill"
+    },
+    {
+      "property": "updates",
+      "symbol": "arrow.down.circle.fill"
+    },
+    {
+      "property": "reboot",
+      "symbol": "arrow.clockwise.circle.fill"
+    },
+    {
+      "property": "warning",
+      "symbol": "exclamationmark.triangle.fill"
+    }
+  ]
+}

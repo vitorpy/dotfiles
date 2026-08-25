@@ -1,6 +1,6 @@
 import QtQuick
 
-QtObject {
+SfSymbols {
     readonly property color surface: "#000000"
     readonly property color surfaceContainer: "#202020"
     readonly property color surfaceContainerHigh: "#282828"
@@ -18,22 +18,4 @@ QtObject {
     readonly property string symbolFont: ".SF Symbols Fallback"
     readonly property int fontSize: 16
     readonly property int tooltipFontSize: 14
-
-    readonly property string speakerMuted: "􀊣"
-    readonly property string speakerLow: "􀊥"
-    readonly property string speakerHigh: "􀊧"
-    readonly property string headphones: "􀑈"
-    readonly property string microphone: "􀊱"
-    readonly property string microphoneMuted: "􀊳"
-    readonly property string brightness: "􀆮"
-    readonly property var batteryLevels: ["􀛪", "􀛩", "􀺶", "􀺸", "􀛨"]
-    readonly property string batteryCharging: "􀢋"
-    readonly property string cpu: "􀧓"
-    readonly property string temperature: "􀇬"
-    readonly property string power: "􀆨"
-    readonly property string dndEnabled: "􀋞"
-    readonly property string dndDisabled: "􀋚"
-    readonly property string updates: "􀁹"
-    readonly property string reboot: "􀚂"
-    readonly property string warning: "􀇿"
 }

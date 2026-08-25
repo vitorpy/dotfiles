@@ -137,7 +137,7 @@ sudo paccache -rk3
 
 if command -v yay &>/dev/null; then
     echo "Cleaning yay cache..."
-    yay -Sc --noconfirm
+    yay -Sc --aur --noconfirm
 fi
 
 echo ""

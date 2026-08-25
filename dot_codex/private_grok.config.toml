@@ -1,0 +1,15 @@
+model = "grok-4.5"
+model_provider = "xai"
+model_reasoning_effort = "high"
+service_tier = "default"
+web_search = "disabled"
+
+[model_providers.xai]
+name = "xAI"
+base_url = "https://api.x.ai/v1"
+env_key = "XAI_API_KEY"
+env_key_instructions = "Set XAI_API_KEY to an API key created in the xAI Console."
+wire_api = "responses"
+
+[features]
+image_generation = false

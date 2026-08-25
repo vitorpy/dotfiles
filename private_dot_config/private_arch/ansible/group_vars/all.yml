@@ -477,6 +477,7 @@ arch_pacman_packages_cli_extras:
   - mosh
   - openbsd-netcat
   - powertop
+  - rclone
   - socat
   - sshfs
   - strace

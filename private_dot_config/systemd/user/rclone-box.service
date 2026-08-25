@@ -1,0 +1,35 @@
+[Unit]
+Description=Mount Box at %h/Box with rclone
+Documentation=https://rclone.org/box/ https://rclone.org/commands/rclone_mount/
+Wants=network-online.target
+After=network-online.target
+PartOf=graphical-session.target
+ConditionPathExists=%h/.config/rclone/rclone.conf
+
+[Service]
+Type=notify
+ExecStartPre=/usr/bin/mkdir -p %h/Box %h/.cache/rclone/box
+ExecStart=/usr/bin/rclone mount box: %h/Box \
+  --config=%h/.config/rclone/rclone.conf \
+  --cache-dir=%h/.cache/rclone/box \
+  --vfs-cache-mode=writes \
+  --vfs-cache-max-size=20GiB \
+  --vfs-cache-max-age=24h \
+  --vfs-write-back=5s \
+  --dir-cache-time=5m \
+  --poll-interval=1m \
+  --contimeout=15s \
+  --timeout=1m \
+  --low-level-retries=3 \
+  --daemon-timeout=2m \
+  --file-perms=0600 \
+  --dir-perms=0700 \
+  --umask=0077 \
+  --log-level=NOTICE
+ExecStop=-/usr/bin/fusermount3 -uz %h/Box
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=20s
+
+[Install]
+WantedBy=graphical-session.target

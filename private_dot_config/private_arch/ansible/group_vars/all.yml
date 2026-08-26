@@ -379,6 +379,7 @@ arch_aur_packages_utilities:
   - eternalterminal-client
   - hyperion-hercules
   - yay-bin
+  - zotero-bin
 
 arch_aur_packages_server:
   - eternalterminal-server

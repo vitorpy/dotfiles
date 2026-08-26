@@ -82,6 +82,25 @@ def sample_mnw_detail(**overrides):
     return detail
 
 
+def sample_candidate(record_id, image_url):
+    return arts.Candidate(
+        arts.Artwork(
+            provider="masp",
+            provider_name="Museu de Arte de São Paulo Assis Chateaubriand (MASP)",
+            record_id=record_id,
+            title=f"Painting {record_id}",
+            creator="Artist",
+            date="1950",
+            attribution="MASP",
+            rights="Personal, non-distributed use",
+            rights_url="https://masp.org.br/acervo/intercambio",
+            source_url=f"https://masp.org.br/acervo/obra/{record_id}",
+            image_url=image_url,
+        ),
+        {"masp": {"next": "https://masp.org.br/pt/acervo/previous/1950?page=1"}},
+    )
+
+
 class FakeHTTP:
     def __init__(self, responses):
         self.responses = list(responses)
@@ -314,7 +333,7 @@ class ProviderTests(unittest.TestCase):
         with self.assertRaises(arts.NetworkUnavailableError):
             arts.MnwProvider(http, random.Random(1)).select({})
 
-    def test_masp_normalizes_flat_art_and_advances_page_cursor(self):
+    def test_masp_normalizes_painting_and_advances_page_cursor(self):
         response = {
             "result": {
                 "items": [
@@ -364,10 +383,24 @@ class ProviderTests(unittest.TestCase):
             "https://masp.org.br/pt/acervo/previous/2023?page=2",
         )
 
-    def test_masp_uses_saved_cursor_and_skips_page_without_flat_art(self):
-        saved = "https://masp.org.br/pt/acervo/previous/2022?page=3"
-        next_page = "https://masp.org.br/pt/acervo/previous/2022?page=4"
-        no_flat_art = {
+    def test_masp_accepts_only_painting_designation(self):
+        self.assertTrue(arts.MaspProvider._is_painting({"designation": "Pintura"}))
+        for designation in (
+            "Fotografia",
+            "Desenho",
+            "Gravura",
+            "Escultura",
+            "Fotopintura",
+        ):
+            with self.subTest(designation=designation):
+                self.assertFalse(
+                    arts.MaspProvider._is_painting({"designation": designation})
+                )
+
+    def test_masp_uses_saved_cursor_and_skips_page_without_painting(self):
+        saved = "https://masp.org.br/pt/acervo/previous/2018?page=3"
+        next_page = "https://masp.org.br/pt/acervo/previous/2018?page=4"
+        no_painting = {
             "result": {
                 "items": [
                     {
@@ -375,32 +408,45 @@ class ProviderTests(unittest.TestCase):
                         "title": "Sculpture",
                         "designation": "Escultura",
                         "image": [{"path": "/uploads/temp/sculpture.jpg"}],
-                    }
+                    },
+                    {
+                        "slug": "photograph",
+                        "title": "Photograph",
+                        "technique": "Fotografia analógica, ampliação sobre papel",
+                        "designation": "Fotografia",
+                        "image": [{"path": "/uploads/temp/photograph.jpg"}],
+                    },
+                    {
+                        "slug": "drawing",
+                        "title": "Drawing",
+                        "designation": "Desenho",
+                        "image": [{"path": "/uploads/temp/drawing.jpg"}],
+                    },
                 ],
                 "next_page_url": next_page,
             }
         }
-        drawing = {
+        painting = {
             "result": {
                 "items": [
                     {
-                        "slug": "drawing",
-                        "title": "Drawing",
+                        "slug": "painting",
+                        "title": "Painting",
                         "author": "Artist",
-                        "designation": "Desenho",
-                        "image": [{"path": "/uploads/temp/drawing.jpg"}],
+                        "designation": "Pintura",
+                        "image": [{"path": "/uploads/temp/painting.jpg"}],
                     }
                 ],
                 "next_page_url": None,
             }
         }
-        http = FakeHTTP([no_flat_art, drawing])
+        http = FakeHTTP([no_painting, painting])
         candidate = arts.MaspProvider(http, random.Random(2)).select(
             {"masp": {"next": saved}}
         )
         self.assertEqual(http.requests[0], (saved, None))
         self.assertEqual(http.requests[1], (next_page, None))
-        self.assertEqual(candidate.artwork.record_id, "drawing")
+        self.assertEqual(candidate.artwork.record_id, "painting")
 
     def test_masp_rejects_untrusted_urls(self):
         self.assertIsNone(
@@ -409,6 +455,11 @@ class ProviderTests(unittest.TestCase):
         self.assertIsNone(
             arts.MaspProvider._valid_page_url(
                 "https://example.test/pt/acervo/previous/2023?page=2"
+            )
+        )
+        self.assertIsNone(
+            arts.MaspProvider._valid_page_url(
+                "https://masp.org.br/pt/acervo/previous/1997?page=6"
             )
         )
 
@@ -684,7 +735,8 @@ class CoreTests(unittest.TestCase):
             side_effect=http_error,
         ), self.assertRaises(arts.ProviderError) as raised:
             client._open(request)
-        self.assertNotIsInstance(raised.exception, arts.NetworkUnavailableError)
+        self.assertIsInstance(raised.exception, arts.HTTPStatusError)
+        self.assertEqual(raised.exception.status_code, 503)
 
         response = mock.Mock()
         with mock.patch.object(
@@ -701,6 +753,87 @@ class CoreTests(unittest.TestCase):
                 lambda name: (_ for _ in ()).throw(arts.ProviderError(f"{name} down")),
             )
         self.assertEqual(set(raised.exception.errors), {"google", "cleveland"})
+
+    def test_masp_staging_skips_missing_candidate(self):
+        first = sample_candidate("missing", "https://assets.masp.org.br/missing.jpg")
+        second = sample_candidate("valid", "https://assets.masp.org.br/valid.jpg")
+        provider = mock.Mock()
+        provider.max_candidate_attempts = 20
+        provider.candidates.return_value = iter((first, second))
+        http = mock.Mock()
+
+        def download(url, destination):
+            if url == first.artwork.image_url:
+                raise arts.HTTPStatusError(url, 404)
+            destination.write_bytes(b"valid image")
+
+        http.download.side_effect = download
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(arts, "image_dimensions", return_value=(3000, 2000)),
+            mock.patch.object(arts, "process_image", return_value=(2560, 1707)),
+            mock.patch.object(
+                arts, "render_greeter_image", return_value=(2560, 1707)
+            ),
+        ):
+            staged = arts.stage_provider(
+                "masp", {"masp": provider}, {}, http, Path(directory)
+            )
+
+        self.assertEqual(staged.candidate.artwork.record_id, "valid")
+        self.assertEqual(http.download.call_count, 2)
+
+    def test_masp_staging_exhausts_retryable_candidates(self):
+        missing = sample_candidate(
+            "missing", "https://assets.masp.org.br/missing.jpg"
+        )
+        undersized = sample_candidate(
+            "undersized", "https://assets.masp.org.br/undersized.jpg"
+        )
+        provider = mock.Mock()
+        provider.max_candidate_attempts = 20
+        provider.candidates.return_value = iter((missing, undersized))
+        http = mock.Mock()
+
+        def download(url, destination):
+            if url == missing.artwork.image_url:
+                raise arts.HTTPStatusError(url, 410)
+            destination.write_bytes(b"small image")
+
+        http.download.side_effect = download
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(arts, "image_dimensions", return_value=(2559, 2000)),
+            mock.patch.object(arts, "process_image") as process,
+            self.assertRaises(arts.ProviderError) as raised,
+        ):
+            arts.stage_provider(
+                "masp", {"masp": provider}, {}, http, Path(directory)
+            )
+
+        self.assertIn("after 2 candidate checks", str(raised.exception))
+        self.assertIn("undersized", str(raised.exception))
+        process.assert_not_called()
+
+    def test_masp_staging_propagates_network_failure(self):
+        first = sample_candidate("first", "https://assets.masp.org.br/first.jpg")
+        second = sample_candidate("second", "https://assets.masp.org.br/second.jpg")
+        provider = mock.Mock()
+        provider.max_candidate_attempts = 20
+        provider.candidates.return_value = iter((first, second))
+        http = mock.Mock()
+        http.download.side_effect = arts.NetworkUnavailableError("offline")
+
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(
+            arts.NetworkUnavailableError
+        ):
+            arts.stage_provider(
+                "masp", {"masp": provider}, {}, http, Path(directory)
+            )
+
+        http.download.assert_called_once()
 
     def test_forced_provider_does_not_add_fallbacks(self):
         self.assertEqual(

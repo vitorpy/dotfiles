@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.5.1"
+VERSION = "1.5.2"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -88,6 +88,15 @@ class ProviderError(WallpaperError):
 
 class NetworkUnavailableError(ProviderError):
     """A provider request failed before receiving a usable HTTP response."""
+
+
+class HTTPStatusError(ProviderError):
+    """A provider returned a non-successful HTTP response."""
+
+    def __init__(self, url: str, status_code: int):
+        self.url = url
+        self.status_code = status_code
+        super().__init__(f"request failed for {url}: HTTP {status_code}")
 
 
 class AllProvidersError(WallpaperError):
@@ -185,9 +194,7 @@ class HTTPClient:
             if attempt + 1 < self.attempts:
                 time.sleep(attempt + 1)
         if not network_unavailable and isinstance(last_error, urllib.error.HTTPError):
-            raise ProviderError(
-                f"request failed for {request.full_url}: HTTP {last_error.code}"
-            ) from last_error
+            raise HTTPStatusError(request.full_url, last_error.code) from last_error
         raise NetworkUnavailableError(
             f"network unavailable for {request.full_url}: {last_error}"
         )
@@ -678,37 +685,9 @@ class MaspProvider:
     page_base = "https://masp.org.br/pt/acervo/previous"
     asset_base = "https://assets.masp.org.br/"
     image_policy_url = "https://masp.org.br/acervo/intercambio"
-    years = (
+    painting_years = (
         2023,
-        2022,
-        2021,
-        2020,
-        2019,
         2018,
-        2017,
-        2016,
-        2015,
-        2012,
-        2010,
-        2009,
-        2008,
-        2007,
-        2006,
-        2005,
-        2004,
-        2003,
-        2002,
-        2001,
-        1999,
-        1998,
-        1997,
-        1996,
-        1995,
-        1994,
-        1993,
-        1992,
-        1991,
-        1990,
         1986,
         1966,
         1958,
@@ -717,6 +696,7 @@ class MaspProvider:
         1947,
     )
     max_page_attempts = 3
+    max_candidate_attempts = 20
 
     def __init__(self, http: HTTPClientProtocol, rng: random.Random):
         self.http = http
@@ -734,7 +714,11 @@ class MaspProvider:
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "https" or parts.hostname != "masp.org.br":
             return None
-        if not re.fullmatch(r"/pt/acervo/previous/\d{4}", parts.path):
+        path_match = re.fullmatch(r"/pt/acervo/previous/(\d{4})", parts.path)
+        if (
+            not path_match
+            or int(path_match.group(1)) not in cls.painting_years
+        ):
             return None
         query = urllib.parse.parse_qs(parts.query)
         if set(query) != {"page"}:
@@ -776,7 +760,7 @@ class MaspProvider:
         )
 
     def _initial_url(self) -> str:
-        return self._page_url(self.rng.choice(self.years))
+        return self._page_url(self.rng.choice(self.painting_years))
 
     def _state_url(self, state: Mapping[str, Any]) -> str:
         provider_state = state.get(self.name)
@@ -789,8 +773,13 @@ class MaspProvider:
     def _next_url(self, result: Mapping[str, Any]) -> str:
         return self._valid_page_url(result.get("next_page_url")) or self._initial_url()
 
+    @staticmethod
+    def _is_painting(record: Mapping[str, Any]) -> bool:
+        designation = clean_text(record.get("designation"))
+        return bool(designation and designation.casefold() == "pintura")
+
     def _candidate(self, record: Mapping[str, Any], next_url: str) -> Candidate | None:
-        if not is_flat_art(record.get("designation"), record.get("technique")):
+        if not self._is_painting(record):
             return None
         slug = clean_text(record.get("slug"))
         title = clean_text(record.get("title"))
@@ -834,7 +823,7 @@ class MaspProvider:
             {self.name: {"next": next_url}},
         )
 
-    def select(self, state: Mapping[str, Any]) -> Candidate:
+    def candidates(self, state: Mapping[str, Any]) -> Iterable[Candidate]:
         page_url = self._state_url(state)
         for _ in range(self.max_page_attempts):
             response = self.http.get_json(page_url)
@@ -850,9 +839,13 @@ class MaspProvider:
             for record in records:
                 candidate = self._candidate(record, next_url)
                 if candidate:
-                    return candidate
+                    yield candidate
             page_url = next_url
-        raise ProviderError("MASP returned no usable flat artwork after three pages")
+
+    def select(self, state: Mapping[str, Any]) -> Candidate:
+        for candidate in self.candidates(state):
+            return candidate
+        raise ProviderError("MASP returned no usable painting after three pages")
 
 
 def rijks_data_url(identifier: str) -> str:
@@ -1353,33 +1346,67 @@ def stage_provider(
 ) -> StagedArtwork:
     temporary_directory = Path(tempfile.mkdtemp(prefix=f".{name}-", dir=data_dir))
     try:
-        candidate = providers[name].select(state)
         source = temporary_directory / "download"
         processed = temporary_directory / "wallpaper.webp"
         greeter_image = temporary_directory / "greeter.png"
-        http.download(candidate.artwork.image_url, source)
-        if candidate.artwork.provider == "masp":
-            width, height = image_dimensions(source)
-            if not masp_image_is_large_enough(width, height):
-                raise ProviderError(
-                    "MASP image is below the 2560x1440 wallpaper source floor "
-                    f"({width}x{height})"
+        provider = providers[name]
+        if name == "masp":
+            candidates = provider.candidates(state)
+            max_candidate_attempts = provider.max_candidate_attempts
+        else:
+            candidates = (provider.select(state),)
+            max_candidate_attempts = 1
+
+        attempts = 0
+        candidate_errors: list[str] = []
+        for candidate in candidates:
+            if attempts >= max_candidate_attempts:
+                break
+            attempts += 1
+            for path in (source, processed, greeter_image):
+                path.unlink(missing_ok=True)
+
+            try:
+                http.download(candidate.artwork.image_url, source)
+            except HTTPStatusError as exc:
+                if name != "masp" or exc.status_code not in {404, 410}:
+                    raise
+                candidate_errors.append(f"{candidate.artwork.record_id}: {exc}")
+                continue
+
+            if candidate.artwork.provider == "masp":
+                source_width, source_height = image_dimensions(source)
+                if not masp_image_is_large_enough(source_width, source_height):
+                    candidate_errors.append(
+                        f"{candidate.artwork.record_id}: image is below the "
+                        "2560x1440 wallpaper source floor "
+                        f"({source_width}x{source_height})"
+                    )
+                    continue
+
+            width, height = process_image(source, processed)
+            greeter_dimensions = render_greeter_image(processed, greeter_image)
+            if greeter_dimensions != (width, height):
+                raise WallpaperError(
+                    "SDDM greeter image dimensions differ from the wallpaper "
+                    f"({greeter_dimensions[0]}x{greeter_dimensions[1]} != "
+                    f"{width}x{height})"
                 )
-        width, height = process_image(source, processed)
-        greeter_dimensions = render_greeter_image(processed, greeter_image)
-        if greeter_dimensions != (width, height):
-            raise WallpaperError(
-                "SDDM greeter image dimensions differ from the wallpaper "
-                f"({greeter_dimensions[0]}x{greeter_dimensions[1]} != "
-                f"{width}x{height})"
+            return StagedArtwork(
+                candidate,
+                processed,
+                greeter_image,
+                width,
+                height,
+                temporary_directory,
             )
-        return StagedArtwork(
-            candidate,
-            processed,
-            greeter_image,
-            width,
-            height,
-            temporary_directory,
+
+        if not attempts:
+            raise ProviderError("MASP returned no usable painting after three pages")
+        detail = f": {candidate_errors[-1]}" if candidate_errors else ""
+        raise ProviderError(
+            f"MASP returned no downloadable painting after {attempts} "
+            f"candidate checks{detail}"
         )
     except Exception:
         shutil.rmtree(temporary_directory, ignore_errors=True)

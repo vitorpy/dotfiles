@@ -2,6 +2,8 @@
 arch_desktop_enabled: true
 arch_memory_pressure_managed: true
 arch_memory_pressure_enabled: true
+arch_file_descriptor_limits_managed: true
+arch_file_descriptor_limits_enabled: true
 arch_display_manager: sddm
 arch_package_prune_explicit: true
 arch_ssh_allow_agent_forwarding_enabled: false

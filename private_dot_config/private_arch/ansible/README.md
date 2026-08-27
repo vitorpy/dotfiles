@@ -98,6 +98,36 @@ the next reboot. Revert the Berg/rclone unit classification and reapply those
 two Chezmoi targets only if their original `app.slice` placement is also
 desired.
 
+## Workstation File Descriptor Limits
+
+The workstation profile raises systemd's default soft open-file limit from
+1024 to 65536 while preserving the existing 524288 hard limit. Both the system
+and per-user manager defaults are managed so shells, UWSM application scopes,
+and user services inherit the same policy after a complete activation boundary.
+
+Apply the policy with:
+
+```bash
+~/.config/arch/apply-ansible.sh --limit localhost --tags limits
+```
+
+The Ansible role deliberately does not reexecute either systemd manager or
+restart the graphical session. Reboot after applying, then verify a fresh
+shell, Berg, and Chrome with:
+
+```bash
+ulimit -Sn
+ulimit -Hn
+systemctl --user show quickshell-berg.service \
+  -p LimitNOFILESoft -p LimitNOFILE
+prlimit --pid "$(pgrep -o -x chrome)" --nofile
+```
+
+The expected soft and hard values are 65536 and 524288. For rollback, set
+`arch_file_descriptor_limits_enabled: false` in the workstation variables,
+re-run the `limits` tag, and reboot. The role removes both manager drop-ins,
+restoring systemd's packaged `1024:524288` default.
+
 ## SDDM and Recovery
 
 The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland Lua

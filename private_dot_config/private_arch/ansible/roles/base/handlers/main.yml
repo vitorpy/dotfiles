@@ -6,3 +6,9 @@
 - name: Regenerate locales
   ansible.builtin.command: locale-gen
   changed_when: true
+
+- name: Restart systemd-oomd
+  ansible.builtin.systemd:
+    name: systemd-oomd.service
+    state: restarted
+  when: arch_memory_pressure_enabled | bool

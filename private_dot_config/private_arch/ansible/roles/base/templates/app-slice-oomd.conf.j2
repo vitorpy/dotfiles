@@ -1,0 +1,6 @@
+# Managed by Ansible. Only normal user applications belong in this slice.
+[Slice]
+ManagedOOMSwap=kill
+ManagedOOMMemoryPressure=kill
+ManagedOOMMemoryPressureLimit={{ arch_oomd_default_memory_pressure_limit }}
+ManagedOOMMemoryPressureDurationSec={{ arch_oomd_default_memory_pressure_duration }}

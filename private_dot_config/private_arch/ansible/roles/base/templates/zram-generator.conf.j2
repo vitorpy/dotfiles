@@ -1,0 +1,8 @@
+# Managed by Ansible. Set arch_memory_pressure_enabled=false to restore the
+# generator's default 4 GiB cap while retaining zram0.
+[zram0]
+{% if arch_memory_pressure_enabled | bool %}
+zram-size = {{ arch_zram_size_expression }}
+compression-algorithm = {{ arch_zram_compression_algorithm }}
+swap-priority = {{ arch_zram_swap_priority }}
+{% endif %}

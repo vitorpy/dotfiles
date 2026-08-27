@@ -22,6 +22,15 @@ arch_system_services_base:
 arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
+arch_memory_pressure_managed: false
+arch_memory_pressure_enabled: false
+arch_zram_size_expression: >-
+  min(min(ram, 4096) + max(ram - 4096, 0) / 2, 32 * 1024)
+arch_zram_compression_algorithm: zstd
+arch_zram_swap_priority: 100
+arch_oomd_swap_used_limit: "90%"
+arch_oomd_default_memory_pressure_limit: "60%"
+arch_oomd_default_memory_pressure_duration: 30s
 arch_gnome_keyring_systemd_activation_enabled: false
 arch_gnome_keyring_dbus_names:
   - org.freedesktop.secrets

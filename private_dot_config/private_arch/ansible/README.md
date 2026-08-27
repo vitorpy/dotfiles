@@ -55,6 +55,49 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
+## Workstation Memory Pressure
+
+The workstation profile manages a capped zram device and a conservative
+systemd-oomd policy. The zram formula grows gradually to 32 GiB, uses zstd, and
+keeps swap priority 100. systemd-oomd monitors only `app.slice` at the upstream
+90% swap and 60%-for-30s memory-pressure thresholds. Session infrastructure is
+kept outside that boundary: Berg runs in `session.slice`, while the Box rclone
+mount runs in `background.slice`; both are additionally marked
+`ManagedOOMPreference=omit`.
+
+Apply the Chezmoi user-unit changes first, reload the user manager, and restart
+the two services before enabling oomd:
+
+```bash
+chezmoi apply ~/.config/systemd/user/quickshell-berg.service \
+  ~/.config/systemd/user/rclone-box.service
+systemctl --user daemon-reload
+systemctl --user restart quickshell-berg.service rclone-box.service
+systemctl --user show quickshell-berg.service rclone-box.service \
+  -p Id -p Slice -p ManagedOOMPreference
+~/.config/arch/apply-ansible.sh --limit localhost --tags memory
+```
+
+The Ansible run installs the policy and starts `systemd-oomd`; reboot once to
+recreate zram at the new size. After reboot, verify with:
+
+```bash
+swapon --show=NAME,TYPE,SIZE,USED,PRIO --bytes
+systemctl is-enabled --quiet systemd-oomd.service
+systemctl is-active --quiet systemd-oomd.service
+systemctl --user show app.slice \
+  -p ManagedOOMSwap -p ManagedOOMMemoryPressure \
+  -p ManagedOOMMemoryPressureLimit -p ManagedOOMMemoryPressureDurationUSec
+oomctl
+```
+
+For rollback, set `arch_memory_pressure_enabled: false` in the workstation
+variables and re-run the `memory` tag. This disables and stops systemd-oomd,
+removes both oomd drop-ins, and restores zram-generator's default 4 GiB cap for
+the next reboot. Revert the Berg/rclone unit classification and reapply those
+two Chezmoi targets only if their original `app.slice` placement is also
+desired.
+
 ## SDDM and Recovery
 
 The workstation uses the Berg SDDM theme on a minimal Wayland Hyprland Lua

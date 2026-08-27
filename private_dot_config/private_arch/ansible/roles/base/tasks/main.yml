@@ -96,3 +96,71 @@
     mode: "0440"
     validate: /usr/bin/visudo -cf %s
   when: arch_manage_sudoers | bool
+
+- name: Configure managed workstation memory pressure
+  when: arch_memory_pressure_managed | bool
+  tags:
+    - memory
+  block:
+    - name: Manage zram generator policy
+      ansible.builtin.template:
+        src: zram-generator.conf.j2
+        dest: /etc/systemd/zram-generator.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Ensure systemd-oomd configuration directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/oomd.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure system user-unit override directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/user/app.slice.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install systemd-oomd thresholds
+      ansible.builtin.template:
+        src: oomd-workstation.conf.j2
+        dest: /etc/systemd/oomd.conf.d/50-workstation.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: arch_memory_pressure_enabled | bool
+      notify: Restart systemd-oomd
+
+    - name: Install the user application-slice oomd policy
+      ansible.builtin.template:
+        src: app-slice-oomd.conf.j2
+        dest: /etc/systemd/user/app.slice.d/50-workstation-oomd.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: arch_memory_pressure_enabled | bool
+
+    - name: Remove systemd-oomd thresholds when disabled
+      ansible.builtin.file:
+        path: /etc/systemd/oomd.conf.d/50-workstation.conf
+        state: absent
+      when: not (arch_memory_pressure_enabled | bool)
+
+    - name: Remove the user application-slice oomd policy when disabled
+      ansible.builtin.file:
+        path: /etc/systemd/user/app.slice.d/50-workstation-oomd.conf
+        state: absent
+      when: not (arch_memory_pressure_enabled | bool)
+
+    - name: Set systemd-oomd activation state
+      ansible.builtin.systemd:
+        name: systemd-oomd.service
+        enabled: "{{ arch_memory_pressure_enabled | bool }}"
+        state: >-
+          {{ 'started' if arch_memory_pressure_enabled | bool else 'stopped' }}
+        daemon_reload: true

@@ -1,0 +1,22 @@
+[accounts.dembe]
+default = true
+email = "dembe@darkmatter.fi"
+display-name = "Dembe Zuma"
+downloads-dir = "~/Downloads/himalaya"
+
+# Friendly mailbox names used by shared Himalaya commands.
+mailbox.alias.inbox = "INBOX"
+mailbox.alias.sent = "Sent"
+mailbox.alias.drafts = "Drafts"
+mailbox.alias.trash = "Trash"
+
+# Incoming mail: implicit TLS IMAP.
+imap.server = "imaps://mxa.forwardmx.net:993"
+imap.sasl.plain.username = "dembe@darkmatter.fi"
+imap.sasl.plain.password.command = ["/home/vitorpy/.local/bin/dembe-mail-password"]
+
+# Outgoing mail: SMTP upgraded with STARTTLS.
+smtp.server = "smtp://mxa.forwardmx.net:587"
+smtp.starttls = true
+smtp.sasl.plain.username = "dembe@darkmatter.fi"
+smtp.sasl.plain.password.command = ["/home/vitorpy/.local/bin/dembe-mail-password"]

@@ -20,6 +20,11 @@ Scope {
     readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
     readonly property alias pwCenter: pwCenterController
+    readonly property alias panels: popoutController
+    readonly property alias osd: osdState
+    readonly property alias batteryWarning: batteryWarningState
+
+    property string pendingBrightnessScreenName: ""
 
     function refreshClock(): void {
         clockState.refresh();
@@ -40,18 +45,57 @@ Scope {
         });
     }
 
-    function toggleAudioMute(node: var): void {
-        if (node && node.audio)
-            node.audio.muted = !node.audio.muted;
+    function audioIconKey(node: var, input: bool): string {
+        if (!node || !node.audio)
+            return "warning";
+        if (input)
+            return node.audio.muted ? "microphone-muted" : "microphone";
+        if (node.audio.muted)
+            return "volume-muted";
+        return headphonesActive ? "headphones" : "volume";
     }
 
-    function changeAudioVolume(node: var, delta: real): void {
-        if (node && node.audio)
-            node.audio.volume = Math.max(0, Math.min(1.5, node.audio.volume + delta));
+    function toggleAudioMute(node: var, input: bool, screenName: string): bool {
+        if (!node || !node.audio) {
+            osdState.showMessage("warning", input ? "Audio input unavailable" : "Audio output unavailable", screenName);
+            return false;
+        }
+
+        const nextMuted = !node.audio.muted;
+        node.audio.muted = nextMuted;
+        osdState.showMessage(
+            input ? (nextMuted ? "microphone-muted" : "microphone")
+                  : (nextMuted ? "volume-muted" : (headphonesActive ? "headphones" : "volume")),
+            input
+                ? (nextMuted ? "Microphone muted" : "Microphone on")
+                : (nextMuted ? "Audio muted" : "Audio on"),
+            screenName
+        );
+        return true;
     }
 
-    function changeBrightness(argument: string): void {
+    function changeAudioVolume(node: var, delta: real, input: bool, screenName: string): bool {
+        if (!node || !node.audio) {
+            osdState.showMessage("warning", input ? "Audio input unavailable" : "Audio output unavailable", screenName);
+            return false;
+        }
+
+        const nextVolume = Math.max(0, Math.min(1.5, node.audio.volume + delta));
+        node.audio.volume = nextVolume;
+        osdState.showProgress(
+            audioIconKey(node, input),
+            Math.round(nextVolume * 100),
+            150,
+            screenName,
+            `${Math.round(nextVolume * 100)}%`
+        );
+        return true;
+    }
+
+    function changeBrightness(argument: string, screenName: string): bool {
+        pendingBrightnessScreenName = screenName;
         brightnessState.change(argument);
+        return true;
     }
 
     function toggleKeyboard(): void {
@@ -63,17 +107,35 @@ Scope {
     }
 
     function toggleNotificationCenter(screenName: string): void {
-        clockState.closePanel();
         notificationState.toggleCenter(screenName);
     }
 
     function toggleClockPanel(screenName: string): void {
-        notificationState.closeCenter();
         clockState.togglePanel(screenName);
     }
 
-    function cyclePowerProfile(): void {
-        powerProfileState.cycle();
+    function togglePowerMenu(screenName: string): void {
+        popoutController.togglePanel("power", screenName);
+    }
+
+    function cyclePowerProfile(screenName: string): void {
+        const label = powerProfileState.cycle();
+        osdState.showMessage("power", `Power profile: ${label}`, screenName);
+    }
+
+    function runMediaAction(action: string, screenName: string): bool {
+        const descriptions = {
+            "next": ["media-next", "Next track"],
+            "previous": ["media-previous", "Previous track"],
+            "play-pause": ["media-play-pause", "Play / pause"]
+        };
+        const description = descriptions[action];
+        if (!description)
+            return false;
+
+        Quickshell.execDetached(["/usr/bin/playerctl", action]);
+        osdState.showMessage(description[0], description[1], screenName);
+        return true;
     }
 
     function togglePwCenter(): void {
@@ -97,8 +159,24 @@ Scope {
         sink: root.audioSink
     }
 
+    PopoutController {
+        id: popoutController
+    }
+
+    OsdState {
+        id: osdState
+
+        panelController: popoutController
+    }
+
+    BatteryWarningState {
+        id: batteryWarningState
+    }
+
     ClockState {
         id: clockState
+
+        popouts: popoutController
     }
 
     BrightnessState {
@@ -111,6 +189,8 @@ Scope {
 
     NotificationState {
         id: notificationState
+
+        popouts: popoutController
     }
 
     PackageUpdatesState {
@@ -131,5 +211,29 @@ Scope {
 
     PwCenterController {
         id: pwCenterController
+    }
+
+    Connections {
+        target: brightnessState
+
+        function onChangeApplied(percent: int): void {
+            osdState.showProgress(
+                "brightness",
+                percent,
+                100,
+                root.pendingBrightnessScreenName,
+                ""
+            );
+            root.pendingBrightnessScreenName = "";
+        }
+
+        function onChangeFailed(message: string): void {
+            osdState.showMessage(
+                "warning",
+                "Brightness unavailable",
+                root.pendingBrightnessScreenName
+            );
+            root.pendingBrightnessScreenName = "";
+        }
     }
 }

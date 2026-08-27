@@ -175,6 +175,50 @@ iostat -x 1            # I/O statistics
 vmstat 1               # Virtual memory statistics
 ```
 
+## Berg Quickshell Smoke-Test Procedure
+
+Use this procedure for every change under `~/.config/quickshell/berg`:
+
+1. Run syntax and deterministic model tests before touching the live shell. Use
+   `/usr/lib/qt6/bin/qmllint` for changed QML files and run the repository's
+   shell/model tests.
+2. Run QML tests from the host context of the active Hyprland session. Sandbox
+   failures to reach Wayland, the user bus, or Hyprland are not product
+   failures. First require a bounded compositor probe:
+   ```bash
+   timeout 5 hyprctl -j monitors >/dev/null
+   ```
+3. Force the Qt 6 Wayland runner. Never use `/usr/bin/qmltestrunner`, which is
+   Qt 5 on this workstation, and do not let inherited X11/theme overrides pick
+   the wrong platform:
+   ```bash
+   env -u DISPLAY -u GTK_THEME -u QT_QPA_PLATFORMTHEME -u QT_STYLE_OVERRIDE \
+     QT_QPA_PLATFORM=wayland \
+     /usr/lib/qt6/bin/qmltestrunner \
+     -input ~/.config/quickshell/berg/tests
+   ```
+4. After static/model checks pass, apply the managed files and reload Berg with
+   `qs -c berg ipc call shell reload`. Exercise every changed IPC target and
+   interaction on the real Wayland session. Include a visual check for UI
+   changes, restore any stateful setting to its starting value, and never smoke
+   test logout, reboot, or poweroff actions.
+   On Quickshell 0.3.1, `qs ipc call` accepts zero-argument functions but its
+   CLI parser rejects positional function arguments. For argument-bearing smoke
+   calls, use the compatible frontend `qs msg -c berg <target> <function>
+   <arguments...>`. Re-test the standard `qs -c berg ipc call ...` form after a
+   Quickshell upgrade and remove this compatibility note once it works.
+5. Verify the service and compositor with bounded host-context checks:
+   ```bash
+   timeout 5 systemctl --user show quickshell-berg.service \
+     -p ActiveState -p SubState -p NRestarts
+   timeout 5 journalctl --user -u quickshell-berg.service -b --no-pager -n 100
+   timeout 5 hyprctl configerrors
+   ```
+   Require `ActiveState=active`, `SubState=running`, no new restart, no new Berg
+   QML/runtime error, and no Hyprland configuration error.
+6. Finish by checking `chezmoi diff`, source/live parity, the focused Git diff,
+   and repository status. Do not claim runtime success from headless tests alone.
+
 ## Dotfiles Management with Chezmoi
 
 My dotfiles are managed with chezmoi and backed up to GitHub at `vitorpy/dotfiles`.

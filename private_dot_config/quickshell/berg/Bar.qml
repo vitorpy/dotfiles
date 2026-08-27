@@ -132,6 +132,28 @@ Scope {
         return estimate ? `Battery · ${stateName}\n${batteryPercent()}% · ${estimate} ${estimateLabel}` : `Battery · ${stateName}\n${batteryPercent()}%`;
     }
 
+    function syncPowerMenu(): void {
+        const shouldOpen = root.barState.panels.isOpen("power", root.modelData.name);
+        if (shouldOpen && !powerMenu.visible)
+            powerMenu.open();
+        else if (!shouldOpen && powerMenu.visible)
+            powerMenu.close();
+    }
+
+    Connections {
+        target: root.barState.panels
+
+        function onActivePanelChanged(): void {
+            root.syncPowerMenu();
+        }
+
+        function onScreenNameChanged(): void {
+            root.syncPowerMenu();
+        }
+    }
+
+    Component.onCompleted: syncPowerMenu()
+
     PanelWindow {
         id: panel
 
@@ -262,10 +284,10 @@ Scope {
                             ),
                             root.barState.pwCenter
                         )
-                        onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink)
+                        onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink, false, root.modelData.name)
                         onRightClicked: root.barState.togglePwCenter()
-                        onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05)
-                        onWheelDown: root.barState.changeAudioVolume(root.barState.audioSink, -0.05)
+                        onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05, false, root.modelData.name)
+                        onWheelDown: root.barState.changeAudioVolume(root.barState.audioSink, -0.05, false, root.modelData.name)
 
                         MetricLabel {
                             theme: theme
@@ -284,10 +306,10 @@ Scope {
                             root.audioTooltip(root.barState.audioSource, "Audio input", false, 0),
                             root.barState.pwCenter
                         )
-                        onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource)
+                        onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource, true, root.modelData.name)
                         onRightClicked: root.barState.togglePwCenter()
-                        onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05)
-                        onWheelDown: root.barState.changeAudioVolume(root.barState.audioSource, -0.05)
+                        onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05, true, root.modelData.name)
+                        onWheelDown: root.barState.changeAudioVolume(root.barState.audioSource, -0.05, true, root.modelData.name)
 
                         MetricLabel {
                             theme: theme
@@ -308,9 +330,9 @@ Scope {
                                 : "Brightness: unavailable",
                             root.barState.brightness
                         )
-                        onLeftClicked: root.barState.changeBrightness("100%")
-                        onWheelUp: root.barState.changeBrightness("+5%")
-                        onWheelDown: root.barState.changeBrightness("5%-")
+                        onLeftClicked: root.barState.changeBrightness("100%", root.modelData.name)
+                        onWheelUp: root.barState.changeBrightness("+5%", root.modelData.name)
+                        onWheelDown: root.barState.changeBrightness("5%-", root.modelData.name)
 
                         MetricLabel {
                             theme: theme
@@ -327,7 +349,7 @@ Scope {
                         separator: true
                         interactive: true
                         tooltipText: root.healthTooltip(root.barState.powerProfile.tooltip, root.barState.powerProfile)
-                        onLeftClicked: root.barState.cyclePowerProfile()
+                        onLeftClicked: root.barState.cyclePowerProfile(root.modelData.name)
 
                         MetricLabel {
                             theme: theme
@@ -517,7 +539,7 @@ Scope {
                         horizontalPadding: 0
                         separator: true
                         interactive: true
-                        onLeftClicked: powerMenu.open()
+                        onLeftClicked: root.barState.togglePowerMenu(root.modelData.name)
 
                         MetricLabel {
                             theme: theme
@@ -552,6 +574,11 @@ Scope {
                 focus: true
                 popupType: Popup.Window
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+
+                onClosed: {
+                    if (root.barState.panels.isOpen("power", root.modelData.name))
+                        root.barState.panels.closePanel("power");
+                }
 
                 background: Rectangle {
                     color: theme.surfaceContainerHigh

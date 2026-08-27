@@ -1,12 +1,13 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import "NotificationPersistence.js" as NotificationPersistence
 
 Scope {
     id: root
+
+    required property var popouts
 
     readonly property int historyLimit: 100
     readonly property int maxVisibleGroups: 5
@@ -15,10 +16,10 @@ Scope {
 
     property var entries: []
     property int revision: 0
-    property bool centerOpen: false
-    property string centerScreenName: ""
     property bool dndStateLoaded: false
 
+    readonly property bool centerOpen: popouts.isOpen("notifications", "")
+    readonly property string centerScreenName: centerOpen ? popouts.screenName : ""
     readonly property bool dnd: !dndStateLoaded || persisted.dnd
     readonly property int count: {
         const ignored = revision;
@@ -107,9 +108,7 @@ Scope {
     }
 
     function focusedScreenName(): string {
-        if (Hyprland.focusedMonitor && Hyprland.focusedMonitor.name)
-            return Hyprland.focusedMonitor.name;
-        return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "";
+        return popouts.focusedScreenName();
     }
 
     function screenExists(name: string): bool {
@@ -123,10 +122,6 @@ Scope {
     function rehomeMissingScreens(): void {
         const fallback = focusedScreenName();
         let changed = false;
-        if (centerOpen && !screenExists(centerScreenName)) {
-            centerScreenName = fallback;
-            changed = true;
-        }
         for (const entry of entries) {
             if (entry.popupVisible && !screenExists(entry.screenName)) {
                 entry.screenName = fallback;
@@ -272,21 +267,17 @@ Scope {
     }
 
     function openCenter(screenName: string): void {
-        centerScreenName = screenName || focusedScreenName();
-        centerOpen = true;
-        markAllRead();
+        if (popouts.openPanel("notifications", screenName))
+            markAllRead();
     }
 
     function closeCenter(): void {
-        centerOpen = false;
-        centerScreenName = "";
+        popouts.closePanel("notifications");
     }
 
     function toggleCenter(screenName: string): void {
-        if (centerOpen && centerScreenName === screenName)
-            closeCenter();
-        else
-            openCenter(screenName);
+        if (popouts.togglePanel("notifications", screenName))
+            markAllRead();
     }
 
     function markAllRead(): void {

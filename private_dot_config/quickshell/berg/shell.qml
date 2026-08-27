@@ -23,6 +23,10 @@ ShellRoot {
     IpcHandler {
         target: "shell"
 
+        function ping(): string {
+            return "ok";
+        }
+
         function reload(): void {
             Quickshell.reload(true);
         }
@@ -40,12 +44,79 @@ ShellRoot {
         }
 
         function openClockPanel(screenName: string): void {
-            sharedState.notifications.closeCenter();
             sharedState.clock.openPanel(screenName);
         }
 
         function closeClockPanel(): void {
             sharedState.clock.closePanel();
+        }
+    }
+
+    IpcHandler {
+        target: "actions"
+
+        function volumeUp(): string {
+            return sharedState.changeAudioVolume(sharedState.audioSink, 0.05, false, "")
+                ? "ok" : "unavailable";
+        }
+
+        function volumeDown(): string {
+            return sharedState.changeAudioVolume(sharedState.audioSink, -0.05, false, "")
+                ? "ok" : "unavailable";
+        }
+
+        function toggleOutputMute(): string {
+            return sharedState.toggleAudioMute(sharedState.audioSink, false, "")
+                ? "ok" : "unavailable";
+        }
+
+        function toggleInputMute(): string {
+            return sharedState.toggleAudioMute(sharedState.audioSource, true, "")
+                ? "ok" : "unavailable";
+        }
+
+        function brightnessUp(): string {
+            sharedState.changeBrightness("+10%", "");
+            return "ok";
+        }
+
+        function brightnessDown(): string {
+            sharedState.changeBrightness("10%-", "");
+            return "ok";
+        }
+
+        function brightnessMax(): string {
+            sharedState.changeBrightness("100%", "");
+            return "ok";
+        }
+
+        function cyclePowerProfile(): string {
+            sharedState.cyclePowerProfile("");
+            return "ok";
+        }
+
+        function mediaNext(): string {
+            return sharedState.runMediaAction("next", "") ? "ok" : "unknown";
+        }
+
+        function mediaPrevious(): string {
+            return sharedState.runMediaAction("previous", "") ? "ok" : "unknown";
+        }
+
+        function mediaPlayPause(): string {
+            return sharedState.runMediaAction("play-pause", "") ? "ok" : "unknown";
+        }
+
+        function status(): string {
+            return JSON.stringify({
+                outputAvailable: Boolean(sharedState.audioSink && sharedState.audioSink.audio),
+                inputAvailable: Boolean(sharedState.audioSource && sharedState.audioSource.audio),
+                brightnessAvailable: sharedState.brightness.hasValue
+            });
+        }
+
+        function ping(): string {
+            return "ok";
         }
     }
 
@@ -55,6 +126,14 @@ ShellRoot {
         Bar {
             barState: sharedState
             previewMode: root.previewMode
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        Osd {
+            osdState: sharedState.osd
         }
     }
 }

@@ -3,11 +3,15 @@ import QtQuick
 QtObject {
     id: root
 
+    signal changeApplied(int percent)
+    signal changeFailed(string message)
+
     property int percent: 0
     property bool hasValue: false
     property string health: "loading"
     property string lastError: ""
     property var lastSuccess: null
+    property bool reportNextConsume: false
 
     function fail(message: string): void {
         lastError = message;
@@ -33,6 +37,10 @@ QtObject {
         health = "ready";
         lastError = "";
         lastSuccess = new Date();
+        if (reportNextConsume) {
+            reportNextConsume = false;
+            changeApplied(percent);
+        }
     }
 
     function change(argument: string): void {
@@ -45,7 +53,13 @@ QtObject {
         intervalMs: 2000
         timeoutMs: 2000
         onSucceeded: (exitCode, output, errorOutput) => root.consume(output)
-        onFailed: (message, exitCode, output, errorOutput) => root.fail(message)
+        onFailed: (message, exitCode, output, errorOutput) => {
+            if (root.reportNextConsume) {
+                root.reportNextConsume = false;
+                root.changeFailed(message);
+            }
+            root.fail(message);
+        }
     }
 
     readonly property ProcessJob action: ProcessJob {
@@ -53,9 +67,14 @@ QtObject {
         timeoutMs: 3000
         onSucceeded: {
             root.lastError = "";
+            root.reportNextConsume = true;
             refreshDelay.restart();
         }
-        onFailed: (message, exitCode, output, errorOutput) => root.fail(`Unable to change brightness: ${message}`)
+        onFailed: (message, exitCode, output, errorOutput) => {
+            root.reportNextConsume = false;
+            root.changeFailed(message);
+            root.fail(`Unable to change brightness: ${message}`);
+        }
     }
 
     readonly property Timer refreshDelay: Timer {

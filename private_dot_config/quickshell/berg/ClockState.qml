@@ -6,6 +6,8 @@ import "ClockFreshness.js" as ClockFreshness
 QtObject {
     id: root
 
+    required property var popouts
+
     readonly property string warsawTimezone: "Europe/Warsaw"
     readonly property int weatherMaxAgeSeconds: 10800
     readonly property int resumeGapSeconds: 300
@@ -23,8 +25,6 @@ QtObject {
     property string warsawFull: ""
     property var weather: null
     property var artwork: null
-    property bool panelOpen: false
-    property string panelScreenName: ""
     property string timezoneError: ""
     property string warsawError: ""
     property string weatherError: ""
@@ -32,6 +32,9 @@ QtObject {
     property string health: "loading"
     property string lastError: ""
     property var lastSuccess: null
+
+    readonly property bool panelOpen: popouts.isOpen("clock", "")
+    readonly property string panelScreenName: panelOpen ? popouts.screenName : ""
 
     readonly property string text: {
         const local = Qt.formatDateTime(now, "ddd, dd.MM HH:mm");
@@ -94,39 +97,18 @@ QtObject {
         now = value;
     }
 
-    function fallbackScreenName(): string {
-        return Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "";
-    }
-
-    function screenExists(name: string): bool {
-        for (let index = 0; index < Quickshell.screens.length; ++index) {
-            if (Quickshell.screens[index].name === name)
-                return true;
-        }
-        return false;
-    }
-
     function openPanel(screenName: string): void {
-        panelScreenName = screenName || fallbackScreenName();
-        panelOpen = true;
-        refresh();
+        if (popouts.openPanel("clock", screenName))
+            refresh();
     }
 
     function closePanel(): void {
-        panelOpen = false;
-        panelScreenName = "";
+        popouts.closePanel("clock");
     }
 
     function togglePanel(screenName: string): void {
-        if (panelOpen && panelScreenName === screenName)
-            closePanel();
-        else
-            openPanel(screenName);
-    }
-
-    function rehomeMissingScreen(): void {
-        if (panelOpen && !screenExists(panelScreenName))
-            panelScreenName = fallbackScreenName();
+        if (popouts.togglePanel("clock", screenName))
+            refresh();
     }
 
     function updateHealth(): void {
@@ -357,14 +339,6 @@ QtObject {
                 ? ""
                 : `Artwork metadata is unavailable: ${FileViewError.toString(error)}`;
             root.updateHealth();
-        }
-    }
-
-    readonly property Connections screenChanges: Connections {
-        target: Quickshell
-
-        function onScreensChanged(): void {
-            root.rehomeMissingScreen();
         }
     }
 

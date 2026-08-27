@@ -36,14 +36,17 @@ QtObject {
         return lastError ? `${base}\n${lastError}` : base;
     }
 
-    function cycle(): void {
+    function cycle(): string {
         const currentIndex = availableProfiles.indexOf(PowerProfiles.profile);
         const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % availableProfiles.length : 0;
-        expectedProfile = availableProfiles[nextIndex];
+        const nextProfile = availableProfiles[nextIndex];
+        const nextLabel = PowerProfile.toString(nextProfile);
+        expectedProfile = nextProfile;
         profileHealth = "loading";
         profileError = "";
         PowerProfiles.profile = expectedProfile;
         verifyTimer.restart();
+        return nextLabel;
     }
 
     function applyAutomaticPolicy(): void {

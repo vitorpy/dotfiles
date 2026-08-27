@@ -24,7 +24,8 @@ arch_workstation_system_services_extra:
   - power-profiles-daemon
 
 arch_system_services: >-
-  {{ arch_system_services_base + arch_workstation_system_services_extra }}
+  {{ (arch_system_services_base | difference(['sshd']))
+     + arch_workstation_system_services_extra }}
 
 arch_printers:
   - name: HP-LaserJet

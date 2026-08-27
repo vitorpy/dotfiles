@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "AttentionHysteresis.js" as AttentionHysteresis
 
 QtObject {
     id: root
@@ -7,12 +8,16 @@ QtObject {
     readonly property string cpuPath: "/proc/stat"
     readonly property string temperaturePath: "/sys/class/thermal/thermal_zone0/temp"
     readonly property int cpuAttentionThreshold: 70
+    readonly property int cpuRecoveryThreshold: 60
     readonly property int temperatureAttentionThresholdC: 55
+    readonly property int temperatureRecoveryThresholdC: 50
 
     property int cpuUsage: 0
     property int temperatureC: 0
     property bool cpuHasValue: false
     property bool temperatureHasValue: false
+    property bool cpuAttentionActive: false
+    property bool temperatureAttentionActive: false
     property string cpuError: ""
     property string temperatureError: ""
     property string health: "loading"
@@ -22,9 +27,9 @@ QtObject {
     property real previousCpuIdle: -1
 
     readonly property bool cpuNeedsAttention: cpuError.length > 0
-        || (cpuHasValue && cpuUsage > cpuAttentionThreshold)
+        || (cpuHasValue && cpuAttentionActive)
     readonly property bool temperatureNeedsAttention: temperatureError.length > 0
-        || (temperatureHasValue && temperatureC > temperatureAttentionThresholdC)
+        || (temperatureHasValue && temperatureAttentionActive)
 
     function updateHealth(): void {
         const errors = [cpuError, temperatureError].filter(message => message.length > 0);
@@ -71,8 +76,15 @@ QtObject {
 
         previousCpuTotal = total;
         previousCpuIdle = idle;
-        cpuUsage = Math.max(0, Math.min(100, Math.round(usage)));
+        const nextUsage = Math.max(0, Math.min(100, Math.round(usage)));
+        cpuUsage = nextUsage;
         cpuHasValue = true;
+        cpuAttentionActive = AttentionHysteresis.highValueVisible(
+            nextUsage,
+            cpuAttentionActive,
+            cpuAttentionThreshold,
+            cpuRecoveryThreshold
+        );
         cpuError = "";
         updateHealth();
     }
@@ -80,8 +92,15 @@ QtObject {
     function consumeTemperature(text: string): void {
         const millidegrees = Number(text.trim());
         if (Number.isFinite(millidegrees)) {
-            temperatureC = Math.round(millidegrees / 1000);
+            const nextTemperatureC = Math.round(millidegrees / 1000);
+            temperatureC = nextTemperatureC;
             temperatureHasValue = true;
+            temperatureAttentionActive = AttentionHysteresis.highValueVisible(
+                nextTemperatureC,
+                temperatureAttentionActive,
+                temperatureAttentionThresholdC,
+                temperatureRecoveryThresholdC
+            );
             temperatureError = "";
         } else {
             temperatureError = "Thermal sensor returned an invalid temperature";

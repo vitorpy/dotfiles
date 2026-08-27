@@ -27,7 +27,48 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Check for updates first
+readonly MIN_UPDATE_FREE_BYTES=$((10 * 1024 * 1024 * 1024))
+
+prepare_package_storage() {
+    local available_bytes
+    local available_gib
+
+    echo -e "${BLUE}==> Preparing package storage...${NC}"
+    echo "Cleaning package cache (keeping last 3 versions)..."
+    if ! sudo paccache -rk3; then
+        echo "Could not prune the package cache; continuing to the free-space check." >&2
+    fi
+
+    if ! read -r available_bytes < <(
+        df --output=avail --block-size=1 / 2>/dev/null | tail -n 1
+    ); then
+        echo "Unable to determine free space on /; refusing to update packages." >&2
+        return 1
+    fi
+
+    available_bytes="${available_bytes//[[:space:]]/}"
+    if [[ ! "$available_bytes" =~ ^[0-9]+$ ]]; then
+        echo "Unable to determine free space on /; refusing to update packages." >&2
+        return 1
+    fi
+
+    available_gib=$((available_bytes / 1024 / 1024 / 1024))
+    if ((available_bytes < MIN_UPDATE_FREE_BYTES)); then
+        printf \
+            'At least 10 GiB must be free on / before updating packages; only %s GiB is available.\n' \
+            "${available_gib}" >&2
+        return 1
+    fi
+
+    echo "  ${available_gib} GiB free on /"
+    echo ""
+}
+
+# Prune first so cached packages can recover space before enforcing the update
+# floor. This intentionally runs before discovery so it also covers no-op runs.
+prepare_package_storage
+
+# Check for updates
 echo -e "${BLUE}==> Checking for updates...${NC}"
 echo ""
 
@@ -144,9 +185,6 @@ else
 fi
 
 echo ""
-echo "Cleaning package cache (keeping last 3 versions)..."
-sudo paccache -rk3
-
 if command -v yay &>/dev/null; then
     echo "Cleaning yay cache..."
     yay -Sc --aur --noconfirm

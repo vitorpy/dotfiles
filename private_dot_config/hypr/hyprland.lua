@@ -12,10 +12,11 @@ hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1 })
 -- Programs
 ----------------
 
-local terminal = "ghostty"
-local fileManager = "caja"
+-- Keep long-lived GUI applications in UWSM-managed app scopes.
+local terminal = "uwsm app -- ghostty"
+local fileManager = "uwsm app -- caja"
 local menu = "hyprlauncher --toggle"
-local browser = "google-chrome-stable"
+local browser = "uwsm app -- google-chrome-stable"
 local screenshot = [[grim -g "$(slurp)" - | wl-copy]]
 local mainMod = "SUPER"
 

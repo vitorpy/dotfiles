@@ -35,10 +35,10 @@ monitor=eDP-1,highres,auto,1
 # See https://wiki.hyprland.org/Configuring/Keywords/
 
 # Set programs that you use
-$terminal = ghostty
-$fileManager = caja
+$terminal = uwsm app -- ghostty
+$fileManager = uwsm app -- caja
 $menu = hyprlauncher --toggle
-$browser = google-chrome-stable
+$browser = uwsm app -- google-chrome-stable
 $screenshot = grim -g "$(slurp)" - | wl-copy
 
 

@@ -14,6 +14,17 @@ arch_host_firewall_allowed_udp_ports_extra:
 arch_host_firewall_trusted_interfaces_extra:
   - tailscale0
 
+arch_tailscale_app_connector_enabled: true
+arch_tailscale_app_connector_tag: tag:forwardmx-connector
+arch_tailscale_connector_interface: tailscale0
+arch_tailscale_connector_egress_interface: eno1
+arch_tailscale_connector_tcp_ports:
+  - 80
+  - 443
+  - 587
+  - 993
+  - 995
+
 arch_hosts_entries:
   - "127.0.0.1 localhost.localdomain localhost"
   - "65.109.48.183 scherbius.vitorpy.com scherbius"

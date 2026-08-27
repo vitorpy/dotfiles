@@ -223,3 +223,6 @@
     mode: "0644"
   when: arch_sysctl_hardening_enabled | bool
   notify: Apply sysctl hardening
+  tags:
+    - sysctl
+    - tailscale

@@ -889,6 +889,64 @@
   when:
     - not ansible_check_mode or (item ~ '.service') in ansible_facts.services
 
+- name: Read Tailscale preferences for managed routing
+  ansible.builtin.command: tailscale debug prefs
+  register: services_tailscale_preferences
+  changed_when: false
+  check_mode: false
+  when:
+    - >-
+      (arch_tailscale_app_connector_enabled | default(false) | bool) or
+      (arch_tailscale_accept_routes | default(false) | bool)
+  tags:
+    - tailscale
+
+- name: Parse Tailscale preferences for managed routing
+  ansible.builtin.set_fact:
+    services_tailscale_app_connector_advertised: >-
+      {{ services_tailscale_preferences_json.AppConnector.Advertise |
+      default(false) }}
+    services_tailscale_advertise_tags: >-
+      {{ services_tailscale_preferences_json.AdvertiseTags |
+      default([], true) }}
+    services_tailscale_route_all: >-
+      {{ services_tailscale_preferences_json.RouteAll | default(false) }}
+  vars:
+    services_tailscale_preferences_json: >-
+      {{ services_tailscale_preferences.stdout | from_json }}
+  when: services_tailscale_preferences is not skipped
+  tags:
+    - tailscale
+
+- name: Configure Tailscale app connector
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - up
+      - --advertise-connector
+      - "--advertise-tags={{ arch_tailscale_app_connector_tag }}"
+  changed_when: true
+  when:
+    - arch_tailscale_app_connector_enabled | default(false) | bool
+    - >-
+      not (services_tailscale_app_connector_advertised | bool) or
+      arch_tailscale_app_connector_tag not in services_tailscale_advertise_tags
+  tags:
+    - tailscale
+
+- name: Accept Tailscale subnet and app connector routes
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - set
+      - --accept-routes=true
+  changed_when: true
+  when:
+    - arch_tailscale_accept_routes | default(false) | bool
+    - not (services_tailscale_route_all | bool)
+  tags:
+    - tailscale
+
 - name: Restart FlareSolverr after listener changes
   ansible.builtin.systemd:
     name: flaresolverr

@@ -28,6 +28,11 @@ table inet filter {
   chain forward {
     type filter hook forward priority 0;
     policy drop;
+{% if arch_tailscale_app_connector_enabled | default(false) | bool %}
+
+    iifname "{{ arch_tailscale_connector_interface }}" oifname "{{ arch_tailscale_connector_egress_interface }}" tcp dport { {{ arch_tailscale_connector_tcp_ports | join(', ') }} } accept
+    iifname "{{ arch_tailscale_connector_egress_interface }}" oifname "{{ arch_tailscale_connector_interface }}" ct state established,related accept
+{% endif %}
   }
 
   chain output {
@@ -35,3 +40,14 @@ table inet filter {
     policy accept;
   }
 }
+{% if arch_tailscale_app_connector_enabled | default(false) | bool %}
+
+table inet tailscale_connector_nat {
+  chain postrouting {
+    type nat hook postrouting priority srcnat;
+    policy accept;
+
+    iifname "{{ arch_tailscale_connector_interface }}" oifname "{{ arch_tailscale_connector_egress_interface }}" tcp dport { {{ arch_tailscale_connector_tcp_ports | join(', ') }} } masquerade
+  }
+}
+{% endif %}

@@ -378,6 +378,7 @@ arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
   - hyperion-hercules
+  - roam
   - yay-bin
   - zotero-bin
 

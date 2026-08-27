@@ -31,6 +31,14 @@ ShellRoot {
             sharedState.refreshClock();
         }
 
+        function refreshUpdates(): void {
+            sharedState.refreshUpdates();
+        }
+
+        function updatesStatus(): string {
+            return sharedState.updatesStatus();
+        }
+
         function openClockPanel(screenName: string): void {
             sharedState.notifications.closeCenter();
             sharedState.clock.openPanel(screenName);

@@ -25,6 +25,21 @@ Scope {
         clockState.refresh();
     }
 
+    function refreshUpdates(): void {
+        updatesState.refresh();
+    }
+
+    function updatesStatus(): string {
+        return JSON.stringify({
+            officialCount: updatesState.officialCount,
+            aurCount: updatesState.aurCount,
+            total: updatesState.total,
+            health: updatesState.health,
+            running: updatesState.official.running || updatesState.aur.running,
+            refreshPending: updatesState.refreshPending
+        });
+    }
+
     function toggleAudioMute(node: var): void {
         if (node && node.audio)
             node.audio.muted = !node.audio.muted;

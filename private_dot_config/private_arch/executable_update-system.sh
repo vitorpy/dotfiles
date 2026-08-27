@@ -4,6 +4,18 @@
 
 set -e
 
+refresh_berg_updates() {
+    local update_status=$?
+
+    if /usr/bin/systemctl --user is-active --quiet quickshell-berg.service; then
+        /usr/bin/qs -c berg ipc call shell refreshUpdates >/dev/null 2>&1 || true
+    fi
+
+    return "$update_status"
+}
+
+trap refresh_berg_updates EXIT
+
 echo "════════════════════════════════════════════════════════════"
 echo "  Arch Linux System Update"
 echo "════════════════════════════════════════════════════════════"

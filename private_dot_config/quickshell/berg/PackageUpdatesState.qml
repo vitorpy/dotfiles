@@ -1,4 +1,5 @@
 import QtQuick
+import "PackageUpdates.js" as PackageUpdates
 
 QtObject {
     id: root
@@ -25,13 +26,8 @@ QtObject {
         return lastError ? `${summary}\n${lastError}` : summary;
     }
 
-    function lineCount(text: string): int {
-        const trimmed = text.trim();
-        return trimmed ? trimmed.split(/\r?\n/).filter(line => line.trim().length > 0).length : 0;
-    }
-
     function refresh(): void {
-        if (official.running || aur.running) {
+        if (PackageUpdates.refreshIsBusy(official.running, aur.running)) {
             refreshPending = true;
             return;
         }
@@ -48,7 +44,7 @@ QtObject {
         if (source === "official") {
             officialDone = true;
             if (success) {
-                officialCount = lineCount(output);
+                officialCount = PackageUpdates.lineCount(output);
                 officialHasValue = true;
             } else {
                 officialError = `Official update check failed: ${message}`;
@@ -56,7 +52,7 @@ QtObject {
         } else {
             aurDone = true;
             if (success) {
-                aurCount = lineCount(output);
+                aurCount = PackageUpdates.lineCount(output);
                 aurHasValue = true;
             } else {
                 aurError = `AUR update check failed: ${message}`;
@@ -109,7 +105,7 @@ QtObject {
     }
 
     readonly property Timer refreshTimer: Timer {
-        interval: 300000
+        interval: PackageUpdates.periodicRefreshIntervalMs()
         running: true
         repeat: true
         triggeredOnStart: true

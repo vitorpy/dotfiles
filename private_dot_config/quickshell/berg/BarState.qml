@@ -21,6 +21,7 @@ Scope {
     readonly property alias systemStats: stats
     readonly property alias audioDevices: audioDeviceState
     readonly property alias stayAwake: stayAwakeState
+    readonly property alias media: mediaState
     readonly property alias panels: popoutController
     readonly property alias osd: osdState
     readonly property alias batteryWarning: batteryWarningState
@@ -133,18 +134,11 @@ Scope {
     }
 
     function runMediaAction(action: string, screenName: string): bool {
-        const descriptions = {
-            "next": ["media-next", "Next track"],
-            "previous": ["media-previous", "Previous track"],
-            "play-pause": ["media-play-pause", "Play / pause"]
-        };
-        const description = descriptions[action];
-        if (!description)
-            return false;
+        return mediaState.runAction(action, true, screenName, "", true);
+    }
 
-        Quickshell.execDetached(["/usr/bin/playerctl", action]);
-        osdState.showMessage(description[0], description[1], screenName);
-        return true;
+    function cycleMediaSource(delta: int, screenName: string): bool {
+        return mediaState.switchSource(delta, false, true, screenName);
     }
 
     function runSessionAction(action: string): void {
@@ -183,6 +177,12 @@ Scope {
 
     StayAwakeState {
         id: stayAwakeState
+
+        osd: osdState
+    }
+
+    MediaState {
+        id: mediaState
 
         osd: osdState
     }

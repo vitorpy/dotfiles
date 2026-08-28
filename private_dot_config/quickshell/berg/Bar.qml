@@ -242,6 +242,40 @@ Scope {
                         foreground: theme.primary
                     }
                 }
+
+                BarCell {
+                    theme: theme
+                    visible: root.barState.media.visible
+                    interactive: true
+                    horizontalPadding: 12
+                    contentSpacing: 8
+                    backgroundColor: theme.surfaceContainerHigh
+                    cornerRadius: 12
+                    tooltipText: root.barState.media.tooltip
+                    onLeftClicked: root.barState.runMediaAction("play-pause", root.modelData.name)
+                    onMiddleClicked: root.barState.runMediaAction("next", root.modelData.name)
+                    onRightClicked: root.barState.cycleMediaSource(1, root.modelData.name)
+                    onWheelUp: root.barState.runMediaAction("previous", root.modelData.name)
+                    onWheelDown: root.barState.runMediaAction("next", root.modelData.name)
+
+                    Text {
+                        text: root.barState.media.playing ? "⏸" : "▶"
+                        color: root.barState.media.playing ? theme.primary : theme.foregroundMuted
+                        font.family: theme.textFont
+                        font.pixelSize: theme.fontSize
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        text: root.barState.media.barLabel
+                        width: Math.min(180, implicitWidth)
+                        elide: Text.ElideRight
+                        color: theme.foreground
+                        font.family: theme.textFont
+                        font.pixelSize: theme.fontSize
+                        font.weight: Font.Medium
+                    }
+                }
             }
 
             Rectangle {

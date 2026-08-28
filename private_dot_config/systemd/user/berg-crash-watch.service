@@ -1,0 +1,27 @@
+[Unit]
+Description=Report current-user process crashes through Berg notifications
+Documentation=file:%h/.config/quickshell/berg/CRASH-WATCH.md
+PartOf=graphical-session.target
+After=graphical-session.target dbus.socket quickshell-berg.service
+Requisite=graphical-session.target
+
+[Service]
+Slice=session.slice
+ManagedOOMPreference=omit
+Type=simple
+ExecStart=/usr/bin/python %h/.config/quickshell/berg/scripts/berg_crash_watch.py
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=5s
+Environment=PYTHONUNBUFFERED=1
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_UNIX
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=graphical-session.target

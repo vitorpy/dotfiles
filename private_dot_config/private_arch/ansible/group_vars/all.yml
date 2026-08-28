@@ -261,6 +261,8 @@ arch_pacman_packages_hyprland:
   - uwsm
   - hyprpolkitagent
   - quickshell
+  - libnotify
+  - python
   - power-profiles-daemon
   - python-gobject
   - hyprpaper

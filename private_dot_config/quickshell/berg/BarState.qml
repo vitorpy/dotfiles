@@ -19,7 +19,7 @@ Scope {
     readonly property alias reboot: kernelState
     readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
-    readonly property alias pwCenter: pwCenterController
+    readonly property alias audioDevices: audioDeviceState
     readonly property alias panels: popoutController
     readonly property alias osd: osdState
     readonly property alias batteryWarning: batteryWarningState
@@ -118,6 +118,10 @@ Scope {
         popoutController.togglePanel("power", screenName);
     }
 
+    function toggleAudioPanel(screenName: string): void {
+        audioDeviceState.togglePanel(screenName);
+    }
+
     function cyclePowerProfile(screenName: string): void {
         const label = powerProfileState.cycle();
         osdState.showMessage("power", `Power profile: ${label}`, screenName);
@@ -136,10 +140,6 @@ Scope {
         Quickshell.execDetached(["/usr/bin/playerctl", action]);
         osdState.showMessage(description[0], description[1], screenName);
         return true;
-    }
-
-    function togglePwCenter(): void {
-        pwCenterController.toggle();
     }
 
     function runSessionAction(action: string): void {
@@ -167,6 +167,13 @@ Scope {
         id: osdState
 
         panelController: popoutController
+    }
+
+    AudioDeviceState {
+        id: audioDeviceState
+
+        popouts: popoutController
+        osd: osdState
     }
 
     BatteryWarningState {
@@ -207,10 +214,6 @@ Scope {
 
     SystemStats {
         id: stats
-    }
-
-    PwCenterController {
-        id: pwCenterController
     }
 
     Connections {

@@ -275,17 +275,14 @@ Scope {
                         theme: theme
                         minimumWidth: 54
                         interactive: true
-                        tooltipText: root.healthTooltip(
-                            root.audioTooltip(
-                                root.barState.audioSink,
-                                "Audio output",
-                                root.barState.audioSinkBatteryAvailable,
-                                root.barState.audioSinkBatteryPercent
-                            ),
-                            root.barState.pwCenter
+                        tooltipText: root.audioTooltip(
+                            root.barState.audioSink,
+                            "Audio output",
+                            root.barState.audioSinkBatteryAvailable,
+                            root.barState.audioSinkBatteryPercent
                         )
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink, false, root.modelData.name)
-                        onRightClicked: root.barState.togglePwCenter()
+                        onRightClicked: root.barState.toggleAudioPanel(root.modelData.name)
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05, false, root.modelData.name)
                         onWheelDown: root.barState.changeAudioVolume(root.barState.audioSink, -0.05, false, root.modelData.name)
 
@@ -293,7 +290,6 @@ Scope {
                             theme: theme
                             glyph: root.speakerGlyph()
                             label: `${root.volumePercent(root.barState.audioSink)}%`
-                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -302,12 +298,9 @@ Scope {
                         minimumWidth: 54
                         separator: true
                         interactive: true
-                        tooltipText: root.healthTooltip(
-                            root.audioTooltip(root.barState.audioSource, "Audio input", false, 0),
-                            root.barState.pwCenter
-                        )
+                        tooltipText: root.audioTooltip(root.barState.audioSource, "Audio input", false, 0)
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource, true, root.modelData.name)
-                        onRightClicked: root.barState.togglePwCenter()
+                        onRightClicked: root.barState.toggleAudioPanel(root.modelData.name)
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05, true, root.modelData.name)
                         onWheelDown: root.barState.changeAudioVolume(root.barState.audioSource, -0.05, true, root.modelData.name)
 
@@ -315,7 +308,6 @@ Scope {
                             theme: theme
                             glyph: root.microphoneGlyph()
                             label: `${root.volumePercent(root.barState.audioSource)}%`
-                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -559,6 +551,12 @@ Scope {
                 screen: root.modelData
                 theme: root.palette
                 clockState: root.barState.clock
+            }
+
+            AudioPanel {
+                modelData: root.modelData
+                theme: root.palette
+                audioState: root.barState.audioDevices
             }
 
             Popup {

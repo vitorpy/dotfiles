@@ -20,6 +20,7 @@ Scope {
     readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
     readonly property alias audioDevices: audioDeviceState
+    readonly property alias stayAwake: stayAwakeState
     readonly property alias panels: popoutController
     readonly property alias osd: osdState
     readonly property alias batteryWarning: batteryWarningState
@@ -122,6 +123,10 @@ Scope {
         audioDeviceState.togglePanel(screenName);
     }
 
+    function toggleStayAwake(screenName: string): void {
+        stayAwakeState.toggle(screenName);
+    }
+
     function cyclePowerProfile(screenName: string): void {
         const label = powerProfileState.cycle();
         osdState.showMessage("power", `Power profile: ${label}`, screenName);
@@ -173,6 +178,12 @@ Scope {
         id: audioDeviceState
 
         popouts: popoutController
+        osd: osdState
+    }
+
+    StayAwakeState {
+        id: stayAwakeState
+
         osd: osdState
     }
 

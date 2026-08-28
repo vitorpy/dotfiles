@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
+import Quickshell.Wayland
 import Quickshell.Widgets
 import "components"
 
@@ -170,6 +171,13 @@ Scope {
             right: true
         }
 
+        IdleInhibitor {
+            window: panel
+            enabled: root.barState.stayAwake.enabled
+                && panel.visible
+                && !root.previewMode
+        }
+
         Item {
             id: layoutRoot
             anchors.fill: parent
@@ -215,6 +223,23 @@ Scope {
                         glyph: root.barState.reboot.rebootRequired ? theme.reboot : ""
                         foreground: root.unhealthy(root.barState.reboot) ? theme.error : theme.foreground
                         warning: root.unhealthy(root.barState.reboot)
+                    }
+                }
+
+                BarCell {
+                    theme: theme
+                    visible: root.barState.stayAwake.enabled
+                    interactive: true
+                    horizontalPadding: 16
+                    backgroundColor: theme.surfaceContainerHigh
+                    cornerRadius: 12
+                    tooltipText: "Stay awake is active\nClick to allow idle actions"
+                    onLeftClicked: root.barState.toggleStayAwake(root.modelData.name)
+
+                    MetricLabel {
+                        theme: theme
+                        label: "AWAKE"
+                        foreground: theme.primary
                     }
                 }
             }
@@ -589,6 +614,10 @@ Scope {
                     Repeater {
                         model: [
                             {
+                                "label": root.barState.stayAwake.enabled ? "Allow sleep" : "Stay awake",
+                                "action": "toggle-stay-awake"
+                            },
+                            {
                                 "label": "Logout",
                                 "action": "logout"
                             },
@@ -634,7 +663,10 @@ Scope {
                                 hoverEnabled: true
                                 onClicked: {
                                     powerMenu.close();
-                                    root.barState.runSessionAction(modelData.action);
+                                    if (modelData.action === "toggle-stay-awake")
+                                        root.barState.toggleStayAwake(root.modelData.name);
+                                    else
+                                        root.barState.runSessionAction(modelData.action);
                                 }
                             }
                         }

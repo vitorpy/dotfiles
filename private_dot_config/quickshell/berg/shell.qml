@@ -111,7 +111,8 @@ ShellRoot {
             return JSON.stringify({
                 outputAvailable: Boolean(sharedState.audioSink && sharedState.audioSink.audio),
                 inputAvailable: Boolean(sharedState.audioSource && sharedState.audioSource.audio),
-                brightnessAvailable: sharedState.brightness.hasValue
+                brightnessAvailable: sharedState.brightness.hasValue,
+                mediaAvailable: Boolean(sharedState.media.activePlayer)
             });
         }
 

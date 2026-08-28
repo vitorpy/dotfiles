@@ -1,0 +1,9 @@
+{
+  "MESSAGE_ID": "fc2e22bc6ee647b6b90729ab34a250b1",
+  "COREDUMP_UID": "1000",
+  "COREDUMP_PID": "4242",
+  "COREDUMP_COMM": "fixture-player",
+  "COREDUMP_EXE": "/usr/bin/fixture-player",
+  "COREDUMP_SIGNAL": "11",
+  "COREDUMP_SIGNAL_NAME": "SIGSEGV"
+}

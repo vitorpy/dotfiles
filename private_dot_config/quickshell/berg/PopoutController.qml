@@ -7,7 +7,7 @@ import "PopoutModel.js" as PopoutModel
 Scope {
     id: root
 
-    readonly property var panelIds: ["clock", "notifications", "power"]
+    readonly property var panelIds: ["audio", "clock", "notifications", "power"]
     property string activePanel: ""
     property string screenName: ""
 

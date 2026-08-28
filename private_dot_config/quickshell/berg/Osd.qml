@@ -21,6 +21,9 @@ PanelWindow {
         case "power": return theme.power;
         case "media-next": return "⏭";
         case "media-previous": return "⏮";
+        case "media-play": return "▶";
+        case "media-pause": return "⏸";
+        case "media-source": return "♫";
         case "media-play-pause": return "⏯";
         default: return theme.warning;
         }

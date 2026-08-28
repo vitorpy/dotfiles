@@ -1,0 +1,4 @@
+# One exact COREDUMP_COMM value or full COREDUMP_EXE path per line.
+# Example:
+# firefox
+# /usr/bin/example-program

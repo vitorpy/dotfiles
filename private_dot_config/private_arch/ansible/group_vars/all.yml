@@ -261,6 +261,8 @@ arch_pacman_packages_hyprland:
   - uwsm
   - hyprpolkitagent
   - quickshell
+  - libnotify
+  - python
   - power-profiles-daemon
   - python-gobject
   - hyprpaper
@@ -269,7 +271,6 @@ arch_pacman_packages_hyprland:
   - hyprsunset
   - hyprlauncher
   - hyprshutdown
-  - hyprpwcenter
   - xdg-desktop-portal-hyprland
   - xdg-desktop-portal-gtk
   - grim

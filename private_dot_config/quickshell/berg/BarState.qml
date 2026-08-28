@@ -19,7 +19,9 @@ Scope {
     readonly property alias reboot: kernelState
     readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
-    readonly property alias pwCenter: pwCenterController
+    readonly property alias audioDevices: audioDeviceState
+    readonly property alias stayAwake: stayAwakeState
+    readonly property alias media: mediaState
     readonly property alias panels: popoutController
     readonly property alias osd: osdState
     readonly property alias batteryWarning: batteryWarningState
@@ -118,28 +120,25 @@ Scope {
         popoutController.togglePanel("power", screenName);
     }
 
+    function toggleAudioPanel(screenName: string): void {
+        audioDeviceState.togglePanel(screenName);
+    }
+
+    function toggleStayAwake(screenName: string): void {
+        stayAwakeState.toggle(screenName);
+    }
+
     function cyclePowerProfile(screenName: string): void {
         const label = powerProfileState.cycle();
         osdState.showMessage("power", `Power profile: ${label}`, screenName);
     }
 
     function runMediaAction(action: string, screenName: string): bool {
-        const descriptions = {
-            "next": ["media-next", "Next track"],
-            "previous": ["media-previous", "Previous track"],
-            "play-pause": ["media-play-pause", "Play / pause"]
-        };
-        const description = descriptions[action];
-        if (!description)
-            return false;
-
-        Quickshell.execDetached(["/usr/bin/playerctl", action]);
-        osdState.showMessage(description[0], description[1], screenName);
-        return true;
+        return mediaState.runAction(action, true, screenName, "", true);
     }
 
-    function togglePwCenter(): void {
-        pwCenterController.toggle();
+    function cycleMediaSource(delta: int, screenName: string): bool {
+        return mediaState.switchSource(delta, false, true, screenName);
     }
 
     function runSessionAction(action: string): void {
@@ -167,6 +166,25 @@ Scope {
         id: osdState
 
         panelController: popoutController
+    }
+
+    AudioDeviceState {
+        id: audioDeviceState
+
+        popouts: popoutController
+        osd: osdState
+    }
+
+    StayAwakeState {
+        id: stayAwakeState
+
+        osd: osdState
+    }
+
+    MediaState {
+        id: mediaState
+
+        osd: osdState
     }
 
     BatteryWarningState {
@@ -207,10 +225,6 @@ Scope {
 
     SystemStats {
         id: stats
-    }
-
-    PwCenterController {
-        id: pwCenterController
     }
 
     Connections {

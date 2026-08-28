@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
+import Quickshell.Wayland
 import Quickshell.Widgets
 import "components"
 
@@ -170,6 +171,13 @@ Scope {
             right: true
         }
 
+        IdleInhibitor {
+            window: panel
+            enabled: root.barState.stayAwake.enabled
+                && panel.visible
+                && !root.previewMode
+        }
+
         Item {
             id: layoutRoot
             anchors.fill: parent
@@ -215,6 +223,57 @@ Scope {
                         glyph: root.barState.reboot.rebootRequired ? theme.reboot : ""
                         foreground: root.unhealthy(root.barState.reboot) ? theme.error : theme.foreground
                         warning: root.unhealthy(root.barState.reboot)
+                    }
+                }
+
+                BarCell {
+                    theme: theme
+                    visible: root.barState.stayAwake.enabled
+                    interactive: true
+                    horizontalPadding: 16
+                    backgroundColor: theme.surfaceContainerHigh
+                    cornerRadius: 12
+                    tooltipText: "Stay awake is active\nClick to allow idle actions"
+                    onLeftClicked: root.barState.toggleStayAwake(root.modelData.name)
+
+                    MetricLabel {
+                        theme: theme
+                        label: "AWAKE"
+                        foreground: theme.primary
+                    }
+                }
+
+                BarCell {
+                    theme: theme
+                    visible: root.barState.media.visible
+                    interactive: true
+                    horizontalPadding: 12
+                    contentSpacing: 8
+                    backgroundColor: theme.surfaceContainerHigh
+                    cornerRadius: 12
+                    tooltipText: root.barState.media.tooltip
+                    onLeftClicked: root.barState.runMediaAction("play-pause", root.modelData.name)
+                    onMiddleClicked: root.barState.runMediaAction("next", root.modelData.name)
+                    onRightClicked: root.barState.cycleMediaSource(1, root.modelData.name)
+                    onWheelUp: root.barState.runMediaAction("previous", root.modelData.name)
+                    onWheelDown: root.barState.runMediaAction("next", root.modelData.name)
+
+                    Text {
+                        text: root.barState.media.playing ? "⏸" : "▶"
+                        color: root.barState.media.playing ? theme.primary : theme.foregroundMuted
+                        font.family: theme.textFont
+                        font.pixelSize: theme.fontSize
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        text: root.barState.media.barLabel
+                        width: Math.min(180, implicitWidth)
+                        elide: Text.ElideRight
+                        color: theme.foreground
+                        font.family: theme.textFont
+                        font.pixelSize: theme.fontSize
+                        font.weight: Font.Medium
                     }
                 }
             }
@@ -275,17 +334,14 @@ Scope {
                         theme: theme
                         minimumWidth: 54
                         interactive: true
-                        tooltipText: root.healthTooltip(
-                            root.audioTooltip(
-                                root.barState.audioSink,
-                                "Audio output",
-                                root.barState.audioSinkBatteryAvailable,
-                                root.barState.audioSinkBatteryPercent
-                            ),
-                            root.barState.pwCenter
+                        tooltipText: root.audioTooltip(
+                            root.barState.audioSink,
+                            "Audio output",
+                            root.barState.audioSinkBatteryAvailable,
+                            root.barState.audioSinkBatteryPercent
                         )
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSink, false, root.modelData.name)
-                        onRightClicked: root.barState.togglePwCenter()
+                        onRightClicked: root.barState.toggleAudioPanel(root.modelData.name)
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSink, 0.05, false, root.modelData.name)
                         onWheelDown: root.barState.changeAudioVolume(root.barState.audioSink, -0.05, false, root.modelData.name)
 
@@ -293,7 +349,6 @@ Scope {
                             theme: theme
                             glyph: root.speakerGlyph()
                             label: `${root.volumePercent(root.barState.audioSink)}%`
-                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -302,12 +357,9 @@ Scope {
                         minimumWidth: 54
                         separator: true
                         interactive: true
-                        tooltipText: root.healthTooltip(
-                            root.audioTooltip(root.barState.audioSource, "Audio input", false, 0),
-                            root.barState.pwCenter
-                        )
+                        tooltipText: root.audioTooltip(root.barState.audioSource, "Audio input", false, 0)
                         onLeftClicked: root.barState.toggleAudioMute(root.barState.audioSource, true, root.modelData.name)
-                        onRightClicked: root.barState.togglePwCenter()
+                        onRightClicked: root.barState.toggleAudioPanel(root.modelData.name)
                         onWheelUp: root.barState.changeAudioVolume(root.barState.audioSource, 0.05, true, root.modelData.name)
                         onWheelDown: root.barState.changeAudioVolume(root.barState.audioSource, -0.05, true, root.modelData.name)
 
@@ -315,7 +367,6 @@ Scope {
                             theme: theme
                             glyph: root.microphoneGlyph()
                             label: `${root.volumePercent(root.barState.audioSource)}%`
-                            warning: root.unhealthy(root.barState.pwCenter)
                         }
                     }
 
@@ -561,6 +612,12 @@ Scope {
                 clockState: root.barState.clock
             }
 
+            AudioPanel {
+                modelData: root.modelData
+                theme: root.palette
+                audioState: root.barState.audioDevices
+            }
+
             Popup {
                 id: powerMenu
 
@@ -590,6 +647,10 @@ Scope {
 
                     Repeater {
                         model: [
+                            {
+                                "label": root.barState.stayAwake.enabled ? "Allow sleep" : "Stay awake",
+                                "action": "toggle-stay-awake"
+                            },
                             {
                                 "label": "Logout",
                                 "action": "logout"
@@ -636,7 +697,10 @@ Scope {
                                 hoverEnabled: true
                                 onClicked: {
                                     powerMenu.close();
-                                    root.barState.runSessionAction(modelData.action);
+                                    if (modelData.action === "toggle-stay-awake")
+                                        root.barState.toggleStayAwake(root.modelData.name);
+                                    else
+                                        root.barState.runSessionAction(modelData.action);
                                 }
                             }
                         }

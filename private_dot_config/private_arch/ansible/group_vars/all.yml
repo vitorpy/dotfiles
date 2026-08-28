@@ -383,6 +383,7 @@ arch_aur_packages_development:
 arch_aur_packages_communication:
   - 1password
   - 1password-cli
+  - chatgpt-desktop
   - slack-desktop
   - zoom
 

@@ -19,6 +19,8 @@ from urllib.request import Request, urlopen
 GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.labels"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 COUNT_FIELDS = frozenset({"threadsUnread", "messagesUnread"})
+TOKEN_FETCH_TIMEOUT_SECONDS = 20
+AUTHORIZE_TIMEOUT_SECONDS = 300
 
 
 class GmailUnreadError(RuntimeError):
@@ -144,7 +146,12 @@ def load_config(path: Path, require_caches: bool = True) -> dict[str, Any] | Non
     }
 
 
-def fetch_access_token(oauth2l: Path, account: dict[str, Any]) -> str:
+def fetch_access_token(
+    oauth2l: Path,
+    account: dict[str, Any],
+    *,
+    timeout: int = TOKEN_FETCH_TIMEOUT_SECONDS,
+) -> str:
     command = [
         str(oauth2l),
         "fetch",
@@ -157,7 +164,7 @@ def fetch_access_token(oauth2l: Path, account: dict[str, Any]) -> str:
         "--refresh",
     ]
     try:
-        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=20)
+        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise GmailUnreadError(f"OAuth failed for {account['name']}: {exc}") from exc
     token = result.stdout.strip()
@@ -227,9 +234,22 @@ def authorize(config: dict[str, Any], account_name: str) -> None:
     cache_parent = account["cache"].parent
     cache_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     cache_parent.chmod(0o700)
-    if account["cache"].exists():
+    try:
+        cache_fd = os.open(
+            account["cache"],
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
+            0o600,
+        )
+    except FileExistsError:
         require_private_file(account["cache"], f"OAuth cache for {account_name}")
-    fetch_access_token(config["oauth2l"], account)
+    else:
+        os.close(cache_fd)
+        require_private_file(account["cache"], f"OAuth cache for {account_name}")
+    fetch_access_token(
+        config["oauth2l"],
+        account,
+        timeout=AUTHORIZE_TIMEOUT_SECONDS,
+    )
     account["cache"].chmod(0o600)
     require_private_file(account["cache"], f"OAuth cache for {account_name}")
     print(f"Authorized {account_name}; token cache: {account['cache']}")

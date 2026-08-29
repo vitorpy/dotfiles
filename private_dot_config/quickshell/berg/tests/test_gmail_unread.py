@@ -73,6 +73,27 @@ def test_setup_commands_can_load_before_every_cache_exists(tmp_path: Path) -> No
         gmail_unread.load_config(path, require_caches=True)
 
 
+def test_authorize_allows_time_for_interactive_oauth(tmp_path: Path, monkeypatch) -> None:
+    config = gmail_unread.load_config(config_file(tmp_path), require_caches=False)
+    assert config is not None
+    account = config["accounts"][0]
+    account["cache"].unlink()
+    observed: dict[str, int] = {}
+
+    def fake_fetch_access_token(oauth2l, account, *, timeout):
+        observed["timeout"] = timeout
+        observed["cache_mode"] = account["cache"].stat().st_mode & 0o777
+        return "token"
+
+    monkeypatch.setattr(gmail_unread, "fetch_access_token", fake_fetch_access_token)
+
+    gmail_unread.authorize(config, "Personal")
+
+    assert observed["timeout"] == gmail_unread.AUTHORIZE_TIMEOUT_SECONDS
+    assert observed["timeout"] > gmail_unread.TOKEN_FETCH_TIMEOUT_SECONDS
+    assert observed["cache_mode"] == 0o600
+
+
 def test_collects_configured_field_and_aggregates(tmp_path: Path) -> None:
     config = gmail_unread.load_config(config_file(tmp_path, count_field="messagesUnread"))
     assert config is not None

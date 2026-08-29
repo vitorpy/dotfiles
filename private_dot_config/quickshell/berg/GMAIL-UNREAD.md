@@ -7,9 +7,9 @@ per account.
 
 ## Dependencies
 
-`oauth2l-git` is declared in the workstation's managed AUR package list. Apply
-the workstation Ansible configuration before setup if `/usr/bin/oauth2l` does
-not exist.
+Google's official `oauth2l` 1.3.5 Linux binary is installed by the workstation
+Ansible configuration at `/usr/local/bin/oauth2l`. Its versioned archive and
+SHA-256 checksum are pinned in the managed package role; no AUR recipe is used.
 
 ## Configuration
 

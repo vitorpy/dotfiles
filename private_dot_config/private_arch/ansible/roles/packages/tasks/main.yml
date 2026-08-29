@@ -19,6 +19,86 @@
   tags:
     - packages
 
+- name: Validate oauth2l platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["system"] == "Linux"
+      - ansible_facts["architecture"] == "x86_64"
+    fail_msg: "The managed oauth2l binary currently supports Linux x86_64 only."
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Create managed package cache directory
+  ansible.builtin.file:
+    path: /var/cache/arch-ansible
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Download official oauth2l archive
+  ansible.builtin.get_url:
+    url: >-
+      https://storage.googleapis.com/oauth2l/{{ arch_oauth2l_version }}/linux_amd64.tgz
+    dest: >-
+      /var/cache/arch-ansible/oauth2l-{{ arch_oauth2l_version }}-linux-amd64.tgz
+    checksum: "{{ arch_oauth2l_archive_checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Create versioned oauth2l directory
+  ansible.builtin.file:
+    path: "/usr/local/lib/oauth2l/{{ arch_oauth2l_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Install official oauth2l binary
+  ansible.builtin.unarchive:
+    src: >-
+      /var/cache/arch-ansible/oauth2l-{{ arch_oauth2l_version }}-linux-amd64.tgz
+    dest: "/usr/local/lib/oauth2l/{{ arch_oauth2l_version }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: "/usr/local/lib/oauth2l/{{ arch_oauth2l_version }}/oauth2l"
+    owner: root
+    group: root
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Link managed oauth2l binary
+  ansible.builtin.file:
+    src: "/usr/local/lib/oauth2l/{{ arch_oauth2l_version }}/oauth2l"
+    dest: /usr/local/bin/oauth2l
+    state: link
+    owner: root
+    group: root
+    force: true
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
+- name: Verify managed oauth2l binary
+  ansible.builtin.command: /usr/local/bin/oauth2l --help
+  changed_when: false
+  when: arch_oauth2l_enabled | bool
+  tags:
+    - packages
+
 - name: Compute declared package set
   ansible.builtin.set_fact:
     packages_declared_all: "{{ (packages_pacman_effective + packages_aur_effective + arch_package_prune_exclude) | unique }}"

@@ -82,7 +82,7 @@ def load_config(path: Path, require_caches: bool = True) -> dict[str, Any] | Non
     if count_field not in COUNT_FIELDS:
         raise GmailUnreadError("countField must be threadsUnread or messagesUnread")
 
-    oauth2l = expand_path(raw.get("oauth2l", "/usr/bin/oauth2l"), "oauth2l")
+    oauth2l = expand_path(raw.get("oauth2l", "/usr/local/bin/oauth2l"), "oauth2l")
     if not oauth2l.is_file() or not os.access(oauth2l, os.X_OK):
         raise GmailUnreadError(f"oauth2l is not executable: {oauth2l}")
 

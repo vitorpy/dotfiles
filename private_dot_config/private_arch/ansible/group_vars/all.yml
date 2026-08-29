@@ -167,6 +167,10 @@ arch_pacman_packages: []
 arch_aur_packages: []
 arch_aur_makepkg_disable_debug: true
 arch_aur_makepkg_no_debug_conf: /tmp/ansible-makepkg-no-debug.conf
+arch_oauth2l_enabled: false
+arch_oauth2l_version: "1.3.5"
+arch_oauth2l_archive_checksum: >-
+  sha256:194f0f10c048830ca63b97118201abc32d59e2c76e1b872a0ba7f8ec675713ec
 arch_host_pacman_packages_extra: []
 arch_host_aur_packages_extra: []
 arch_host_system_services_extra: []
@@ -393,7 +397,6 @@ arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
   - hyperion-hercules
-  - oauth2l-git
   - roam
   - yay-bin
   - zotero-bin

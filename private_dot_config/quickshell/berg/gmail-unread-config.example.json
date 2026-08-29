@@ -1,5 +1,5 @@
 {
-  "oauth2l": "/usr/bin/oauth2l",
+  "oauth2l": "/usr/local/bin/oauth2l",
   "credentials": "~/.config/gmail-unread/client_secret.json",
   "countField": "threadsUnread",
   "accounts": [

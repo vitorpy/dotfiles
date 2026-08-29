@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import copy
 import dataclasses
 import datetime as dt
@@ -26,7 +28,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.5.2"
+VERSION = "1.6.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -35,7 +37,7 @@ ARCHIVE_DIRECTORY = "archive"
 ARCHIVE_IMAGE = "wallpaper.webp"
 ARCHIVE_METADATA = "metadata.json"
 ARCHIVE_ENTRY_PATTERN = re.compile(r"\A\d{8}T\d{6}Z-[0-9a-f]{16}\Z")
-PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland", "masp", "mnw")
+PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland", "masp", "mnw", "mahn")
 FLAT_ART_TERMS = (
     "painting",
     "drawing",
@@ -678,6 +680,187 @@ class MnwProvider:
             f"MNW returned no usable flat public-domain artwork after "
             f"{attempts} detail checks{detail}"
         )
+
+
+class MahnProvider:
+    name = "mahn"
+    provider_name = "Musée d'art et d'histoire de Neuchâtel (MahN)"
+    endpoint = "https://collections.mahn.ch/api/v2/notices/search"
+    image_host = "d2lkryo36aywim.cloudfront.net"
+    collection_code = "peintures"
+    profile = "mahnow02"
+    items_per_page = 30
+    max_candidate_attempts = 20
+    rights_url = "https://collections.mahn.ch/en/"
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    @classmethod
+    def _params(cls, page: int) -> list[tuple[str, Any]]:
+        return [
+            ("page", page),
+            ("items_per_page", cls.items_per_page),
+            ("onlineFilter", "online"),
+            ("onlyHasImage", "true"),
+            ("noticeCollectionsFilter[]", cls.collection_code),
+        ]
+
+    @classmethod
+    def _page(cls, response: Any) -> tuple[list[Mapping[str, Any]], int]:
+        if not isinstance(response, Mapping):
+            raise ProviderError("MahN search response was not an object")
+        records = response.get("hydra:member")
+        try:
+            total = int(response["hydra:totalItems"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ProviderError("MahN search response did not include a total") from exc
+        if not isinstance(records, list):
+            raise ProviderError("MahN search response did not include artwork records")
+        if total < 1:
+            raise ProviderError("MahN returned no paintings with images")
+        return [record for record in records if isinstance(record, Mapping)], total
+
+    @classmethod
+    def _source_url(cls, value: Any, native_id: str) -> str | None:
+        url = clean_text(value)
+        if not url:
+            return None
+        parts = urllib.parse.urlsplit(url)
+        try:
+            port = parts.port
+        except ValueError:
+            return None
+        if (
+            parts.scheme != "https"
+            or parts.hostname != "collections.mahn.ch"
+            or port not in (None, 443)
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+            or not re.fullmatch(r"/(?:de|en|fr)/notice/[a-z0-9-]+", parts.path)
+            or not parts.path.endswith(native_id)
+        ):
+            return None
+        return urllib.parse.urlunsplit(("https", "collections.mahn.ch", parts.path, "", ""))
+
+    @classmethod
+    def _image_url(cls, value: Any) -> str | None:
+        url = clean_text(value)
+        if not url:
+            return None
+        parts = urllib.parse.urlsplit(url)
+        try:
+            port = parts.port
+        except ValueError:
+            return None
+        encoded = urllib.parse.unquote(parts.path.removeprefix("/"))
+        if (
+            parts.scheme != "https"
+            or parts.hostname != cls.image_host
+            or port not in (None, 443)
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+            or not encoded
+            or "/" in encoded
+        ):
+            return None
+        try:
+            payload = json.loads(base64.b64decode(encoded, validate=True))
+        except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(payload, Mapping):
+            return None
+        key = clean_text(payload.get("key"))
+        if (
+            clean_text(payload.get("bucket")) != "opac-prod-media"
+            or not key
+            or not re.fullmatch(
+                rf"neuch01/{cls.profile}/[A-Za-z0-9_-]+\.(?:jpe?g|png|tiff?)",
+                key,
+                flags=re.IGNORECASE,
+            )
+        ):
+            return None
+        transformed = {
+            "bucket": "opac-prod-media",
+            "key": key,
+            "edits": {
+                "resize": {
+                    "width": 2600,
+                    "height": 2600,
+                    "fit": "inside",
+                }
+            },
+        }
+        encoded_transform = base64.b64encode(
+            json.dumps(transformed, separators=(",", ":")).encode()
+        ).decode()
+        return f"https://{cls.image_host}/{encoded_transform}"
+
+    @classmethod
+    def _candidate(cls, record: Mapping[str, Any]) -> Candidate | None:
+        native_id = clean_text(record.get("nativeId"))
+        if (
+            not native_id
+            or not re.fullmatch(
+                r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                native_id,
+                flags=re.IGNORECASE,
+            )
+            or clean_text(record.get("profile")) != cls.profile
+        ):
+            return None
+        collections = record.get("noticeCollections")
+        if not isinstance(collections, list) or cls.collection_code not in collections:
+            return None
+        titles = record.get("titles")
+        images = record.get("images")
+        if not isinstance(titles, Mapping) or not isinstance(images, Mapping):
+            return None
+        title = clean_text(titles.get("title"))
+        source_url = cls._source_url(record.get("url"), native_id)
+        image_url = cls._image_url(images.get("large"))
+        if not title or not source_url or not image_url:
+            return None
+        return Candidate(
+            Artwork(
+                provider=cls.name,
+                provider_name=cls.provider_name,
+                record_id=native_id,
+                title=title,
+                creator=clean_text(titles.get("subTitle")),
+                date=clean_text(titles.get("text")),
+                attribution="MahN",
+                rights="MahN image; reproduction and use are subject to MahN terms",
+                rights_url=cls.rights_url,
+                source_url=source_url,
+                image_url=image_url,
+            )
+        )
+
+    def candidates(self, state: Mapping[str, Any]) -> Iterable[Candidate]:
+        del state
+        records, total = self._page(self.http.get_json(self.endpoint, self._params(1)))
+        total_pages = (total + self.items_per_page - 1) // self.items_per_page
+        page = self.rng.randrange(1, total_pages + 1)
+        if page != 1:
+            records, _ = self._page(
+                self.http.get_json(self.endpoint, self._params(page))
+            )
+        self.rng.shuffle(records)
+        candidates = [
+            candidate
+            for record in records
+            if (candidate := self._candidate(record)) is not None
+        ]
+        if not candidates:
+            raise ProviderError("MahN page had no usable painting records")
+        return candidates
 
 
 class MaspProvider:
@@ -1350,7 +1533,7 @@ def stage_provider(
         processed = temporary_directory / "wallpaper.webp"
         greeter_image = temporary_directory / "greeter.png"
         provider = providers[name]
-        if name == "masp":
+        if name in {"masp", "mahn"}:
             candidates = provider.candidates(state)
             max_candidate_attempts = provider.max_candidate_attempts
         else:
@@ -1369,12 +1552,12 @@ def stage_provider(
             try:
                 http.download(candidate.artwork.image_url, source)
             except HTTPStatusError as exc:
-                if name != "masp" or exc.status_code not in {404, 410}:
+                if name not in {"masp", "mahn"} or exc.status_code not in {404, 410}:
                     raise
                 candidate_errors.append(f"{candidate.artwork.record_id}: {exc}")
                 continue
 
-            if candidate.artwork.provider == "masp":
+            if candidate.artwork.provider in {"masp", "mahn"}:
                 source_width, source_height = image_dimensions(source)
                 if not masp_image_is_large_enough(source_width, source_height):
                     candidate_errors.append(
@@ -1402,10 +1585,10 @@ def stage_provider(
             )
 
         if not attempts:
-            raise ProviderError("MASP returned no usable painting after three pages")
+            raise ProviderError(f"{name.upper()} returned no usable painting candidates")
         detail = f": {candidate_errors[-1]}" if candidate_errors else ""
         raise ProviderError(
-            f"MASP returned no downloadable painting after {attempts} "
+            f"{name.upper()} returned no downloadable painting after {attempts} "
             f"candidate checks{detail}"
         )
     except Exception:
@@ -1810,6 +1993,7 @@ def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
             "cleveland": ClevelandProvider(http, rng),
             "masp": MaspProvider(http, rng),
             "mnw": MnwProvider(http, rng),
+            "mahn": MahnProvider(http, rng),
         }
         order = provider_order(args.provider, rng)
         print(f"Provider order: {', '.join(order)}")

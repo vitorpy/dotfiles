@@ -82,6 +82,52 @@ def sample_mnw_detail(**overrides):
     return detail
 
 
+def sample_mahn_image_url(
+    *,
+    bucket="opac-prod-media",
+    key="neuch01/mahnow02/5febf851-a901-409e-8c0e-e342c62e3c7d.jpg",
+    host="d2lkryo36aywim.cloudfront.net",
+):
+    payload = {
+        "bucket": bucket,
+        "key": key,
+        "edits": {
+            "resize": {
+                "width": 720,
+                "height": 720,
+                "fit": "inside",
+            }
+        },
+    }
+    encoded = arts.base64.b64encode(
+        json.dumps(payload, separators=(",", ":")).encode()
+    ).decode()
+    return f"https://{host}/{encoded}"
+
+
+def sample_mahn_record(**overrides):
+    native_id = "f8ce75d7-d888-41c7-bbce-9c599c40a8e2"
+    record = {
+        "id": "637501da1496476fa9504079",
+        "nativeId": native_id,
+        "profile": "mahnow02",
+        "noticeCollections": ["peintures"],
+        "url": (
+            "https://collections.mahn.ch/fr/notice/"
+            "ap-7-saint-paul-hors-les-murs-f8ce75d7-d888-41c7-bbce-9c599c40a8e2"
+        ),
+        "titles": {
+            "title": "Saint-Paul-hors-les-Murs, à Rome",
+            "subTitle": "Robert Léopold",
+            "text": "1824",
+            "native_title": "AP 7 Saint-Paul-hors-les-Murs, à Rome",
+        },
+        "images": {"large": sample_mahn_image_url()},
+    }
+    record.update(overrides)
+    return record
+
+
 def sample_candidate(record_id, image_url):
     return arts.Candidate(
         arts.Artwork(
@@ -332,6 +378,108 @@ class ProviderTests(unittest.TestCase):
 
         with self.assertRaises(arts.NetworkUnavailableError):
             arts.MnwProvider(http, random.Random(1)).select({})
+
+    def test_mahn_normalizes_filtered_painting_and_builds_2600_image(self):
+        page = {
+            "hydra:member": [sample_mahn_record()],
+            "hydra:totalItems": 1,
+        }
+        http = FakeHTTP([page])
+
+        candidates = list(arts.MahnProvider(http, random.Random(1)).candidates({}))
+
+        self.assertEqual(len(candidates), 1)
+        artwork = candidates[0].artwork
+        self.assertEqual(artwork.provider, "mahn")
+        self.assertEqual(
+            artwork.provider_name,
+            "Musée d'art et d'histoire de Neuchâtel (MahN)",
+        )
+        self.assertEqual(
+            artwork.record_id,
+            "f8ce75d7-d888-41c7-bbce-9c599c40a8e2",
+        )
+        self.assertEqual(artwork.title, "Saint-Paul-hors-les-Murs, à Rome")
+        self.assertEqual(artwork.creator, "Robert Léopold")
+        self.assertEqual(artwork.date, "1824")
+        self.assertEqual(artwork.attribution, "MahN")
+        self.assertIn("subject to MahN terms", artwork.rights)
+        self.assertEqual(artwork.rights_url, "https://collections.mahn.ch/en/")
+        self.assertEqual(
+            artwork.source_url,
+            "https://collections.mahn.ch/fr/notice/"
+            "ap-7-saint-paul-hors-les-murs-f8ce75d7-d888-41c7-bbce-9c599c40a8e2",
+        )
+        image_payload = json.loads(
+            arts.base64.b64decode(
+                arts.urllib.parse.urlsplit(artwork.image_url).path.removeprefix("/")
+            )
+        )
+        self.assertEqual(image_payload["bucket"], "opac-prod-media")
+        self.assertEqual(
+            image_payload["key"],
+            "neuch01/mahnow02/5febf851-a901-409e-8c0e-e342c62e3c7d.jpg",
+        )
+        self.assertEqual(
+            image_payload["edits"],
+            {"resize": {"width": 2600, "height": 2600, "fit": "inside"}},
+        )
+        self.assertEqual(
+            http.requests[0],
+            (
+                "https://collections.mahn.ch/api/v2/notices/search",
+                [
+                    ("page", 1),
+                    ("items_per_page", 30),
+                    ("onlineFilter", "online"),
+                    ("onlyHasImage", "true"),
+                    ("noticeCollectionsFilter[]", "peintures"),
+                ],
+            ),
+        )
+
+    def test_mahn_selects_a_random_paintings_page(self):
+        overview = {"hydra:member": [sample_mahn_record()], "hydra:totalItems": 61}
+        selected = {"hydra:member": [sample_mahn_record()], "hydra:totalItems": 61}
+        rng = mock.Mock()
+        rng.randrange.return_value = 3
+        http = FakeHTTP([overview, selected])
+
+        candidates = list(arts.MahnProvider(http, rng).candidates({}))
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(http.requests[1][1][0], ("page", 3))
+        rng.randrange.assert_called_once_with(1, 4)
+        rng.shuffle.assert_called_once()
+
+    def test_mahn_rejects_untrusted_or_nonpainting_records(self):
+        fixtures = {
+            "wrong collection": {"noticeCollections": ["portraits"]},
+            "wrong profile": {"profile": "other"},
+            "invalid native id": {"nativeId": "../../secret"},
+            "external source": {"url": "https://example.test/notice/example"},
+            "missing title": {"titles": {"subTitle": "Robert Léopold"}},
+            "external image": {
+                "images": {
+                    "large": sample_mahn_image_url(host="example.test")
+                }
+            },
+            "wrong bucket": {
+                "images": {
+                    "large": sample_mahn_image_url(bucket="private-media")
+                }
+            },
+            "traversal key": {
+                "images": {
+                    "large": sample_mahn_image_url(key="neuch01/mahnow02/../../secret.jpg")
+                }
+            },
+        }
+        for label, overrides in fixtures.items():
+            with self.subTest(label=label):
+                self.assertIsNone(
+                    arts.MahnProvider._candidate(sample_mahn_record(**overrides))
+                )
 
     def test_masp_normalizes_painting_and_advances_page_cursor(self):
         response = {
@@ -843,6 +991,7 @@ class CoreTests(unittest.TestCase):
         automatic = arts.provider_order("auto", random.Random(1))
         self.assertEqual(set(automatic), set(arts.PROVIDER_NAMES))
         self.assertIn("mnw", automatic)
+        self.assertIn("mahn", automatic)
 
     def test_process_and_publish_wallpaper_and_greeter_derivative(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -24,6 +24,7 @@ QtObject {
     readonly property string power: "􀆨" // power (U+1001A8)
     readonly property string dndEnabled: "􀋞" // bell.slash.fill (U+1002DE)
     readonly property string dndDisabled: "􀋚" // bell.fill (U+1002DA)
+    readonly property string mail: "􀛮" // envelope.fill (U+1006EE)
     readonly property string updates: "􀁹" // arrow.down.circle.fill (U+100079)
     readonly property string reboot: "􀚂" // arrow.clockwise.circle.fill (U+100682)
     readonly property string warning: "􀇿" // exclamationmark.triangle.fill (U+1001FF)

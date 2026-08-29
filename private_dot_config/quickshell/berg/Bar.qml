@@ -195,6 +195,25 @@ Scope {
 
                 BarCell {
                     theme: theme
+                    visible: root.barState.gmailUnread.visible
+                    interactive: true
+                    horizontalPadding: 16
+                    backgroundColor: theme.surfaceContainerHigh
+                    cornerRadius: 12
+                    tooltipText: root.barState.gmailUnread.tooltip
+                    onLeftClicked: root.barState.refreshGmailUnread()
+
+                    MetricLabel {
+                        theme: theme
+                        glyph: theme.mail
+                        label: root.barState.gmailUnread.total > 0 ? root.barState.gmailUnread.badgeText : ""
+                        foreground: root.unhealthy(root.barState.gmailUnread) ? theme.error : theme.foreground
+                        warning: root.unhealthy(root.barState.gmailUnread)
+                    }
+                }
+
+                BarCell {
+                    theme: theme
                     visible: root.barState.updates.visible
                     horizontalPadding: 16
                     backgroundColor: theme.surfaceContainerHigh

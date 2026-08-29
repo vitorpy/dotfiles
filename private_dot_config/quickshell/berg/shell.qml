@@ -43,6 +43,14 @@ ShellRoot {
             return sharedState.updatesStatus();
         }
 
+        function refreshGmailUnread(): void {
+            sharedState.refreshGmailUnread();
+        }
+
+        function gmailUnreadStatus(): string {
+            return sharedState.gmailUnreadStatus();
+        }
+
         function openClockPanel(screenName: string): void {
             sharedState.clock.openPanel(screenName);
         }

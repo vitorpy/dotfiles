@@ -66,6 +66,10 @@
       "symbol": "bell.fill"
     },
     {
+      "property": "mail",
+      "symbol": "envelope.fill"
+    },
+    {
       "property": "updates",
       "symbol": "arrow.down.circle.fill"
     },

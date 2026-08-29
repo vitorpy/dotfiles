@@ -393,6 +393,7 @@ arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
   - hyperion-hercules
+  - oauth2l-git
   - roam
   - yay-bin
   - zotero-bin

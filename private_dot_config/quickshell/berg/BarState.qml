@@ -16,6 +16,7 @@ Scope {
     readonly property alias keyboard: keyboardState
     readonly property alias notifications: notificationState
     readonly property alias updates: updatesState
+    readonly property alias gmailUnread: gmailUnreadState
     readonly property alias reboot: kernelState
     readonly property alias powerProfile: powerProfileState
     readonly property alias systemStats: stats
@@ -44,6 +45,21 @@ Scope {
             health: updatesState.health,
             running: updatesState.official.running || updatesState.aur.running,
             refreshPending: updatesState.refreshPending
+        });
+    }
+
+    function refreshGmailUnread(): void {
+        gmailUnreadState.refresh();
+    }
+
+    function gmailUnreadStatus(): string {
+        return JSON.stringify({
+            configured: gmailUnreadState.configured,
+            countField: gmailUnreadState.countField,
+            total: gmailUnreadState.total,
+            accounts: gmailUnreadState.accounts,
+            health: gmailUnreadState.health,
+            running: gmailUnreadState.poller.running
         });
     }
 
@@ -213,6 +229,10 @@ Scope {
 
     PackageUpdatesState {
         id: updatesState
+    }
+
+    GmailUnreadState {
+        id: gmailUnreadState
     }
 
     KernelState {

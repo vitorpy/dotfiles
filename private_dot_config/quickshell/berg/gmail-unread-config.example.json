@@ -1,0 +1,31 @@
+{
+  "oauth2l": "/usr/bin/oauth2l",
+  "credentials": "~/.config/gmail-unread/client_secret.json",
+  "countField": "threadsUnread",
+  "accounts": [
+    {
+      "name": "Personal",
+      "cache": "~/.local/state/gmail-unread/personal.oauth2l",
+      "labels": [
+        {
+          "id": "INBOX",
+          "name": "Inbox"
+        },
+        {
+          "id": "Label_42",
+          "name": "Receipts"
+        }
+      ]
+    },
+    {
+      "name": "Work",
+      "cache": "~/.local/state/gmail-unread/work.oauth2l",
+      "labels": [
+        {
+          "id": "INBOX",
+          "name": "Inbox"
+        }
+      ]
+    }
+  ]
+}

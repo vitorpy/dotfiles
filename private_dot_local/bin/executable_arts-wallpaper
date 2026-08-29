@@ -28,7 +28,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 TARGET_WIDTH = 2560
 HTTP_TIMEOUT_SECONDS = 20
 MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024
@@ -37,7 +37,16 @@ ARCHIVE_DIRECTORY = "archive"
 ARCHIVE_IMAGE = "wallpaper.webp"
 ARCHIVE_METADATA = "metadata.json"
 ARCHIVE_ENTRY_PATTERN = re.compile(r"\A\d{8}T\d{6}Z-[0-9a-f]{16}\Z")
-PROVIDER_NAMES = ("google", "rijksmuseum", "cleveland", "masp", "mnw", "mahn")
+PROVIDER_NAMES = (
+    "google",
+    "rijksmuseum",
+    "cleveland",
+    "masp",
+    "mnw",
+    "mahn",
+    "kunsthaus",
+)
+RETRYABLE_CANDIDATE_PROVIDERS = frozenset({"masp", "mahn", "kunsthaus"})
 FLAT_ART_TERMS = (
     "painting",
     "drawing",
@@ -863,6 +872,139 @@ class MahnProvider:
         return candidates
 
 
+class KunsthausProvider:
+    name = "kunsthaus"
+    provider_name = "Kunsthaus Zürich"
+    endpoint = "https://collection.kunsthaus.ch/solr/published/select"
+    collection_base = "https://collection.kunsthaus.ch"
+    rights_url = "https://www.kunsthaus.ch/en/sammlung/"
+    items_per_page = 20
+    max_candidate_attempts = 20
+    fields = (
+        "oid",
+        "title_s",
+        "person_name_en_ss",
+        "person_list_en_s",
+        "date_en_s",
+        "date_n",
+        "creditline_en_s",
+        "category_en_s",
+        "img_s",
+    )
+
+    def __init__(self, http: HTTPClientProtocol, rng: random.Random):
+        self.http = http
+        self.rng = rng
+
+    @classmethod
+    def _params(cls, start: int, rows: int) -> list[tuple[str, Any]]:
+        return [
+            ("q", "*:*"),
+            ("fq", "type:Object"),
+            ("fq", "category_en_s:painting"),
+            ("fq", "img_s:*extra-large*"),
+            ("start", start),
+            ("rows", rows),
+            ("fl", ",".join(cls.fields)),
+        ]
+
+    @classmethod
+    def _page(cls, response: Any) -> tuple[list[Mapping[str, Any]], int]:
+        payload = response.get("response") if isinstance(response, Mapping) else None
+        if not isinstance(payload, Mapping):
+            raise ProviderError("Kunsthaus search response did not include results")
+        records = payload.get("docs")
+        try:
+            total = int(payload["numFound"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ProviderError(
+                "Kunsthaus search response did not include a total"
+            ) from exc
+        if not isinstance(records, list):
+            raise ProviderError(
+                "Kunsthaus search response did not include artwork records"
+            )
+        if total < 1:
+            raise ProviderError("Kunsthaus returned no extra-large paintings")
+        return [record for record in records if isinstance(record, Mapping)], total
+
+    @staticmethod
+    def _creator(record: Mapping[str, Any]) -> str | None:
+        names = record.get("person_name_en_ss")
+        if isinstance(names, list):
+            cleaned_names: list[str] = []
+            for value in names:
+                name = clean_text(value)
+                if name and name not in cleaned_names:
+                    cleaned_names.append(name)
+            if cleaned_names:
+                return "; ".join(cleaned_names)
+        return clean_text(record.get("person_list_en_s"))
+
+    @classmethod
+    def _image_url(cls, value: Any) -> str | None:
+        path = clean_text(value)
+        if not path or not re.fullmatch(
+            r"multimedia/[0-9]+/multimedia-[0-9]+\.extra-large\.(?:jpe?g|png)",
+            path,
+            flags=re.IGNORECASE,
+        ):
+            return None
+        return f"{cls.collection_base}/{path}"
+
+    @classmethod
+    def _candidate(cls, record: Mapping[str, Any]) -> Candidate | None:
+        record_id = clean_text(record.get("oid"))
+        title = clean_text(record.get("title_s"))
+        image_url = cls._image_url(record.get("img_s"))
+        if (
+            not record_id
+            or not record_id.isdecimal()
+            or clean_text(record.get("category_en_s")) != "painting"
+            or not title
+            or not image_url
+        ):
+            return None
+        date = clean_text(record.get("date_en_s")) or clean_text(record.get("date_n"))
+        creditline = clean_text(record.get("creditline_en_s"))
+        return Candidate(
+            Artwork(
+                provider=cls.name,
+                provider_name=cls.provider_name,
+                record_id=record_id,
+                title=title,
+                creator=cls._creator(record),
+                date=date,
+                attribution=creditline or cls.provider_name,
+                rights="Kunsthaus Zürich image; personal, non-distributed use",
+                rights_url=cls.rights_url,
+                source_url=f"{cls.collection_base}/en/collection/item/{record_id}/",
+                image_url=image_url,
+            )
+        )
+
+    def candidates(self, state: Mapping[str, Any]) -> Iterable[Candidate]:
+        del state
+        _, total = self._page(self.http.get_json(self.endpoint, self._params(0, 0)))
+        max_start = max(0, total - self.items_per_page)
+        start = self.rng.randrange(0, max_start + 1)
+        records, _ = self._page(
+            self.http.get_json(
+                self.endpoint,
+                self._params(start, self.items_per_page),
+            )
+        )
+        self.rng.shuffle(records)
+        candidates = [
+            candidate
+            for record in records
+            if (candidate := self._candidate(record)) is not None
+        ]
+        if not candidates:
+            raise ProviderError("Kunsthaus page had no usable painting records")
+        return candidates
+
+
 class MaspProvider:
     name = "masp"
     page_base = "https://masp.org.br/pt/acervo/previous"
@@ -1533,7 +1675,7 @@ def stage_provider(
         processed = temporary_directory / "wallpaper.webp"
         greeter_image = temporary_directory / "greeter.png"
         provider = providers[name]
-        if name in {"masp", "mahn"}:
+        if name in RETRYABLE_CANDIDATE_PROVIDERS:
             candidates = provider.candidates(state)
             max_candidate_attempts = provider.max_candidate_attempts
         else:
@@ -1552,12 +1694,15 @@ def stage_provider(
             try:
                 http.download(candidate.artwork.image_url, source)
             except HTTPStatusError as exc:
-                if name not in {"masp", "mahn"} or exc.status_code not in {404, 410}:
+                if (
+                    name not in RETRYABLE_CANDIDATE_PROVIDERS
+                    or exc.status_code not in {404, 410}
+                ):
                     raise
                 candidate_errors.append(f"{candidate.artwork.record_id}: {exc}")
                 continue
 
-            if candidate.artwork.provider in {"masp", "mahn"}:
+            if candidate.artwork.provider in RETRYABLE_CANDIDATE_PROVIDERS:
                 source_width, source_height = image_dimensions(source)
                 if not masp_image_is_large_enough(source_width, source_height):
                     candidate_errors.append(
@@ -1994,6 +2139,7 @@ def rotate_wallpaper(args: argparse.Namespace, data_dir: Path) -> int:
             "masp": MaspProvider(http, rng),
             "mnw": MnwProvider(http, rng),
             "mahn": MahnProvider(http, rng),
+            "kunsthaus": KunsthausProvider(http, rng),
         }
         order = provider_order(args.provider, rng)
         print(f"Provider order: {', '.join(order)}")

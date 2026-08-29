@@ -128,6 +128,24 @@ def sample_mahn_record(**overrides):
     return record
 
 
+def sample_kunsthaus_record(**overrides):
+    record = {
+        "oid": "2912",
+        "title_s": "Der Türlersee",
+        "person_name_en_ss": ["Julius Rieter", "Julius Rieter"],
+        "person_list_en_s": "Julius Rieter (1830–1897)",
+        "date_en_s": "1869",
+        "date_n": 1869,
+        "creditline_en_s": (
+            "Kunsthaus Zürich, Bequest of Professor Goll-Cellier, 1920"
+        ),
+        "category_en_s": "painting",
+        "img_s": "multimedia/4/multimedia-1538214.extra-large.jpg",
+    }
+    record.update(overrides)
+    return record
+
+
 def sample_candidate(record_id, image_url):
     return arts.Candidate(
         arts.Artwork(
@@ -479,6 +497,80 @@ class ProviderTests(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertIsNone(
                     arts.MahnProvider._candidate(sample_mahn_record(**overrides))
+                )
+
+    def test_kunsthaus_selects_random_extra_large_painting_window(self):
+        overview = {"response": {"numFound": 1448, "docs": []}}
+        selected = {
+            "response": {
+                "numFound": 1448,
+                "docs": [sample_kunsthaus_record()],
+            }
+        }
+        rng = mock.Mock()
+        rng.randrange.return_value = 701
+        http = FakeHTTP([overview, selected])
+
+        candidates = list(arts.KunsthausProvider(http, rng).candidates({}))
+
+        self.assertEqual(len(candidates), 1)
+        artwork = candidates[0].artwork
+        self.assertEqual(artwork.provider, "kunsthaus")
+        self.assertEqual(artwork.provider_name, "Kunsthaus Zürich")
+        self.assertEqual(artwork.record_id, "2912")
+        self.assertEqual(artwork.title, "Der Türlersee")
+        self.assertEqual(artwork.creator, "Julius Rieter")
+        self.assertEqual(artwork.date, "1869")
+        self.assertEqual(
+            artwork.attribution,
+            "Kunsthaus Zürich, Bequest of Professor Goll-Cellier, 1920",
+        )
+        self.assertEqual(
+            artwork.source_url,
+            "https://collection.kunsthaus.ch/en/collection/item/2912/",
+        )
+        self.assertEqual(
+            artwork.image_url,
+            "https://collection.kunsthaus.ch/multimedia/4/"
+            "multimedia-1538214.extra-large.jpg",
+        )
+        self.assertIn("personal, non-distributed use", artwork.rights)
+        self.assertEqual(
+            artwork.rights_url,
+            "https://www.kunsthaus.ch/en/sammlung/",
+        )
+        self.assertEqual(http.requests[0][0], arts.KunsthausProvider.endpoint)
+        self.assertIn(("rows", 0), http.requests[0][1])
+        self.assertIn(("start", 701), http.requests[1][1])
+        self.assertIn(("rows", 20), http.requests[1][1])
+        self.assertEqual(
+            [value for key, value in http.requests[1][1] if key == "fq"],
+            [
+                "type:Object",
+                "category_en_s:painting",
+                "img_s:*extra-large*",
+            ],
+        )
+        rng.randrange.assert_called_once_with(0, 1429)
+        rng.shuffle.assert_called_once()
+
+    def test_kunsthaus_rejects_untrusted_or_nonpainting_records(self):
+        fixtures = {
+            "wrong category": {"category_en_s": "drawing"},
+            "invalid object id": {"oid": "../../secret"},
+            "missing title": {"title_s": None},
+            "large only": {"img_s": "multimedia/4/multimedia-1538214.large.jpg"},
+            "external image": {"img_s": "https://example.test/image.jpg"},
+            "traversal image": {
+                "img_s": "multimedia/4/../../multimedia-1538214.extra-large.jpg"
+            },
+        }
+        for label, overrides in fixtures.items():
+            with self.subTest(label=label):
+                self.assertIsNone(
+                    arts.KunsthausProvider._candidate(
+                        sample_kunsthaus_record(**overrides)
+                    )
                 )
 
     def test_masp_normalizes_painting_and_advances_page_cursor(self):
@@ -992,6 +1084,7 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(set(automatic), set(arts.PROVIDER_NAMES))
         self.assertIn("mnw", automatic)
         self.assertIn("mahn", automatic)
+        self.assertIn("kunsthaus", automatic)
 
     def test_process_and_publish_wallpaper_and_greeter_derivative(self):
         with tempfile.TemporaryDirectory() as directory:

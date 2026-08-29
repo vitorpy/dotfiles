@@ -6,6 +6,7 @@ import Quickshell.Services.UPower
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "components"
+import "GmailUnread.js" as GmailUnread
 
 Scope {
     id: root
@@ -196,19 +197,73 @@ Scope {
                 BarCell {
                     theme: theme
                     visible: root.barState.gmailUnread.visible
-                    interactive: true
-                    horizontalPadding: 16
+                    horizontalPadding: 6
+                    contentSpacing: 2
                     backgroundColor: theme.surfaceContainerHigh
                     cornerRadius: 12
-                    tooltipText: root.barState.gmailUnread.tooltip
-                    onLeftClicked: root.barState.refreshGmailUnread()
 
-                    MetricLabel {
-                        theme: theme
-                        glyph: theme.mail
-                        label: root.barState.gmailUnread.total > 0 ? root.barState.gmailUnread.badgeText : ""
-                        foreground: root.unhealthy(root.barState.gmailUnread) ? theme.error : theme.foreground
-                        warning: root.unhealthy(root.barState.gmailUnread)
+                    Repeater {
+                        model: root.barState.gmailUnread.accounts
+
+                        delegate: BarCell {
+                            id: gmailAccountCell
+
+                            required property var modelData
+                            required property int index
+                            readonly property color accountColor: root.palette.gmailAccountColor(modelData.browserIndex)
+
+                            theme: root.palette
+                            visible: GmailUnread.hasUnread(modelData.total)
+                            interactive: true
+                            cellHeight: 30
+                            horizontalPadding: 8
+                            separator: GmailUnread.hasPreviousUnreadAccount(
+                                root.barState.gmailUnread.accounts,
+                                index
+                            )
+                            backgroundColor: "transparent"
+                            hoverColor: root.palette.hoverLayer
+                            cornerRadius: 8
+                            tooltipText: GmailUnread.accountTooltip(
+                                modelData,
+                                root.barState.gmailUnread.countField
+                            )
+                            onLeftClicked: Quickshell.execDetached([
+                                "/usr/bin/xdg-open",
+                                GmailUnread.accountInboxUrl(modelData)
+                            ])
+                            onRightClicked: root.barState.refreshGmailUnread()
+
+                            MetricLabel {
+                                theme: gmailAccountCell.theme
+                                glyph: gmailAccountCell.theme.mail
+                                label: GmailUnread.badgeText(gmailAccountCell.modelData.total)
+                                foreground: root.unhealthy(root.barState.gmailUnread)
+                                    ? gmailAccountCell.theme.error
+                                    : gmailAccountCell.accountColor
+                                warning: root.unhealthy(root.barState.gmailUnread)
+                            }
+                        }
+                    }
+
+                    BarCell {
+                        theme: root.palette
+                        visible: root.barState.gmailUnread.total === 0
+                            && root.unhealthy(root.barState.gmailUnread)
+                        interactive: true
+                        cellHeight: 30
+                        horizontalPadding: 8
+                        backgroundColor: "transparent"
+                        cornerRadius: 8
+                        tooltipText: root.barState.gmailUnread.tooltip
+                        onLeftClicked: root.barState.refreshGmailUnread()
+
+                        MetricLabel {
+                            theme: root.palette
+                            glyph: root.palette.mail
+                            foreground: root.palette.error
+                            warning: true
+                        }
                     }
                 }
 

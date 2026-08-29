@@ -7,6 +7,7 @@ Item {
     required property var theme
     default property alias content: contentRow.data
     property int minimumWidth: 0
+    property int cellHeight: 54
     property int horizontalPadding: 10
     property int contentSpacing: 6
     property bool separator: false
@@ -25,7 +26,7 @@ Item {
     signal wheelDown
 
     implicitWidth: Math.max(minimumWidth, contentRow.implicitWidth + horizontalPadding * 2)
-    implicitHeight: 54
+    implicitHeight: cellHeight
     width: implicitWidth
     height: implicitHeight
 

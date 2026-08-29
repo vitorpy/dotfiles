@@ -35,11 +35,13 @@ def config_file(tmp_path: Path, *, count_field: str = "threadsUnread") -> Path:
         "accounts": [
             {
                 "name": "Personal",
+                "browserIndex": 0,
                 "cache": str(personal_cache),
                 "labels": ["INBOX", {"id": "Label_42", "name": "Receipts"}],
             },
             {
                 "name": "Work",
+                "browserIndex": 1,
                 "cache": str(work_cache),
                 "labels": [{"id": "INBOX", "name": "Inbox"}],
             },
@@ -56,6 +58,7 @@ def test_loads_multiple_accounts_and_labels(tmp_path: Path) -> None:
     config = gmail_unread.load_config(config_file(tmp_path))
     assert config is not None
     assert [account["name"] for account in config["accounts"]] == ["Personal", "Work"]
+    assert [account["browserIndex"] for account in config["accounts"]] == [0, 1]
     assert config["accounts"][0]["labels"] == [
         {"id": "INBOX", "name": "INBOX"},
         {"id": "Label_42", "name": "Receipts"},
@@ -123,6 +126,16 @@ def test_rejects_shared_account_cache(tmp_path: Path) -> None:
     path.write_text(json.dumps(value), encoding="utf-8")
 
     with pytest.raises(gmail_unread.GmailUnreadError, match="shared by multiple accounts"):
+        gmail_unread.load_config(path)
+
+
+def test_rejects_duplicate_browser_index(tmp_path: Path) -> None:
+    path = config_file(tmp_path)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["accounts"][1]["browserIndex"] = value["accounts"][0]["browserIndex"]
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(gmail_unread.GmailUnreadError, match="browserIndex is duplicated"):
         gmail_unread.load_config(path)
 
 

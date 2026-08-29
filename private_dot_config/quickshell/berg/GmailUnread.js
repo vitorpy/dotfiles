@@ -32,11 +32,19 @@ function parsePayload(text) {
         throw new Error("accounts must be a non-empty array");
 
     let accountSum = 0;
+    const browserIndexes = [];
     for (const account of value.accounts) {
         if (!account || typeof account !== "object" || Array.isArray(account))
             throw new Error("account result must be an object");
         if (typeof account.name !== "string" || account.name.length === 0)
             throw new Error("account name is invalid");
+        const browserIndex = nonNegativeInteger(
+            account.browserIndex,
+            `browser index for ${account.name}`
+        );
+        if (browserIndexes.indexOf(browserIndex) >= 0)
+            throw new Error(`browser index ${browserIndex} is duplicated`);
+        browserIndexes.push(browserIndex);
         if (!Array.isArray(account.labels) || account.labels.length === 0)
             throw new Error(`labels for ${account.name} must be a non-empty array`);
 
@@ -72,6 +80,38 @@ function badgeText(total) {
     return total > 99 ? "99+" : total.toString();
 }
 
+function hasUnread(total) {
+    return nonNegativeInteger(total, "unread total") > 0;
+}
+
+function hasPreviousUnreadAccount(accounts, index) {
+    if (!Array.isArray(accounts) || !Number.isInteger(index) || index < 0)
+        throw new Error("account separator inputs are invalid");
+    for (let candidate = 0; candidate < index; candidate += 1) {
+        if (hasUnread(accounts[candidate].total))
+            return true;
+    }
+    return false;
+}
+
+function accountInboxUrl(account) {
+    if (!account || typeof account !== "object" || Array.isArray(account))
+        throw new Error("account must be an object");
+    const browserIndex = nonNegativeInteger(account.browserIndex, "browser index");
+    return `https://mail.google.com/mail/u/${browserIndex}/#inbox`;
+}
+
+function accountTooltip(account, countField) {
+    const unit = countField === "threadsUnread" ? "threads" : "messages";
+    const lines = [`${account.name} · ${account.total} unread ${unit}`];
+    for (const label of account.labels)
+        lines.push(`${label.name} · ${label.unread}`);
+    if (account.labels.length > 1)
+        lines.push("Configured labels are summed; overlapping labels may count the same item more than once");
+    lines.push("Click to open Gmail", "Right-click to refresh");
+    return lines.join("\n");
+}
+
 function tooltip(result) {
     if (!result.configured)
         return "Gmail unread is not configured";
@@ -90,6 +130,6 @@ function tooltip(result) {
 
     if (labelCount > 1)
         lines.push("Configured labels are summed; overlapping labels may count the same item more than once");
-    lines.push("Click to refresh");
+    lines.push("Right-click a badge to refresh");
     return lines.join("\n");
 }

@@ -13,6 +13,23 @@ SfSymbols {
     readonly property color onErrorColor: "#000000"
     readonly property color hoverLayer: "#14f49f31"
     readonly property color tooltipSurface: "#f0000000"
+    readonly property color accountAccent1: primary
+    readonly property color accountAccent2: foregroundMuted
+    readonly property color accountAccent3: outline
+    readonly property color accountAccent4: foreground
+
+    function gmailAccountColor(index: int): color {
+        switch (index % 4) {
+        case 0:
+            return accountAccent1;
+        case 1:
+            return accountAccent2;
+        case 2:
+            return accountAccent3;
+        default:
+            return accountAccent4;
+        }
+    }
 
     readonly property string textFont: "Avenir Next M for BBG"
     readonly property string symbolFont: ".SF Symbols Fallback"

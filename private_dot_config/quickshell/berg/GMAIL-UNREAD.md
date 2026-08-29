@@ -31,6 +31,11 @@ each account must use a distinct `cache` file because that file contains the
 account's refresh token. An account may override `credentials` if it uses a
 different Google Cloud OAuth client.
 
+`browserIndex` maps an account to Gmail's `/mail/u/N/` browser route. Use the
+same number shown in that account's Gmail URL, such as `0` for `/u/0` and `1`
+for `/u/1`. Indices must be unique. If omitted, they default to the account's
+position in the configuration array.
+
 Label strings use their Gmail API IDs. Built-in labels such as `INBOX` can be
 written directly. Custom labels normally have IDs such as `Label_42`; the
 optional `name` is only the friendly text shown in the tooltip.
@@ -39,6 +44,12 @@ optional `name` is only the friendly text shown in the tooltip.
 `messagesUnread`. Counts for configured labels are summed. If labels overlap,
 the same thread or message can therefore contribute to more than one label's
 count; the tooltip calls this out.
+
+The bar renders one colored badge per account with unread items. Zero-count
+accounts are hidden, and the whole Gmail cell is hidden when the aggregate is
+zero unless the integration is unhealthy. Left-clicking a badge opens that
+account's Gmail inbox; right-clicking refreshes all configured counts
+immediately.
 
 ## Authorization
 

@@ -15,7 +15,7 @@ QtObject {
     property string lastError: ""
     property var lastSuccess: null
 
-    readonly property bool visible: (configured && total > 0) || health === "stale" || health === "error"
+    readonly property bool visible: (configured && GmailUnread.hasUnread(total)) || health === "stale" || health === "error"
     readonly property string badgeText: GmailUnread.badgeText(total)
     readonly property string tooltip: {
         const base = GmailUnread.tooltip({

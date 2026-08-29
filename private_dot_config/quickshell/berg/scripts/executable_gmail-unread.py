@@ -96,6 +96,7 @@ def load_config(path: Path, require_caches: bool = True) -> dict[str, Any] | Non
     accounts: list[dict[str, Any]] = []
     names: set[str] = set()
     cache_paths: set[Path] = set()
+    browser_indexes: set[int] = set()
     for index, raw_account in enumerate(raw_accounts):
         if not isinstance(raw_account, dict):
             raise GmailUnreadError(f"accounts[{index}] must be an object")
@@ -107,6 +108,19 @@ def load_config(path: Path, require_caches: bool = True) -> dict[str, Any] | Non
         if name in names:
             raise GmailUnreadError(f"account name is duplicated: {name}")
         names.add(name)
+
+        browser_index = raw_account.get("browserIndex", index)
+        if (
+            not isinstance(browser_index, int)
+            or isinstance(browser_index, bool)
+            or browser_index < 0
+        ):
+            raise GmailUnreadError(
+                f"accounts[{index}].browserIndex must be a non-negative integer"
+            )
+        if browser_index in browser_indexes:
+            raise GmailUnreadError(f"browserIndex is duplicated: {browser_index}")
+        browser_indexes.add(browser_index)
 
         credentials = expand_path(
             raw_account.get("credentials", default_credentials),
@@ -133,6 +147,7 @@ def load_config(path: Path, require_caches: bool = True) -> dict[str, Any] | Non
         accounts.append(
             {
                 "name": name,
+                "browserIndex": browser_index,
                 "credentials": credentials,
                 "cache": cache,
                 "labels": labels,
@@ -213,7 +228,12 @@ def collect_counts(
             label_results.append({"id": label["id"], "name": label["name"], "unread": unread})
             account_total += unread
         account_results.append(
-            {"name": account["name"], "total": account_total, "labels": label_results}
+            {
+                "name": account["name"],
+                "browserIndex": account["browserIndex"],
+                "total": account_total,
+                "labels": label_results,
+            }
         )
         total += account_total
 

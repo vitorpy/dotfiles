@@ -5,6 +5,7 @@
   "accounts": [
     {
       "name": "Personal",
+      "browserIndex": 0,
       "cache": "~/.local/state/gmail-unread/personal.oauth2l",
       "labels": [
         {
@@ -19,6 +20,7 @@
     },
     {
       "name": "Work",
+      "browserIndex": 1,
       "cache": "~/.local/state/gmail-unread/work.oauth2l",
       "labels": [
         {

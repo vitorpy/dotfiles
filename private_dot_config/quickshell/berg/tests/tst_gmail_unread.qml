@@ -23,6 +23,7 @@ TestCase {
             accounts: [
                 {
                     name: "Personal",
+                    browserIndex: 0,
                     total: 7,
                     labels: [
                         { id: "INBOX", name: "Inbox", unread: 5 },
@@ -31,6 +32,7 @@ TestCase {
                 },
                 {
                     name: "Work",
+                    browserIndex: 1,
                     total: 2,
                     labels: [
                         { id: "INBOX", name: "Inbox", unread: 2 }
@@ -49,6 +51,7 @@ TestCase {
         verify(parsed.configured);
         compare(parsed.total, 9);
         compare(parsed.accounts.length, 2);
+        compare(parsed.accounts[0].browserIndex, 0);
         compare(parsed.accounts[0].labels.length, 2);
         compare(parsed.accounts[1].labels[0].unread, 2);
     }
@@ -76,10 +79,45 @@ TestCase {
         expectParseFailure(value);
     }
 
+    function test_rejectDuplicateBrowserIndexes() {
+        const value = payload();
+        value.accounts[1].browserIndex = value.accounts[0].browserIndex;
+        expectParseFailure(value);
+    }
+
     function test_badgeText() {
         compare(GmailUnread.badgeText(0), "0");
         compare(GmailUnread.badgeText(42), "42");
         compare(GmailUnread.badgeText(100), "99+");
+    }
+
+    function test_hasUnread() {
+        verify(!GmailUnread.hasUnread(0));
+        verify(GmailUnread.hasUnread(1));
+    }
+
+    function test_visibleAccountSeparators() {
+        const accounts = payload().accounts;
+        accounts[0].total = 0;
+        compare(GmailUnread.hasPreviousUnreadAccount(accounts, 1), false);
+
+        accounts[0].total = 1;
+        compare(GmailUnread.hasPreviousUnreadAccount(accounts, 1), true);
+    }
+
+    function test_accountInboxUrl() {
+        compare(
+            GmailUnread.accountInboxUrl(payload().accounts[1]),
+            "https://mail.google.com/mail/u/1/#inbox"
+        );
+    }
+
+    function test_accountTooltip() {
+        const text = GmailUnread.accountTooltip(payload().accounts[0], "threadsUnread");
+        verify(text.indexOf("Personal · 7 unread threads") >= 0);
+        verify(text.indexOf("Receipts · 2") >= 0);
+        verify(text.indexOf("Click to open Gmail") >= 0);
+        verify(text.indexOf("Right-click to refresh") >= 0);
     }
 
     function test_tooltipBreakdownAndOverlapWarning() {

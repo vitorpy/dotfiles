@@ -12,6 +12,7 @@ Item {
     property int contentSpacing: 6
     property bool separator: false
     property bool interactive: false
+    property bool hoverable: interactive
     property string tooltipText: ""
     property color backgroundColor: "transparent"
     property color hoverColor: theme.hoverLayer
@@ -20,7 +21,7 @@ Item {
     property int hoverLeftOverflow: 0
     property int hoverRightOverflow: 0
 
-    readonly property bool hovered: mouseArea.containsMouse
+    readonly property bool hovered: hoverTracker.hovered
 
     signal leftClicked
     signal rightClicked
@@ -50,7 +51,7 @@ Item {
 
     Rectangle {
         objectName: "hoverBackground"
-        visible: root.interactive && root.hovered
+        visible: root.hoverable && root.hovered
         anchors {
             top: parent.top
             bottom: parent.bottom
@@ -69,11 +70,17 @@ Item {
         spacing: root.contentSpacing
     }
 
+    HoverHandler {
+        id: hoverTracker
+        objectName: "hoverTracker"
+        enabled: root.hoverable || root.tooltipText.length > 0
+    }
+
     MouseArea {
         id: mouseArea
-        enabled: root.interactive || root.tooltipText.length > 0
+        objectName: "interactionArea"
+        enabled: root.interactive
         anchors.fill: parent
-        hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onClicked: mouse => {
@@ -96,7 +103,7 @@ Item {
     ToolTip {
         id: tooltip
 
-        visible: root.tooltipText.length > 0 && mouseArea.containsMouse
+        visible: root.tooltipText.length > 0 && root.hovered
         text: root.tooltipText
         delay: 500
         timeout: -1

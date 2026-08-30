@@ -494,6 +494,7 @@ Scope {
                         visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
                         minimumWidth: 34
                         separator: true
+                        hoverable: true
                         tooltipText: root.batteryTooltip()
                         backgroundColor: root.batteryPercent() <= 5 ? theme.error : "transparent"
 
@@ -563,6 +564,7 @@ Scope {
                         theme: theme
                         minimumWidth: 36
                         separator: true
+                        hoverable: true
 
                         Row {
                             spacing: 8

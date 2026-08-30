@@ -55,4 +55,35 @@ TestCase {
         compare(hover.width, 116);
         compare(hover.radius, 12);
     }
+
+    function test_hoverOnlyCellDoesNotInterceptClicks() {
+        const cell = createTemporaryObject(cellComponent, testParent, {
+            "interactive": false,
+            "hoverable": true
+        });
+        verify(cell !== null);
+
+        const hoverTracker = findChild(cell, "hoverTracker");
+        const interactionArea = findChild(cell, "interactionArea");
+        verify(hoverTracker !== null);
+        verify(interactionArea !== null);
+        compare(hoverTracker.enabled, true);
+        compare(interactionArea.enabled, false);
+    }
+
+    function test_tooltipKeepsHoverTrackingWithoutClickHandling() {
+        const cell = createTemporaryObject(cellComponent, testParent, {
+            "interactive": false,
+            "hoverable": false,
+            "tooltipText": "Battery status"
+        });
+        verify(cell !== null);
+
+        const hoverTracker = findChild(cell, "hoverTracker");
+        const interactionArea = findChild(cell, "interactionArea");
+        verify(hoverTracker !== null);
+        verify(interactionArea !== null);
+        compare(hoverTracker.enabled, true);
+        compare(interactionArea.enabled, false);
+    }
 }

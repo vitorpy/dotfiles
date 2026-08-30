@@ -17,7 +17,7 @@ local terminal = "uwsm app -- ghostty"
 local fileManager = "uwsm app -- caja"
 local menu = "hyprlauncher --toggle"
 local browser = "uwsm app -- google-chrome-stable"
-local screenshot = [[grim -g "$(slurp)" - | wl-copy]]
+local screenshot = [[if pgrep -x -u "$UID" slurp >/dev/null; then pkill -x -u "$UID" slurp; else grim -g "$(slurp)" - | wl-copy; fi]]
 local mainMod = "SUPER"
 local bergAction = "/usr/bin/qs -c berg ipc call actions"
 

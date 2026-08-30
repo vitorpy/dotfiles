@@ -16,6 +16,9 @@ Item {
     property color backgroundColor: "transparent"
     property color hoverColor: theme.hoverLayer
     property int cornerRadius: 0
+    property int hoverCornerRadius: 8
+    property int hoverLeftOverflow: 0
+    property int hoverRightOverflow: 0
 
     readonly property bool hovered: mouseArea.containsMouse
 
@@ -46,10 +49,18 @@ Item {
     }
 
     Rectangle {
+        objectName: "hoverBackground"
         visible: root.interactive && root.hovered
-        anchors.fill: parent
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+            left: parent.left
+            right: parent.right
+            leftMargin: -root.hoverLeftOverflow
+            rightMargin: -root.hoverRightOverflow
+        }
         color: root.hoverColor
-        radius: 8
+        radius: root.hoverCornerRadius
     }
 
     Row {

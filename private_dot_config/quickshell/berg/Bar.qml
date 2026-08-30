@@ -370,9 +370,10 @@ Scope {
                 BarCell {
                     id: clockCell
 
-                    anchors.centerIn: parent
+                    anchors.fill: parent
                     theme: theme
                     interactive: true
+                    hoverCornerRadius: centerGroup.radius
                     tooltipText: root.healthTooltip(root.barState.clock.compactTooltip, root.barState.clock)
                     onLeftClicked: root.barState.toggleClockPanel(root.modelData.name)
                     onRightClicked: root.barState.refreshClock()
@@ -410,6 +411,8 @@ Scope {
                         theme: theme
                         minimumWidth: 54
                         interactive: true
+                        hoverCornerRadius: rightGroup.radius
+                        hoverLeftOverflow: 8
                         tooltipText: root.audioTooltip(
                             root.barState.audioSink,
                             "Audio output",
@@ -666,6 +669,8 @@ Scope {
                         horizontalPadding: 0
                         separator: true
                         interactive: true
+                        hoverCornerRadius: rightGroup.radius
+                        hoverRightOverflow: 8
                         onLeftClicked: root.barState.togglePowerMenu(root.modelData.name)
 
                         MetricLabel {

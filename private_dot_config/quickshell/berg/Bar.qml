@@ -270,10 +270,12 @@ Scope {
                 BarCell {
                     theme: theme
                     visible: root.barState.updates.visible
+                    interactive: true
                     horizontalPadding: 16
                     backgroundColor: theme.surfaceContainerHigh
                     cornerRadius: 12
-                    tooltipText: root.healthTooltip(root.barState.updates.tooltip, root.barState.updates)
+                    tooltipText: `${root.healthTooltip(root.barState.updates.tooltip, root.barState.updates)}\nLeft click: update system`
+                    onLeftClicked: root.barState.launchUpdates()
 
                     MetricLabel {
                         theme: theme

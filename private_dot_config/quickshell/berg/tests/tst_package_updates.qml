@@ -9,6 +9,17 @@ TestCase {
         compare(PackageUpdates.periodicRefreshIntervalMs(), 3600000);
     }
 
+    function test_launchCommand() {
+        compare(
+            PackageUpdates.launchCommand("/home/example"),
+            [
+                "/usr/bin/ghostty",
+                "-e",
+                "/home/example/.config/arch/update-system.sh"
+            ]
+        );
+    }
+
     function test_lineCount_data() {
         return [
             { tag: "empty", output: "", expected: 0 },

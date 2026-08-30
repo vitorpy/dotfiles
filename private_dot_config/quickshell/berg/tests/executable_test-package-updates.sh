@@ -7,6 +7,7 @@ private_config_root="$(cd "${berg_root}/../.." && pwd)"
 state_file="${berg_root}/PackageUpdatesState.qml"
 policy_file="${berg_root}/PackageUpdates.js"
 bar_state_file="${berg_root}/BarState.qml"
+bar_file="${berg_root}/Bar.qml"
 shell_file="${berg_root}/shell.qml"
 source_updater="${private_config_root}/private_arch/executable_update-system.sh"
 live_updater="${private_config_root}/arch/update-system.sh"
@@ -38,16 +39,27 @@ require_literal "Qt.callLater(refresh);" "${state_file}"
 require_literal "interval: PackageUpdates.periodicRefreshIntervalMs()" "${state_file}"
 require_literal "triggeredOnStart: true" "${state_file}"
 require_literal "function refreshUpdates(): void" "${bar_state_file}"
+require_literal "function launchUpdates(): void" "${bar_state_file}"
+require_literal "PackageUpdates.launchCommand(Quickshell.env(\"HOME\"))" "${bar_state_file}"
+require_literal "onLeftClicked: root.barState.launchUpdates()" "${bar_file}"
 require_literal "function updatesStatus(): string" "${bar_state_file}"
 require_literal "function refreshUpdates(): void" "${shell_file}"
 require_literal "function updatesStatus(): string" "${shell_file}"
 require_literal "trap refresh_berg_updates EXIT" "${updater}"
 require_literal "ipc call shell refreshUpdates" "${updater}"
+require_literal "pkexec paccache -rk3" "${updater}"
+require_literal "pkexec pacman -Syu" "${updater}"
+
+if grep -Eq -- '(^|[[:space:]])sudo([[:space:]]|$)' "${updater}"; then
+    echo "sudo must not be used by the desktop-launched updater" >&2
+    exit 1
+fi
 
 bash -n "${updater}"
 /usr/lib/qt6/bin/qmllint \
     "${state_file}" \
     "${bar_state_file}" \
+    "${bar_file}" \
     "${shell_file}"
 
 echo "Package-update polling policy invariants passed"

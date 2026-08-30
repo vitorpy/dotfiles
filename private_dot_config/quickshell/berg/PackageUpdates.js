@@ -4,6 +4,14 @@ function periodicRefreshIntervalMs() {
     return 60 * 60 * 1000;
 }
 
+function launchCommand(home) {
+    return [
+        "/usr/bin/ghostty",
+        "-e",
+        `${home}/.config/arch/update-system.sh`
+    ];
+}
+
 function lineCount(text) {
     const trimmed = text.trim();
     return trimmed

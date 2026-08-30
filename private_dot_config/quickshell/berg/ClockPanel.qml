@@ -657,14 +657,54 @@ PanelWindow {
                 font.weight: Font.Bold
             }
 
+            Rectangle {
+                id: rotateArtworkButton
+
+                anchors {
+                    right: parent.right
+                    rightMargin: 10
+                    top: parent.top
+                    topMargin: 9
+                }
+                width: 30
+                height: 30
+                color: rotateArtworkMouse.containsMouse
+                    ? root.theme.hoverLayer
+                    : root.theme.surfaceContainerHigh
+                border.color: root.theme.outlineVariant
+                border.width: 1
+                radius: 8
+                opacity: root.clockState.artworkRotating ? 0.6 : 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: root.theme.reboot
+                    color: root.clockState.artworkRotating
+                        ? root.theme.primary
+                        : root.theme.foreground
+                    font.family: root.theme.symbolFont
+                    font.pixelSize: 14
+                }
+
+                MouseArea {
+                    id: rotateArtworkMouse
+
+                    anchors.fill: parent
+                    enabled: !root.clockState.artworkRotating
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.clockState.rotateArtwork()
+                }
+            }
+
             Text {
                 id: artworkTitle
 
                 anchors {
                     left: parent.left
                     leftMargin: 27
-                    right: parent.right
-                    rightMargin: 14
+                    right: rotateArtworkButton.left
+                    rightMargin: 10
                     top: parent.top
                     topMargin: 33
                 }

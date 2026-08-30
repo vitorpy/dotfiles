@@ -35,6 +35,7 @@ QtObject {
 
     readonly property bool panelOpen: popouts.isOpen("clock", "")
     readonly property string panelScreenName: panelOpen ? popouts.screenName : ""
+    readonly property bool artworkRotating: artworkRotation.running
 
     readonly property string text: {
         const local = Qt.formatDateTime(now, "ddd, dd.MM HH:mm");
@@ -270,6 +271,30 @@ QtObject {
         weatherFile.reload();
         artworkFile.reload();
         validateWeatherAge();
+    }
+
+    function rotateArtwork(): bool {
+        if (artworkRotation.running)
+            return false;
+
+        artworkRotation.refresh();
+        return true;
+    }
+
+    readonly property ProcessJob artworkRotation: ProcessJob {
+        command: [
+            "/usr/bin/systemctl",
+            "--user",
+            "restart",
+            "arts-wallpaper.service"
+        ]
+        runOnStart: false
+        timeoutMs: 300000
+        onSucceeded: (exitCode, output, errorOutput) => artworkFile.reload()
+        onFailed: (message, exitCode, output, errorOutput) => {
+            root.artworkError = `Artwork rotation failed: ${message}`;
+            root.updateHealth();
+        }
     }
 
     readonly property SystemClock clock: SystemClock {

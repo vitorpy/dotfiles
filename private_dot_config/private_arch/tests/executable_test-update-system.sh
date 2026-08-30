@@ -32,9 +32,9 @@ require_exact_call() {
         fail "missing call: ${expected}"
 }
 
-cat > "${mock_bin}/sudo" <<'EOF'
+cat > "${mock_bin}/pkexec" <<'EOF'
 #!/usr/bin/env bash
-printf 'sudo %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
+printf 'pkexec %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
 if [[ ${TEST_PACCACHE_FAIL:-0} == "1" && $* == "paccache -rk3" ]]; then
     exit 1
 fi
@@ -98,11 +98,11 @@ run_fixture() {
 zero_output="${tmpdir}/zero-update.out"
 run_fixture "$((20 * 1024 * 1024 * 1024))" "${zero_output}"
 mapfile -t zero_calls < "${calls_file}"
-[[ ${zero_calls[0]:-} == "sudo paccache -rk3" ]] ||
+[[ ${zero_calls[0]:-} == "pkexec paccache -rk3" ]] ||
     fail "zero-update preflight did not prune first"
 [[ ${zero_calls[1]:-} == "df --output=avail --block-size=1 /" ]] ||
     fail "zero-update preflight did not check root space second"
-[[ $(grep -Fxc -- "sudo paccache -rk3" "${calls_file}") -eq 1 ]] ||
+[[ $(grep -Fxc -- "pkexec paccache -rk3" "${calls_file}") -eq 1 ]] ||
     fail "zero-update path did not retain exactly three versions once"
 grep -Fq -- "System is up to date" "${zero_output}" ||
     fail "zero-update path did not finish as a no-op"
@@ -134,7 +134,7 @@ fi
 mapfile -t low_calls < "${calls_file}"
 [[ ${#low_calls[@]} -eq 2 ]] ||
     fail "low-space path continued past storage preflight"
-[[ ${low_calls[0]:-} == "sudo paccache -rk3" ]] ||
+[[ ${low_calls[0]:-} == "pkexec paccache -rk3" ]] ||
     fail "low-space path did not prune before measuring"
 [[ ${low_calls[1]:-} == "df --output=avail --block-size=1 /" ]] ||
     fail "low-space path did not measure root space"

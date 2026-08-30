@@ -35,6 +35,10 @@ ShellRoot {
             sharedState.refreshClock();
         }
 
+        function rotateArtwork(): string {
+            return sharedState.clock.rotateArtwork() ? "started" : "busy";
+        }
+
         function refreshUpdates(): void {
             sharedState.refreshUpdates();
         }

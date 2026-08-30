@@ -35,7 +35,7 @@ prepare_package_storage() {
 
     echo -e "${BLUE}==> Preparing package storage...${NC}"
     echo "Cleaning package cache (keeping last 3 versions)..."
-    if ! sudo paccache -rk3; then
+    if ! pkexec paccache -rk3; then
         echo "Could not prune the package cache; continuing to the free-space check." >&2
     fi
 
@@ -155,7 +155,7 @@ echo ""
 # Update official repos
 if [ "$official_count" -gt 0 ]; then
     echo -e "${BLUE}==> Updating official repositories...${NC}"
-    sudo pacman -Syu
+    pkexec pacman -Syu
     echo ""
 fi
 
@@ -169,7 +169,7 @@ fi
 # Update Firmware
 if [ "$firmware_count" -gt 0 ]; then
     echo -e "${BLUE}==> Updating firmware...${NC}"
-    sudo fwupdmgr update
+    pkexec fwupdmgr update
     echo ""
 fi
 
@@ -179,7 +179,7 @@ echo "Removing orphaned packages..."
 orphans=$(pacman -Qtdq 2>/dev/null || true)
 if [ ! -z "$orphans" ]; then
     echo "$orphans"
-    sudo pacman -Rns $(pacman -Qtdq) --noconfirm
+    pkexec pacman -Rns $(pacman -Qtdq) --noconfirm
 else
     echo "  No orphaned packages found"
 fi

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
+import "PackageUpdates.js" as PackageUpdates
 
 Scope {
     id: root
@@ -35,6 +36,10 @@ Scope {
 
     function refreshUpdates(): void {
         updatesState.refresh();
+    }
+
+    function launchUpdates(): void {
+        Quickshell.execDetached(PackageUpdates.launchCommand(Quickshell.env("HOME")));
     }
 
     function updatesStatus(): string {

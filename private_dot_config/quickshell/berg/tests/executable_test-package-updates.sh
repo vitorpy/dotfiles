@@ -47,11 +47,16 @@ require_literal "function refreshUpdates(): void" "${shell_file}"
 require_literal "function updatesStatus(): string" "${shell_file}"
 require_literal "trap refresh_berg_updates EXIT" "${updater}"
 require_literal "ipc call shell refreshUpdates" "${updater}"
-require_literal "pkexec paccache -rk3" "${updater}"
-require_literal "pkexec pacman -Syu" "${updater}"
+require_literal "sudo -v" "${updater}"
+require_literal "sudo -n paccache -rk3" "${updater}"
+require_literal "yay -Syu" "${updater}"
+require_literal "--combinedupgrade" "${updater}"
+require_literal "--noconfirm" "${updater}"
+require_literal "--sudoflags=-n" "${updater}"
+require_literal "sudo -n fwupdmgr update --assume-yes" "${updater}"
 
-if grep -Eq -- '(^|[[:space:]])sudo([[:space:]]|$)' "${updater}"; then
-    echo "sudo must not be used by the desktop-launched updater" >&2
+if grep -Eq -- 'pkexec|yay[[:space:]]+-Sua' "${updater}"; then
+    echo "the updater must use one combined sudo-backed Yay transaction" >&2
     exit 1
 fi
 

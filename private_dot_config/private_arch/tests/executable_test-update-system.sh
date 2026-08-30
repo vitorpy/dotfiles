@@ -32,10 +32,22 @@ require_exact_call() {
         fail "missing call: ${expected}"
 }
 
-cat > "${mock_bin}/pkexec" <<'EOF'
+assert_single_interactive_sudo() {
+    [[ $(grep -Fxc -- "sudo -v" "${calls_file}") -eq 1 ]] ||
+        fail "expected exactly one interactive sudo validation"
+
+    while IFS= read -r call; do
+        case "${call}" in
+            "sudo -v"|"sudo -n "*) ;;
+            *) fail "privileged call was allowed to prompt: ${call}" ;;
+        esac
+    done < <(grep -E '^sudo ' "${calls_file}" || true)
+}
+
+cat > "${mock_bin}/sudo" <<'EOF'
 #!/usr/bin/env bash
-printf 'pkexec %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
-if [[ ${TEST_PACCACHE_FAIL:-0} == "1" && $* == "paccache -rk3" ]]; then
+printf 'sudo %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
+if [[ ${TEST_PACCACHE_FAIL:-0} == "1" && $* == "-n paccache -rk3" ]]; then
     exit 1
 fi
 exit 0
@@ -69,11 +81,34 @@ printf 'yay %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
 if [[ ${1:-} == "-Qua" && -n ${TEST_AUR_OUTPUT:-} ]]; then
     printf '%s\n' "${TEST_AUR_OUTPUT}"
 fi
+if [[ ${1:-} == "-Syu" ]]; then
+    sudo_command="sudo"
+    sudo_flags=()
+    while (($# > 0)); do
+        case "$1" in
+            --sudo)
+                sudo_command="$2"
+                shift 2
+                ;;
+            --sudoflags=*)
+                read -r -a sudo_flags <<< "${1#*=}"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    "${sudo_command}" "${sudo_flags[@]}" pacman -U --noconfirm /tmp/mock-aur-package.pkg.tar.zst
+fi
 EOF
 
 cat > "${mock_bin}/fwupdmgr" <<'EOF'
 #!/usr/bin/env bash
 printf 'fwupdmgr %s\n' "$*" >> "${TEST_UPDATE_CALLS}"
+if [[ ${1:-} == "get-updates" && -n ${TEST_FIRMWARE_OUTPUT:-} ]]; then
+    printf '%s\n' "${TEST_FIRMWARE_OUTPUT}"
+fi
 EOF
 
 chmod +x "${mock_bin}"/*
@@ -82,92 +117,119 @@ run_fixture() {
     local available_bytes="$1"
     local output_file="$2"
     local paccache_fail="${3:-0}"
+    local confirmation="${4:-}"
 
-    env \
+    printf '%s' "${confirmation}" | env \
         PATH="${mock_bin}:/usr/bin" \
         TEST_UPDATE_CALLS="${calls_file}" \
         TEST_DF_AVAILABLE="${available_bytes}" \
         TEST_PACCACHE_FAIL="${paccache_fail}" \
+        TEST_OFFICIAL_OUTPUT="${TEST_OFFICIAL_OUTPUT:-}" \
+        TEST_AUR_OUTPUT="${TEST_AUR_OUTPUT:-}" \
+        TEST_FIRMWARE_OUTPUT="${TEST_FIRMWARE_OUTPUT:-}" \
+        TEST_ORPHANS="${TEST_ORPHANS:-}" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=${tmpdir}/no-user-bus" \
         XDG_RUNTIME_DIR="${tmpdir}/no-user-bus" \
         bash "${update_script}" > "${output_file}" 2>&1
 }
 
-# A no-op update must still prune exactly once before it checks for updates.
+# A no-op update must complete discovery without requesting authorization.
 : > "${calls_file}"
 zero_output="${tmpdir}/zero-update.out"
 run_fixture "$((20 * 1024 * 1024 * 1024))" "${zero_output}"
 mapfile -t zero_calls < "${calls_file}"
-[[ ${zero_calls[0]:-} == "pkexec paccache -rk3" ]] ||
-    fail "zero-update preflight did not prune first"
-[[ ${zero_calls[1]:-} == "df --output=avail --block-size=1 /" ]] ||
-    fail "zero-update preflight did not check root space second"
-[[ $(grep -Fxc -- "pkexec paccache -rk3" "${calls_file}") -eq 1 ]] ||
-    fail "zero-update path did not retain exactly three versions once"
+[[ ${zero_calls[0]:-} == "checkupdates" ]] ||
+    fail "zero-update path did not begin with unprivileged discovery"
 grep -Fq -- "System is up to date" "${zero_output}" ||
     fail "zero-update path did not finish as a no-op"
-if grep -Eq -- 'pacman -Syu|yay -Sua|fwupdmgr update' "${calls_file}"; then
-    fail "zero-update path attempted a package transaction"
+if grep -Eq -- '^(sudo|pkexec) |paccache|pacman -Syu|yay -Syu|fwupdmgr update' "${calls_file}"; then
+    fail "zero-update path requested authorization or attempted a transaction"
 fi
 
-# Cache pruning is opportunistic. A failure must stay visible but may not block
-# discovery when the filesystem still has enough room for a safe update.
+# Declining the single top-level confirmation must not request authorization.
+: > "${calls_file}"
+cancel_output="${tmpdir}/cancel.out"
+TEST_OFFICIAL_OUTPUT="linux 6.11 -> 6.12" \
+    run_fixture "$((20 * 1024 * 1024 * 1024))" "${cancel_output}" 0 n
+grep -Fq -- "Update cancelled" "${cancel_output}" ||
+    fail "declined update did not cancel"
+if grep -Eq -- '^(sudo|pkexec) ' "${calls_file}"; then
+    fail "declined update requested authorization"
+fi
+
+# Cache pruning is opportunistic. After the one approval and authentication, a
+# prune failure stays visible but may not block a transaction with enough room.
 : > "${calls_file}"
 prune_failure_output="${tmpdir}/prune-failure.out"
-run_fixture \
-    "$((20 * 1024 * 1024 * 1024))" \
-    "${prune_failure_output}" \
-    1
-require_exact_call "checkupdates"
+TEST_OFFICIAL_OUTPUT="linux 6.11 -> 6.12" \
+    run_fixture \
+        "$((20 * 1024 * 1024 * 1024))" \
+        "${prune_failure_output}" \
+        1 \
+        y
+assert_single_interactive_sudo
+require_exact_call "sudo -n paccache -rk3"
 grep -Fq -- "Could not prune the package cache" "${prune_failure_output}" ||
     fail "package-cache failure was not reported"
-grep -Fq -- "System is up to date" "${prune_failure_output}" ||
-    fail "package-cache failure incorrectly blocked a safe no-op run"
+grep -Fq -- "System update complete" "${prune_failure_output}" ||
+    fail "package-cache failure incorrectly blocked a safe update"
 
-# Pruning may recover space, but the update must stop before discovery when the
-# root filesystem remains below the 10 GiB safety floor.
+# Pruning may recover space, but the update must stop before the transaction
+# when the root filesystem remains below the 10 GiB safety floor. Discovery and
+# the one approved authentication have already completed at this point.
 : > "${calls_file}"
 low_output="${tmpdir}/low-space.out"
-if run_fixture "$((10 * 1024 * 1024 * 1024 - 1))" "${low_output}"; then
+if TEST_OFFICIAL_OUTPUT="linux 6.11 -> 6.12" \
+    run_fixture "$((10 * 1024 * 1024 * 1024 - 1))" "${low_output}" 0 y; then
     fail "low-space preflight unexpectedly succeeded"
 fi
-mapfile -t low_calls < "${calls_file}"
-[[ ${#low_calls[@]} -eq 2 ]] ||
-    fail "low-space path continued past storage preflight"
-[[ ${low_calls[0]:-} == "pkexec paccache -rk3" ]] ||
-    fail "low-space path did not prune before measuring"
-[[ ${low_calls[1]:-} == "df --output=avail --block-size=1 /" ]] ||
-    fail "low-space path did not measure root space"
+assert_single_interactive_sudo
+require_exact_call "sudo -n paccache -rk3"
+require_exact_call "df --output=avail --block-size=1 /"
+if grep -Eq -- '^yay -Syu|pacman -Syu|fwupdmgr update' "${calls_file}"; then
+    fail "low-space path continued into a transaction"
+fi
 grep -Fq -- "At least 10 GiB must be free on /" "${low_output}" ||
     fail "low-space path did not explain the safety floor"
 
-# Exercise the full AUR path with fixtures so the repaired noninteractive
-# cleanup remains wired after the transaction.
+# Exercise the complete package, firmware, orphan, and cache path. Yay models
+# its internal privileged Pacman callback using the configured sudo command and
+# flags, proving that only the initial sudo validation may prompt.
 : > "${calls_file}"
-aur_output="${tmpdir}/aur-update.out"
-printf 'y' | env \
-    PATH="${mock_bin}:/usr/bin" \
-    TEST_UPDATE_CALLS="${calls_file}" \
-    TEST_DF_AVAILABLE="$((20 * 1024 * 1024 * 1024))" \
-    TEST_AUR_OUTPUT="roam 1.0-1 -> 1.1-1" \
-    DBUS_SESSION_BUS_ADDRESS="unix:path=${tmpdir}/no-user-bus" \
-    XDG_RUNTIME_DIR="${tmpdir}/no-user-bus" \
-    bash "${update_script}" > "${aur_output}" 2>&1
-require_exact_call "yay -Sua"
-require_exact_call "yay -Sc --aur --noconfirm"
-grep -Fq -- "System update complete" "${aur_output}" ||
-    fail "fixture AUR update did not complete"
+full_output="${tmpdir}/full-update.out"
+TEST_OFFICIAL_OUTPUT="linux 6.11 -> 6.12" \
+TEST_AUR_OUTPUT="roam 1.0-1 -> 1.1-1" \
+TEST_FIRMWARE_OUTPUT="  ├─ Test firmware" \
+TEST_ORPHANS="old-library" \
+    run_fixture "$((20 * 1024 * 1024 * 1024))" "${full_output}" 0 y
 
-mapfile -t aur_calls < "${calls_file}"
-aur_update_index=-1
+assert_single_interactive_sudo
+require_exact_call "sudo -n paccache -rk3"
+require_exact_call "yay -Syu --combinedupgrade --batchinstall --noconfirm --answerclean None --answerdiff None --answerupgrade None --noremovemake --sudo sudo --sudoflags=-n --sudoloop"
+require_exact_call "sudo -n pacman -U --noconfirm /tmp/mock-aur-package.pkg.tar.zst"
+require_exact_call "sudo -n fwupdmgr update --assume-yes"
+require_exact_call "sudo -n pacman -Rns --noconfirm old-library"
+require_exact_call "yay -Sc --aur --noconfirm"
+grep -Fq -- "System update complete" "${full_output}" ||
+    fail "fixture full update did not complete"
+[[ $(grep -Ec -- '^[[:space:]]*read ' "${update_script}") -eq 1 ]] ||
+    fail "updater does not contain exactly one top-level confirmation read"
+if grep -Eq -- 'pkexec|yay -Sua|sudo pacman|sudo fwupdmgr' "${calls_file}"; then
+    fail "full update used a second privilege mechanism or interactive privileged call"
+fi
+[[ $(grep -Ec -- '^yay -Syu ' "${calls_file}") -eq 1 ]] ||
+    fail "official and AUR updates were not combined into one Yay transaction"
+
+mapfile -t full_calls < "${calls_file}"
+package_update_index=-1
 aur_cleanup_index=-1
-for index in "${!aur_calls[@]}"; do
-    case "${aur_calls[index]}" in
-        "yay -Sua") aur_update_index="${index}" ;;
+for index in "${!full_calls[@]}"; do
+    case "${full_calls[index]}" in
+        "yay -Syu "*) package_update_index="${index}" ;;
         "yay -Sc --aur --noconfirm") aur_cleanup_index="${index}" ;;
     esac
 done
-((aur_update_index >= 0 && aur_cleanup_index > aur_update_index)) ||
+((package_update_index >= 0 && aur_cleanup_index > package_update_index)) ||
     fail "AUR cache cleanup did not follow the AUR transaction"
 
 # Use Yay itself with an empty build directory and a deliberately failing

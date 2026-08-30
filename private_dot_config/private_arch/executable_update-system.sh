@@ -35,7 +35,7 @@ prepare_package_storage() {
 
     echo -e "${BLUE}==> Preparing package storage...${NC}"
     echo "Cleaning package cache (keeping last 3 versions)..."
-    if ! pkexec paccache -rk3; then
+    if ! sudo -n paccache -rk3; then
         echo "Could not prune the package cache; continuing to the free-space check." >&2
     fi
 
@@ -63,10 +63,6 @@ prepare_package_storage() {
     echo "  ${available_gib} GiB free on /"
     echo ""
 }
-
-# Prune first so cached packages can recover space before enforcing the update
-# floor. This intentionally runs before discovery so it also covers no-op runs.
-prepare_package_storage
 
 # Check for updates
 echo -e "${BLUE}==> Checking for updates...${NC}"
@@ -152,34 +148,51 @@ fi
 
 echo ""
 
-# Update official repos
-if [ "$official_count" -gt 0 ]; then
-    echo -e "${BLUE}==> Updating official repositories...${NC}"
-    pkexec pacman -Syu
-    echo ""
-fi
+# Authenticate exactly once after the user has reviewed and approved the
+# summary. Every later privileged command is noninteractive, and Yay receives
+# the same cached sudo authorization for its internal Pacman calls.
+sudo -v
 
-# Update AUR
-if [ "$aur_count" -gt 0 ]; then
-    echo -e "${BLUE}==> Updating AUR packages...${NC}"
-    yay -Sua
+# Prune only after confirmation so checking an already-current system never
+# requests elevation. Pruning may recover enough space to satisfy the safety
+# floor before the package transaction begins.
+prepare_package_storage
+
+# Update official repositories and AUR packages in one transaction
+if [ $((official_count + aur_count)) -gt 0 ]; then
+    echo -e "${BLUE}==> Updating official and AUR packages...${NC}"
+    if command -v yay &>/dev/null; then
+        yay -Syu \
+            --combinedupgrade \
+            --batchinstall \
+            --noconfirm \
+            --answerclean None \
+            --answerdiff None \
+            --answerupgrade None \
+            --noremovemake \
+            --sudo sudo \
+            --sudoflags=-n \
+            --sudoloop
+    else
+        sudo -n pacman -Syu --noconfirm
+    fi
     echo ""
 fi
 
 # Update Firmware
 if [ "$firmware_count" -gt 0 ]; then
     echo -e "${BLUE}==> Updating firmware...${NC}"
-    pkexec fwupdmgr update
+    sudo -n fwupdmgr update --assume-yes
     echo ""
 fi
 
 # Clean up
 echo -e "${BLUE}==> Cleaning up...${NC}"
 echo "Removing orphaned packages..."
-orphans=$(pacman -Qtdq 2>/dev/null || true)
-if [ ! -z "$orphans" ]; then
-    echo "$orphans"
-    pkexec pacman -Rns $(pacman -Qtdq) --noconfirm
+mapfile -t orphan_packages < <(pacman -Qtdq 2>/dev/null || true)
+if [ "${#orphan_packages[@]}" -gt 0 ]; then
+    printf '%s\n' "${orphan_packages[@]}"
+    sudo -n pacman -Rns --noconfirm "${orphan_packages[@]}"
 else
     echo "  No orphaned packages found"
 fi

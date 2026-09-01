@@ -1,0 +1,42 @@
+---
+# Framework Laptop 12. Keep machine-specific boot state out of workstation
+# group variables until its recovery and Secure Boot path is reviewed.
+arch_hostname: rivest
+arch_console_font: ter-v24n
+arch_boot_enabled: false
+arch_manage_secure_boot: false
+arch_apparmor_enabled: false
+arch_pacnew_reconciliation_enabled: false
+arch_system_services: >-
+  {{ (arch_system_services_base | difference(['sshd', 'apparmor']))
+     + arch_workstation_system_services_extra }}
+
+# Hardware packages explicitly installed by the Framework 12 image. Declaring
+# them here prevents explicit-package pruning from removing the kernel, Intel
+# firmware, Wi-Fi, graphics, audio, fingerprint, and removable-media stack.
+arch_host_pacman_packages_extra:
+  - linux
+  - mkinitcpio
+  - linux-firmware-intel
+  - intel-ucode
+  - wireless-regdb
+  - wpa_supplicant
+  - iw
+  - vulkan-intel
+  - intel-media-driver
+  - libva-intel-driver
+  - intel-gpu-tools
+  - xorg-xrandr
+  - xf86-input-libinput
+  - iio-sensor-proxy
+  - sof-firmware
+  - alsa-utils
+  - alsa-firmware
+  - bluez
+  - bluez-utils
+  - blueman
+  - v4l-utils
+  - udisks2
+  - gvfs-mtp
+  - gvfs-gphoto2
+  - libfprint

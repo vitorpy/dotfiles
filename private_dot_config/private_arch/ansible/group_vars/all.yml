@@ -3,6 +3,7 @@ arch_hostname: zygalski
 arch_timezone: Europe/Warsaw
 arch_locale: en_US.UTF-8
 arch_console_keymap: us
+arch_console_font: ""
 arch_primary_user: vitorpy
 arch_primary_user_shell: /usr/bin/zsh
 arch_primary_user_home: "/home/{{ arch_primary_user }}"
@@ -396,8 +397,6 @@ arch_aur_packages_theming: []
 arch_aur_packages_utilities:
   - deezer
   - eternalterminal-client
-  - hyperion-hercules
-  - roam
   - yay-bin
   - zotero-bin
 

@@ -23,7 +23,11 @@
 - name: Write vconsole.conf
   ansible.builtin.copy:
     dest: /etc/vconsole.conf
-    content: "KEYMAP={{ arch_console_keymap }}\n"
+    content: |
+      KEYMAP={{ arch_console_keymap }}
+      {% if arch_console_font | length > 0 %}
+      FONT={{ arch_console_font }}
+      {% endif %}
     mode: "0644"
 
 - name: Write hostname

@@ -190,7 +190,14 @@ resolve_workstation_aur_packages() {
   yaml_list_values "$(join_by_comma "${WORKSTATION_AUR_KEYS[@]}")" | sort -u
 }
 
-resolve_final_packages() {
+resolve_target_packages() {
+  {
+    resolve_workstation_packages
+    printf '%s\n' "${FRAMEWORK_PACKAGES[@]}"
+  } | sort -u
+}
+
+resolve_live_packages() {
   {
     # archiso 89 still names broadcom-wl, which has left the repositories.
     # Framework 12 uses Intel Wi-Fi, covered explicitly by FRAMEWORK_PACKAGES.
@@ -199,7 +206,6 @@ resolve_final_packages() {
       -e '/^[[:space:]]*$/d' \
       -e '/^broadcom-wl$/d' \
       "$RELENG_DIR/packages.x86_64"
-    resolve_workstation_packages
     printf '%s\n' "${FRAMEWORK_PACKAGES[@]}"
   } | sort -u
 }
@@ -235,32 +241,40 @@ validate_package_sets() {
   local temp_dir="$1"
   local workstation_file="$temp_dir/workstation-packages.txt"
   local aur_file="$temp_dir/workstation-aur-packages.txt"
-  local final_file="$temp_dir/packages.x86_64"
-  local -a final_packages
+  local target_file="$temp_dir/target-packages.txt"
+  local live_file="$temp_dir/live-packages.txt"
+  local -a available_packages
 
   resolve_workstation_packages > "$workstation_file"
   resolve_workstation_aur_packages > "$aur_file"
-  resolve_final_packages > "$final_file"
+  resolve_target_packages > "$target_file"
+  resolve_live_packages > "$live_file"
 
   [[ -s "$workstation_file" ]] || die "resolved workstation package list is empty"
-  [[ -s "$final_file" ]] || die "resolved final package list is empty"
+  [[ -s "$target_file" ]] || die "resolved target package list is empty"
+  [[ -s "$live_file" ]] || die "resolved live package list is empty"
   if comm -12 "$workstation_file" "$aur_file" | grep -q .; then
     die "an AUR package is present in the workstation pacman set"
   fi
 
-  mapfile -t final_packages < "$final_file"
-  pacman -Si "${final_packages[@]}" >/dev/null \
+  mapfile -t available_packages < <(sort -u "$target_file" "$live_file")
+  pacman -Si "${available_packages[@]}" >/dev/null \
     || die "one or more ISO packages are unavailable from configured repositories"
   validate_versions
 
   printf '==> Workstation repo packages: %s\n' "$(wc -l < "$workstation_file")"
-  printf '==> Final releng package union: %s\n' "${#final_packages[@]}"
+  printf '==> Target install packages: %s\n' "$(wc -l < "$target_file")"
+  printf '==> Live environment packages: %s\n' "$(wc -l < "$live_file")"
 }
 
 validate_dotfiles_source() {
+  local status
+
   [[ -d "$DOTFILES_SOURCE/.git" ]] \
     || die "dotfiles source is not a Git worktree: $DOTFILES_SOURCE"
-  [[ -z "$(git -C "$DOTFILES_SOURCE" status --porcelain=v1 --untracked-files=all)" ]] \
+  status="$(git -C "$DOTFILES_SOURCE" status --porcelain=v1 --untracked-files=all)" \
+    || die "could not inspect dotfiles source: $DOTFILES_SOURCE"
+  [[ -z "$status" ]] \
     || die "dotfiles source must be clean before it can be embedded"
 }
 
@@ -390,6 +404,24 @@ configure_live_networking() {
   done
 }
 
+append_private_file_permissions() {
+  local profile_dir="$1"
+  local profiledef="$profile_dir/profiledef.sh"
+  local entry profile_id profile_uuid ssid
+
+  printf '%s\n' \
+    'file_permissions["/etc/NetworkManager/system-connections"]="0:0:700"' \
+    'file_permissions["/usr/share/framework12-bootstrap/dotfiles.tar.zst"]="0:0:600"' \
+    >> "$profiledef"
+  for entry in "${WIFI_PROFILE_IDS[@]}"; do
+    IFS='|' read -r profile_id profile_uuid ssid <<< "$entry"
+    printf 'file_permissions["/etc/NetworkManager/system-connections/%s.nmconnection"]="0:0:600"\n' \
+      "$profile_id" >> "$profiledef"
+    printf 'file_permissions["/usr/share/framework12-bootstrap/network/%s.nmconnection"]="0:0:600"\n' \
+      "$profile_id" >> "$profiledef"
+  done
+}
+
 embed_dotfiles_snapshot() {
   local bootstrap_dir="$1"
   local package_file="$2"
@@ -451,14 +483,15 @@ embed_dotfiles_snapshot() {
 
 prepare_profile() {
   local profile_dir="$1"
-  local package_file="$2"
+  local live_package_file="$2"
+  local target_package_file="$3"
   local bootstrap_dir="$profile_dir/airootfs/usr/share/framework12-bootstrap"
 
   cp -a "$RELENG_DIR/." "$profile_dir/"
   cp -a "$STATIC_PROFILE/." "$profile_dir/"
-  install -m 0644 "$package_file" "$profile_dir/packages.x86_64"
+  install -m 0644 "$live_package_file" "$profile_dir/packages.x86_64"
   generate_archinstall_config \
-    "$package_file" \
+    "$target_package_file" \
     "$profile_dir/airootfs/root/framework12-user_configuration.json"
 
   sed -i \
@@ -473,25 +506,27 @@ prepare_profile() {
 
   mkdir -p "$bootstrap_dir"
   configure_live_networking "$profile_dir" "$bootstrap_dir"
-  embed_dotfiles_snapshot "$bootstrap_dir" "$package_file"
+  embed_dotfiles_snapshot "$bootstrap_dir" "$target_package_file"
+  append_private_file_permissions "$profile_dir"
 }
 
-run_checks() {
+run_checks() (
   local check_dir
   check_dir="$(mktemp -d /tmp/framework12-archiso-check.XXXXXX)"
-  trap 'rm -rf -- "$check_dir"' RETURN
+  trap 'rm -rf -- "$check_dir"' EXIT
 
   validate_static_files
   validate_dotfiles_source
   validate_package_sets "$check_dir"
   generate_archinstall_config \
-    "$check_dir/packages.x86_64" \
+    "$check_dir/target-packages.txt" \
     "$check_dir/framework12-user_configuration.json"
   printf '==> Framework 12 ArchISO inputs are valid\n'
-}
+)
 
 main() {
-  local work_dir profile_dir package_file iso_path build_user build_group
+  local work_dir profile_dir live_package_file target_package_file
+  local iso_path build_user build_group
 
   parse_args "$@"
   resolve_defaults
@@ -515,10 +550,12 @@ main() {
     || die "refusing to use unexpected work directory: $work_dir"
   trap 'rm -rf -- "$work_dir"' EXIT
   profile_dir="$work_dir/profile"
-  package_file="$work_dir/packages.x86_64"
+  live_package_file="$work_dir/live-packages.txt"
+  target_package_file="$work_dir/target-packages.txt"
 
-  resolve_final_packages > "$package_file"
-  prepare_profile "$profile_dir" "$package_file"
+  resolve_live_packages > "$live_package_file"
+  resolve_target_packages > "$target_package_file"
+  prepare_profile "$profile_dir" "$live_package_file" "$target_package_file"
 
   printf '==> Building Framework 12 ISO\n'
   printf '    profile: %s\n' "$profile_dir"

@@ -149,13 +149,23 @@
   tags:
     - packages
 
+- name: Select the Yay bootstrap package
+  ansible.builtin.set_fact:
+    packages_yay_bootstrap_package: >-
+      {{ 'yay-bin' if 'yay-bin' in packages_aur_effective else 'yay' }}
+  when: packages_aur_effective | length > 0
+  tags:
+    - packages
+
 - name: Clone yay build directory
   ansible.builtin.git:
-    repo: https://aur.archlinux.org/yay.git
-    dest: /tmp/yay
+    repo: >-
+      https://aur.archlinux.org/{{ packages_yay_bootstrap_package }}.git
+    dest: "/tmp/{{ packages_yay_bootstrap_package }}"
     version: master
     force: true
-  become: false
+  become: true
+  become_user: "{{ arch_primary_user }}"
   when:
     - packages_aur_effective | length > 0
     - not packages_yay_binary.stat.exists
@@ -166,8 +176,9 @@
 - name: Build and install yay
   ansible.builtin.command:
     cmd: makepkg -si --noconfirm
-    chdir: /tmp/yay
-  become: false
+    chdir: "/tmp/{{ packages_yay_bootstrap_package }}"
+  become: true
+  become_user: "{{ arch_primary_user }}"
   when:
     - packages_aur_effective | length > 0
     - not packages_yay_binary.stat.exists
@@ -209,7 +220,8 @@
       {{ '--rebuild' if arch_aur_makepkg_disable_debug | bool else '' }}
       {{ ('--makepkgconf ' ~ arch_aur_makepkg_no_debug_conf) if arch_aur_makepkg_disable_debug | bool else '' }}
       {{ packages_missing_aur | join(' ') }}
-  become: false
+  become: true
+  become_user: "{{ arch_primary_user }}"
   when:
     - packages_aur_effective | length > 0
     - packages_missing_aur | length > 0

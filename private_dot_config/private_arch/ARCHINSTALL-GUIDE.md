@@ -6,7 +6,9 @@ This guide reflects the current setup model:
 - apply dotfiles with `chezmoi`
 - configure system-wide state with the Ansible playbook in `~/.config/arch/ansible`
 
-There is no longer a managed `archinstall` JSON profile in this repo.
+There is no static machine-install JSON checked into this repo. The Framework
+12 media builder generates a reviewed partial Archinstall configuration at
+build time while leaving destructive and credential-bearing choices to the TUI.
 
 ## Recommended Install Target
 
@@ -33,6 +35,106 @@ Use either:
 2. the manual Arch install process
 
 The repo no longer dictates disk layout through a checked-in installer profile, so pick the install method that matches the machine.
+
+### Framework 12 Guided ISO
+
+The Framework Laptop 12 has a separate guided ArchISO profile under:
+
+```bash
+~/.config/arch/archiso/framework12
+```
+
+It is intentionally separate from the destructive mediaserver profile. The
+default boot entry starts Archinstall with reviewed workstation defaults, but
+disk selection, partitioning, encryption, credentials, and the final install
+confirmation remain interactive. A normal Arch rescue entry remains in the
+boot menu.
+
+The live image and installed-system package request contain:
+
+- the stock ArchISO releng packages
+- every official-repository package declared by the workstation Ansible profile
+- the Framework 12 Intel graphics, Wi-Fi, touchscreen/sensor, audio, Bluetooth,
+  webcam, fingerprint, and firmware support packages
+- no AUR packages
+
+The build refuses kernels older than 7.1 and `libfprint` older than 1.94.100 so
+the image covers both the 13th Gen Intel and Core Series 3 Framework 12 models.
+It also requires Archinstall 4.4 and arch-install-scripts 31 or newer for the
+read-only post-install payload handoff used by the target chroot.
+
+Validate the profile without reading credentials or building an image:
+
+```bash
+~/.config/arch/archiso/framework12/tests/test-profile.sh
+```
+
+Build it from a clean chezmoi source checkout:
+
+```bash
+sudo ~/.config/arch/archiso/framework12/build.sh \
+  --dotfiles-source "$(chezmoi source-path)"
+```
+
+The user must run that `sudo` command; the assistant must not execute it. The
+build needs root because `mkarchiso` constructs the live root filesystem. Its
+large temporary work tree defaults to `/var/tmp/archiso-framework12`, not the
+smaller `/tmp` tmpfs, and each individual build directory is removed on exit.
+
+Outputs are written below `~/.config/arch/archiso/framework12/out/`:
+
+- `rivest-framework12-*.iso`
+- the matching `.sha256`
+- a non-secret `.build-manifest.json`
+
+The output directory is mode `0700`; the ISO and checksum are mode `0600` and
+owned by the invoking user after a successful sudo build.
+
+#### Embedded Wi-Fi and config snapshot
+
+At build time, the script reads the saved NetworkManager profiles by UUID and
+regenerates minimal WPA-PSK profiles for the canonical SSIDs `DomGromek` and
+`DomGromek_5GHz`. Nothing secret is written into Git or the external build
+manifest. The generated ISO does contain recoverable Wi-Fi credentials, so
+treat it as private media and rotate the PSK if it is lost.
+
+The build also embeds a zstd tar archive of the clean chezmoi `HEAD`, recording
+its commit and SHA-256. After Archinstall has created the sudo-enabled
+`vitorpy` account, the post-install hook:
+
+1. installs both NetworkManager profiles into the target with mode `0600`
+2. preserves the snapshot metadata under `/var/lib/vitorpy-bootstrap`
+3. applies and verifies the snapshot for `/home/vitorpy`
+
+Archinstall runs that hook inside its target chroot. The launcher stages the
+payload below `/run/udev/framework12-bootstrap`, the read-only live path that
+arch-install-scripts 31 exposes to an `arch-chroot -S` target.
+
+It deliberately does not run the system Ansible playbook or restore Bitwarden
+keys. The normal `bootstrap-user.sh` remains available after the first boot.
+
+#### Installing on the Framework 12
+
+1. Disable Secure Boot in firmware. The custom Arch ISO is not signed.
+2. Write the ISO only after identifying the USB device with `lsblk`. Never use
+   an unresolved glob or an assumed `/dev/sdX` target.
+3. Boot the `Rivest Framework 12 guided installer` entry.
+4. Confirm that NetworkManager connected to either saved home SSID.
+5. In Archinstall, choose the target disk, layout, filesystem, and encryption.
+6. Create the sudo-enabled user exactly as `vitorpy` and set its password.
+7. Review the final Archinstall summary before approving disk changes.
+8. Reboot into host `rivest` and verify networking, the UKI boot, SDDM, and the
+   applied user configuration.
+
+Only re-enable Secure Boot after generating or restoring the intended signing
+keys, enrolling them in firmware, signing the installed UKIs, and proving a
+successful signed boot. Running the Ansible boot role also requires replacing
+the existing machine-specific ESP and root identifiers with Rivest's values.
+
+For rollback before installation, select the normal Arch rescue boot entry or
+discard the ISO. After installation, boot the rescue entry to repair the target
+without running the guided launcher. Deleting the ISO is not sufficient if it
+was lost; rotate the embedded Wi-Fi credential as well.
 
 ### Mediaserver Unattended ISO
 

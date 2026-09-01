@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BOOTSTRAP_SOURCE=/usr/share/framework12-bootstrap
+BOOTSTRAP_RUN=/run/udev/framework12-bootstrap
+ARCHINSTALL_CONFIG=/root/framework12-user_configuration.json
+POSTINSTALL=/usr/local/libexec/framework12-postinstall
+
+die() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+stage_bootstrap() {
+  local expected actual
+
+  [[ -d "$BOOTSTRAP_SOURCE" ]] || die "missing bootstrap payload: $BOOTSTRAP_SOURCE"
+  [[ -x "$POSTINSTALL" ]] || die "missing post-install helper: $POSTINSTALL"
+  install -d -m 0700 "$BOOTSTRAP_RUN"
+  cp -a "$BOOTSTRAP_SOURCE/." "$BOOTSTRAP_RUN/"
+  install -m 0755 "$POSTINSTALL" "$BOOTSTRAP_RUN/postinstall"
+
+  expected="$(jq -r '.dotfiles.sha256' "$BOOTSTRAP_RUN/build-manifest.json")"
+  actual="$(sha256sum "$BOOTSTRAP_RUN/dotfiles.tar.zst" | awk '{ print $1 }')"
+  [[ -n "$expected" && "$expected" == "$actual" ]] \
+    || die "embedded dotfiles archive checksum mismatch"
+}
+
+report_hardware() {
+  local vendor product
+  vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
+  product="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
+  if [[ "$vendor" != "Framework" || "$product" != *"Laptop 12"* ]]; then
+    printf 'WARNING: detected %s %s, not a Framework Laptop 12.\n' \
+      "${vendor:-unknown vendor}" "${product:-unknown product}" >&2
+    printf 'The rescue environment remains usable, but this profile targets Framework 12 hardware.\n' >&2
+  fi
+}
+
+require_network() {
+  local active_connection
+
+  timeout 60 systemctl is-system-running --wait >/dev/null 2>&1 || true
+  systemctl is-active --quiet NetworkManager.service \
+    || die "NetworkManager is not active in the live environment"
+
+  if ! nm-online -q --timeout 45; then
+    printf '\nAutomatic Wi-Fi connection did not become ready.\n' >&2
+    nmcli -f DEVICE,TYPE,STATE,CONNECTION device status >&2 || true
+    printf '\nUse nmtui or nmcli to connect, then run: framework-install\n' >&2
+    exec /usr/bin/zsh
+  fi
+
+  active_connection="$(
+    nmcli -t -f NAME connection show --active \
+      | awk 'NR == 1 { first = $0 } END { print first }'
+  )"
+  printf '==> Network ready: %s\n' "${active_connection:-unnamed connection}"
+}
+
+main() {
+  stage_bootstrap
+  report_hardware
+  require_network
+
+  [[ -f "$ARCHINSTALL_CONFIG" ]] || die "missing Archinstall configuration"
+  jq -e . "$ARCHINSTALL_CONFIG" >/dev/null \
+    || die "invalid Archinstall configuration"
+
+  printf '\n==> Starting the guided Rivest installation\n'
+  printf '    Required account: vitorpy (sudo-enabled)\n'
+  printf '    Hostname: rivest\n'
+  printf '    Disk layout, encryption, and credentials remain for TUI review.\n'
+  printf '    No disk is modified until Archinstall shows and confirms its final plan.\n\n'
+  exec archinstall --config "$ARCHINSTALL_CONFIG"
+}
+
+main "$@"

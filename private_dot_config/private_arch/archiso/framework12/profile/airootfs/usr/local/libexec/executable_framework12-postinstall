@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BOOTSTRAP_RUN=/run/udev/framework12-bootstrap
+BOOTSTRAP_STATE=/var/lib/vitorpy-bootstrap
+
+die() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+main() {
+  local username="${1:-}"
+  local user_home manifest archive expected actual commit source_dir config_path
+
+  [[ "$username" == "vitorpy" ]] \
+    || die "the embedded configuration requires the vitorpy account"
+  id -u "$username" >/dev/null 2>&1 \
+    || die "create the sudo-enabled vitorpy account in Archinstall before installing"
+
+  user_home="$(getent passwd "$username" | awk -F: 'NR == 1 { print $6 }')"
+  [[ "$user_home" == "/home/vitorpy" ]] \
+    || die "unexpected home directory for vitorpy: $user_home"
+
+  manifest="$BOOTSTRAP_RUN/build-manifest.json"
+  archive="$BOOTSTRAP_RUN/dotfiles.tar.zst"
+  [[ -f "$manifest" && -f "$archive" ]] || die "bootstrap payload is unavailable"
+
+  expected="$(jq -r '.dotfiles.sha256' "$manifest")"
+  actual="$(sha256sum "$archive" | awk '{ print $1 }')"
+  [[ -n "$expected" && "$expected" == "$actual" ]] \
+    || die "dotfiles archive checksum mismatch"
+
+  commit="$(jq -r '.dotfiles.commit' "$manifest")"
+  [[ "$commit" =~ ^[[:xdigit:]]{40}$ ]] || die "invalid dotfiles commit in manifest"
+  source_dir="$BOOTSTRAP_STATE/source-$commit"
+  config_path="$user_home/.config/chezmoi/chezmoi.toml"
+
+  install -d -m 0755 "$BOOTSTRAP_STATE" "$source_dir"
+  install -m 0600 "$archive" "$BOOTSTRAP_STATE/dotfiles.tar.zst"
+  install -m 0644 "$manifest" "$BOOTSTRAP_STATE/build-manifest.json"
+  install -m 0644 "$BOOTSTRAP_RUN/packages.txt" "$BOOTSTRAP_STATE/packages.txt"
+  tar --zstd --extract --file "$archive" --directory "$source_dir"
+
+  install -d -m 0700 /etc/NetworkManager/system-connections
+  for profile in "$BOOTSTRAP_RUN"/network/*.nmconnection; do
+    [[ -f "$profile" ]] || die "embedded NetworkManager profile is missing"
+    install -o root -g root -m 0600 \
+      "$profile" "/etc/NetworkManager/system-connections/$(basename "$profile")"
+  done
+  systemctl enable NetworkManager.service
+
+  install -d -o "$username" -g "$username" -m 0755 \
+    "$user_home/.config" "$user_home/.config/chezmoi"
+  chown -R "$username":"$username" "$source_dir"
+
+  runuser -u "$username" -- env \
+    HOME="$user_home" \
+    USER="$username" \
+    LOGNAME="$username" \
+    chezmoi \
+      --source "$source_dir" \
+      --destination "$user_home" \
+      --config "$config_path" \
+      --refresh-externals=never \
+      --no-tty \
+      --force \
+      apply --init
+
+  runuser -u "$username" -- env \
+    HOME="$user_home" \
+    USER="$username" \
+    LOGNAME="$username" \
+    chezmoi \
+      --source "$source_dir" \
+      --destination "$user_home" \
+      --config "$config_path" \
+      --refresh-externals=never \
+      --no-tty \
+      verify
+
+  printf 'commit=%s\napplied_at=%s\n' \
+    "$commit" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    > "$BOOTSTRAP_STATE/applied"
+  chmod 0644 "$BOOTSTRAP_STATE/applied"
+
+  printf '==> Applied dotfiles snapshot %s for %s\n' "${commit:0:12}" "$username"
+  printf '==> System Ansible and Bitwarden key restore were intentionally not run.\n'
+}
+
+main "$@"

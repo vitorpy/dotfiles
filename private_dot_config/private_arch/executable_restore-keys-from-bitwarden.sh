@@ -1,19 +1,20 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+umask 077
 
 # Check if Bitwarden session is active
-if [ -z "$BW_SESSION" ]; then
+if [[ -z "${BW_SESSION:-}" ]]; then
     echo "ERROR: BW_SESSION not set. Run: export BW_SESSION=\$(bw unlock --raw)"
     exit 1
 fi
 
 # Parse arguments
 DRY_RUN=false
-if [ "$1" == "--dry-run" ]; then
+if [[ "${1:-}" == "--dry-run" ]]; then
     DRY_RUN=true
     TEMP_DIR=$(mktemp -d /tmp/bw-restore.XXXXXX)
     SSH_DIR="$TEMP_DIR/.ssh"
-    GPG_HOME="$TEMP_DIR/.gnupg"
     echo "==> DRY RUN MODE - restoring to $TEMP_DIR"
 else
     SSH_DIR="$HOME/.ssh"
@@ -28,52 +29,104 @@ chmod 700 "$SSH_DIR"
 # Restore SSH keys
 echo "==> Restoring SSH keys..."
 
-# Function to extract and restore SSH key
+# Resolve a single item by exact title. Bitwarden's `get item <search>` is
+# ambiguous when several item names contain the same word (for example, Git).
+get_bw_item_by_exact_name() {
+    local item_name="$1"
+
+    bw list items --search "$item_name" |
+        jq -cer --arg item_name "$item_name" '
+            [.[] | select(.name == $item_name)] as $matches
+            | if ($matches | length) == 1 then $matches[0] else empty end
+        '
+}
+
+# Extract and atomically restore an SSH key from either a native Bitwarden SSH
+# key item or the legacy secure-note format used by older backups.
 restore_ssh_key() {
     local item_name="$1"
     local key_file="$2"
+    local item_json notes private_key public_key
+    local private_tmp public_tmp private_fingerprint public_fingerprint
 
     echo "  - Restoring $item_name..."
 
-    # Get the item from Bitwarden
-    local notes=$(bw get item "$item_name" --session "$BW_SESSION" 2>/dev/null | jq -r '.notes')
-
-    if [ -z "$notes" ] || [ "$notes" == "null" ]; then
-        echo "    WARNING: $item_name not found in Bitwarden, skipping"
+    if ! item_json="$(get_bw_item_by_exact_name "$item_name" 2>/dev/null)"; then
+        echo "    WARNING: $item_name was not found uniquely in Bitwarden, skipping"
         return 1
     fi
 
-    # Extract private key (between "Private Key:" and "Public Key:")
-    local private_key=$(echo "$notes" | sed -n '/Private Key:/,/Public Key:/p' | sed '1d;$d')
-
-    # Extract public key (after "Public Key:")
-    local public_key=$(echo "$notes" | sed -n '/Public Key:/,$p' | sed '1d')
+    if [[ "$(jq -r '.type' <<< "$item_json")" == "5" ]]; then
+        if ! private_key="$(jq -er '.sshKey.privateKey // empty' <<< "$item_json")" ||
+            ! public_key="$(jq -er '.sshKey.publicKey // empty' <<< "$item_json")"; then
+            echo "    WARNING: $item_name does not contain a complete native SSH key, skipping"
+            return 1
+        fi
+    else
+        notes="$(jq -r '.notes // empty' <<< "$item_json")"
+        private_key="$(
+            printf '%s\n' "$notes" |
+                sed -n '/Private Key:/,/Public Key:/p' |
+                sed '1d;$d'
+        )"
+        public_key="$(
+            printf '%s\n' "$notes" |
+                sed -n '/Public Key:/,$p' |
+                sed '1d'
+        )"
+    fi
+    if [[ -z "$private_key" || -z "$public_key" ]]; then
+        echo "    WARNING: $item_name does not contain a complete SSH key, skipping"
+        return 1
+    fi
 
     # Check if files already exist (skip in dry-run)
-    if [ "$DRY_RUN" == "false" ] && [ -f "$SSH_DIR/$key_file" ]; then
-        read -p "    $key_file already exists. Overwrite? (y/N): " confirm
-        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    if [[ "$DRY_RUN" == "false" && -f "$SSH_DIR/$key_file" ]]; then
+        read -r -p "    $key_file already exists. Overwrite? (y/N): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
             echo "    Skipping $key_file"
             return
         fi
     fi
 
-    # Write private key
-    echo "$private_key" > "$SSH_DIR/$key_file"
-    chmod 600 "$SSH_DIR/$key_file"
-    echo "    ✓ Restored private key: $SSH_DIR/$key_file"
+    private_tmp="$(mktemp "$SSH_DIR/.${key_file}.private.XXXXXX")"
+    public_tmp="$(mktemp "$SSH_DIR/.${key_file}.public.XXXXXX")"
+    printf '%s\n' "$private_key" > "$private_tmp"
+    printf '%s\n' "$public_key" > "$public_tmp"
+    chmod 600 "$private_tmp"
+    chmod 644 "$public_tmp"
 
-    # Write public key
-    echo "$public_key" > "$SSH_DIR/$key_file.pub"
-    chmod 644 "$SSH_DIR/$key_file.pub"
+    if ! private_fingerprint="$(ssh-keygen -lf "$private_tmp" 2>/dev/null | awk '{ print $2 }')" ||
+        [[ -z "$private_fingerprint" ]]; then
+        rm -f -- "$private_tmp" "$public_tmp"
+        echo "    WARNING: invalid private SSH key in $item_name"
+        return 1
+    fi
+    if ! public_fingerprint="$(ssh-keygen -lf "$public_tmp" 2>/dev/null | awk '{ print $2 }')" ||
+        [[ -z "$public_fingerprint" ]]; then
+        rm -f -- "$private_tmp" "$public_tmp"
+        echo "    WARNING: invalid public SSH key in $item_name"
+        return 1
+    fi
+    if [[ "$private_fingerprint" != "$public_fingerprint" ]]; then
+        rm -f -- "$private_tmp" "$public_tmp"
+        echo "    WARNING: private and public fingerprints differ for $item_name"
+        return 1
+    fi
+
+    mv "$private_tmp" "$SSH_DIR/$key_file"
+    mv "$public_tmp" "$SSH_DIR/$key_file.pub"
+    echo "    ✓ Restored private key: $SSH_DIR/$key_file"
     echo "    ✓ Restored public key: $SSH_DIR/$key_file.pub"
 }
 
 # Restore SSH keys.
-# Prefer the current GitHub identity name, but fall back to the legacy
-# Bitwarden item so fresh restores still work without a vault migration.
-if ! restore_ssh_key "SSH Key - vitorpy" "vitorpy"; then
-    restore_ssh_key "SSH Key - github" "vitorpy"
+# Prefer the current native SSH-key item, then fall back to historical secure
+# notes so fresh restores remain compatible without a vault migration.
+if ! restore_ssh_key "Git" "vitorpy"; then
+    if ! restore_ssh_key "SSH Key - vitorpy" "vitorpy"; then
+        restore_ssh_key "SSH Key - github" "vitorpy"
+    fi
 fi
 restore_ssh_key "SSH Key - id_ed25519" "id_ed25519"
 
@@ -83,28 +136,40 @@ echo "==> Restoring GPG keys..."
 # Function to restore GPG key
 restore_gpg_key() {
     local item_name="$1"
+    local item_json notes private_key safe_name import_output
 
     echo "  - Restoring $item_name..."
 
-    # Get the item from Bitwarden
-    local notes=$(bw get item "$item_name" --session "$BW_SESSION" 2>/dev/null | jq -r '.notes')
-
-    if [ -z "$notes" ] || [ "$notes" == "null" ]; then
-        echo "    WARNING: $item_name not found in Bitwarden, skipping"
+    if ! item_json="$(get_bw_item_by_exact_name "$item_name" 2>/dev/null)"; then
+        echo "    WARNING: $item_name was not found uniquely in Bitwarden, skipping"
         return
     fi
+    notes="$(jq -r '.notes // empty' <<< "$item_json")"
 
     # Extract private key (between "Private Key:" and "Public Key:")
-    local private_key=$(echo "$notes" | sed -n '/Private Key:/,/Public Key:/p' | sed '1d;$d')
+    private_key="$(
+        printf '%s\n' "$notes" |
+            sed -n '/Private Key:/,/Public Key:/p' |
+            sed '1d;$d'
+    )"
+    if [[ -z "$private_key" ]]; then
+        echo "    WARNING: $item_name does not contain a private GPG key, skipping"
+        return 1
+    fi
 
-    if [ "$DRY_RUN" == "true" ]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
         # In dry-run, just save to file
-        local safe_name=$(echo "$item_name" | sed 's/[^a-zA-Z0-9]/_/g')
-        echo "$private_key" > "$TEMP_DIR/${safe_name}.asc"
+        safe_name="$(printf '%s\n' "$item_name" | sed 's/[^a-zA-Z0-9]/_/g')"
+        printf '%s\n' "$private_key" > "$TEMP_DIR/${safe_name}.asc"
         echo "    ✓ Would import GPG key: $item_name (saved to $TEMP_DIR/${safe_name}.asc)"
     else
         # Import private key
-        echo "$private_key" | gpg --import 2>&1 | grep -v "key.*unchanged" || true
+        if ! import_output="$(printf '%s\n' "$private_key" | gpg --import 2>&1)"; then
+            printf '%s\n' "$import_output" >&2
+            echo "    WARNING: GPG import failed for $item_name"
+            return 1
+        fi
+        printf '%s\n' "$import_output" | grep -v "key.*unchanged" || true
         echo "    ✓ Imported GPG key: $item_name"
     fi
 }
@@ -114,7 +179,7 @@ restore_gpg_key "GPG Key - vitor@vitorpy.com"
 restore_gpg_key "GPG Key - vitor@darklakelabs.com"
 
 echo ""
-if [ "$DRY_RUN" == "true" ]; then
+if [[ "$DRY_RUN" == "true" ]]; then
     echo "==> DRY RUN - Files created in $TEMP_DIR"
     echo ""
     echo "Directory contents:"

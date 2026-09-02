@@ -42,6 +42,7 @@ DOTFILES_SOURCE="$TEST_DOTFILES_SOURCE"
 resolve_defaults
 resolve_target_packages > "$CHECK_DIR/target-packages.txt"
 resolve_live_packages > "$CHECK_DIR/live-packages.txt"
+resolve_workstation_aur_packages > "$CHECK_DIR/workstation-aur-packages.txt"
 generate_archinstall_config \
   "$CHECK_DIR/target-packages.txt" \
   "$CHECK_DIR/framework12-user_configuration.json"
@@ -65,6 +66,9 @@ if grep -qx 'clonezilla' "$CHECK_DIR/target-packages.txt"; then
 fi
 grep -qx 'networkmanager' "$CHECK_DIR/live-packages.txt"
 grep -qx 'networkmanager' "$CHECK_DIR/target-packages.txt"
+grep -qx '1password' "$CHECK_DIR/workstation-aur-packages.txt"
+grep -qx '1password-cli' "$CHECK_DIR/workstation-aur-packages.txt"
+grep -qx 'slack-desktop' "$CHECK_DIR/workstation-aur-packages.txt"
 
 mkdir -p "$CHECK_DIR/profile"
 printf 'declare -A file_permissions=()\n' > "$CHECK_DIR/profile/profiledef.sh"

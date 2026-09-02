@@ -35,6 +35,7 @@ WORKSTATION_AUR_KEYS=(
   arch_aur_packages_hyprland
   arch_aur_packages_development
   arch_aur_packages_communication
+  arch_aur_packages_corporate
   arch_aur_packages_theming
   arch_aur_packages_utilities
 )

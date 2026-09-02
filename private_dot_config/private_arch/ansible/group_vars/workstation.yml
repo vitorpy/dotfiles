@@ -108,4 +108,5 @@ arch_aur_packages: >-
     + arch_aur_packages_communication
     + arch_aur_packages_theming
     + arch_aur_packages_utilities
+    + (arch_aur_packages_corporate if arch_corp_workstation_enabled else [])
   }}

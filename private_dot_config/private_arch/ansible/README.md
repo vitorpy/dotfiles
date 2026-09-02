@@ -51,6 +51,8 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 ## Profiles
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
+- `group_vars/corp_workstation.yml` inherits the workstation profile and adds
+  corporate-only packages. Rivest is currently the only member.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
 To target a different host or profile, extend `inventory/hosts.yml`.

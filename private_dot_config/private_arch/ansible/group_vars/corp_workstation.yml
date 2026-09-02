@@ -1,0 +1,4 @@
+---
+# Corporate workstations inherit the complete workstation profile and add
+# applications that must not be installed on personal machines.
+arch_corp_workstation_enabled: true

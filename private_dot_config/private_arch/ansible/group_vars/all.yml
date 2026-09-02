@@ -23,6 +23,7 @@ arch_system_services_base:
 arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
+arch_corp_workstation_enabled: false
 arch_memory_pressure_managed: false
 arch_memory_pressure_enabled: false
 arch_file_descriptor_limits_managed: false
@@ -386,11 +387,13 @@ arch_aur_packages_development:
   - jira-cli-bin
 
 arch_aur_packages_communication:
+  - chatgpt-desktop
+  - zoom
+
+arch_aur_packages_corporate:
   - 1password
   - 1password-cli
-  - chatgpt-desktop
   - slack-desktop
-  - zoom
 
 arch_aur_packages_theming: []
 

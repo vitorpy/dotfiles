@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Services.UPower
+import "PowerProfileDisplay.js" as PowerProfileDisplay
 
 QtObject {
     id: root
@@ -10,6 +11,10 @@ QtObject {
     property string displayError: ""
     property var lastSuccess: new Date()
     property int expectedProfile: -1
+    property var displayPolicy: null
+    property string displayPhase: "idle"
+    property string displayStatus: ""
+    property bool displayPolicyPending: false
 
     readonly property string health: {
         if (profileHealth === "error" || displayHealth === "error")
@@ -32,7 +37,8 @@ QtObject {
     readonly property string tooltip: {
         const available = availableProfiles.map(profile => PowerProfile.toString(profile)).join(" ");
         const source = UPower.onBattery ? "Battery" : "AC";
-        const base = `Power profile: ${label}\n${source} policy: ${PowerProfile.toString(automaticProfile)} · ${automaticRefreshRate} Hz\nAvailable: ${available}\nClick to cycle until the power source changes`;
+        const display = displayStatus ? `\nDisplay: ${displayStatus}` : "";
+        const base = `Power profile: ${label}\n${source} policy: ${PowerProfile.toString(automaticProfile)} · ${automaticRefreshRate} Hz${display}\nAvailable: ${available}\nClick to cycle until the power source changes`;
         return lastError ? `${base}\n${lastError}` : base;
     }
 
@@ -53,18 +59,102 @@ QtObject {
         expectedProfile = automaticProfile;
         profileHealth = "loading";
         profileError = "";
-        displayHealth = "loading";
-        displayError = "";
-
         PowerProfiles.profile = expectedProfile;
         verifyTimer.restart();
 
+        applyDisplayPolicy();
+    }
+
+    function applyDisplayPolicy(): void {
+        if (displayQuery.running || displayAction.running) {
+            displayPolicyPending = true;
+            return;
+        }
+
+        displayPolicyPending = false;
+        displayHealth = "loading";
+        displayError = "";
+        displayPhase = "discover";
+        displayQuery.refresh();
+    }
+
+    function failDisplay(message: string): void {
+        displayHealth = lastSuccess ? "stale" : "error";
+        displayError = message;
+        displayPhase = "idle";
+        console.warn(`Power profile state: ${message}`);
+        runPendingDisplayPolicy();
+    }
+
+    function acceptDisplay(refreshRate: real, fallback: bool): void {
+        displayHealth = "ready";
+        displayError = "";
+        displayStatus = `${displayPolicy.width}x${displayPolicy.height} · ${refreshRate} Hz${fallback ? " (fallback)" : ""}`;
+        displayPhase = "idle";
+        lastSuccess = new Date();
+        runPendingDisplayPolicy();
+    }
+
+    function runPendingDisplayPolicy(): void {
+        if (!displayPolicyPending)
+            return;
+        Qt.callLater(applyDisplayPolicy);
+    }
+
+    function startDisplayAction(mode: string, fallback: bool): void {
+        displayPhase = fallback ? "fallbackAction" : "targetAction";
         displayAction.command = [
             "/usr/bin/hyprctl",
             "eval",
-            `hl.monitor({ output = "eDP-1", mode = "2256x1504@${automaticRefreshRate}", position = "auto", scale = 1 })`
+            PowerProfileDisplay.monitorExpression(displayPolicy, mode)
         ];
         displayAction.refresh();
+    }
+
+    function consumeDisplayQuery(output: string): void {
+        try {
+            if (displayPhase === "discover") {
+                displayPolicy = PowerProfileDisplay.policy(output, automaticRefreshRate);
+                if (!displayPolicy.applicable) {
+                    displayHealth = "ready";
+                    displayError = "";
+                    displayStatus = "not applicable";
+                    displayPhase = "idle";
+                    lastSuccess = new Date();
+                    runPendingDisplayPolicy();
+                    return;
+                }
+                startDisplayAction(displayPolicy.targetMode, false);
+                return;
+            }
+
+            if (displayPhase === "verifyTarget") {
+                if (PowerProfileDisplay.verifies(output, displayPolicy, displayPolicy.targetRefreshRate)) {
+                    acceptDisplay(displayPolicy.targetRefreshRate, false);
+                    return;
+                }
+                startFallback();
+                return;
+            }
+
+            if (displayPhase === "verifyFallback") {
+                if (PowerProfileDisplay.verifies(output, displayPolicy, displayPolicy.fallbackRefreshRate)) {
+                    acceptDisplay(displayPolicy.fallbackRefreshRate, true);
+                    return;
+                }
+                failDisplay("Display fallback mode was not applied");
+            }
+        } catch (error) {
+            failDisplay(`Unable to interpret Hyprland monitors: ${error}`);
+        }
+    }
+
+    function startFallback(): void {
+        if (!displayPolicy || displayPolicy.fallbackMode === displayPolicy.targetMode) {
+            failDisplay("Requested native display mode was not applied");
+            return;
+        }
+        startDisplayAction(displayPolicy.fallbackMode, true);
     }
 
     readonly property Timer verifyTimer: Timer {
@@ -94,18 +184,27 @@ QtObject {
         onTriggered: root.applyAutomaticPolicy()
     }
 
+    readonly property ProcessJob displayQuery: ProcessJob {
+        command: ["/usr/bin/hyprctl", "-j", "monitors"]
+        runOnStart: false
+        timeoutMs: 5000
+        onSucceeded: (exitCode, output, errorOutput) => root.consumeDisplayQuery(output)
+        onFailed: (message, exitCode, output, errorOutput) => root.failDisplay(`Unable to query Hyprland monitors: ${message}`)
+    }
+
     readonly property ProcessJob displayAction: ProcessJob {
         runOnStart: false
         timeoutMs: 5000
         onSucceeded: {
-            root.displayHealth = "ready";
-            root.displayError = "";
-            root.lastSuccess = new Date();
+            root.displayPhase = root.displayPhase === "fallbackAction" ? "verifyFallback" : "verifyTarget";
+            root.displayQuery.refresh();
         }
         onFailed: (message, exitCode, output, errorOutput) => {
-            root.displayHealth = root.lastSuccess ? "stale" : "error";
-            root.displayError = `Display refresh-rate change failed: ${message}`;
-            console.warn(`Power profile state: ${root.displayError}`);
+            if (root.displayPhase === "targetAction") {
+                root.startFallback();
+                return;
+            }
+            root.failDisplay(`Display refresh-rate change failed: ${message}`);
         }
     }
 
@@ -127,7 +226,7 @@ QtObject {
         target: UPower
 
         function onOnBatteryChanged(): void {
-            policyTimer.restart();
+            root.policyTimer.restart();
         }
     }
 

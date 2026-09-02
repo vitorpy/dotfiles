@@ -60,6 +60,12 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
+Install or update only the personal-workstation Notion CLI with:
+
+```bash
+~/.config/arch/apply-ansible.sh --limit localhost --tags notion-cli
+```
+
 ## Workstation Memory Pressure
 
 The workstation profile manages a capped zram device and a conservative

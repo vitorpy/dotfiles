@@ -1,0 +1,4 @@
+---
+# Personal workstations inherit the complete workstation profile and add tools
+# that should not be installed on corporate machines.
+arch_notion_cli_enabled: true

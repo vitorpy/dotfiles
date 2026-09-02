@@ -8,6 +8,9 @@ workstation_vars="${repo_root}/group_vars/workstation.yml"
 corp_vars="${repo_root}/group_vars/corp_workstation.yml"
 inventory="${repo_root}/inventory/hosts.yml"
 archiso_build="${repo_root}/../archiso/framework12/build.sh"
+if [[ ! -f "${archiso_build}" ]]; then
+  archiso_build="${repo_root}/../archiso/framework12/executable_build.sh"
+fi
 ansible_temp="$(mktemp -d /tmp/ansible-corp-workstation-test.XXXXXX)"
 trap 'rm -rf -- "${ansible_temp}"' EXIT
 inventory_json="$(
@@ -47,7 +50,8 @@ require_literal "arch_aur_packages_corporate" "${archiso_build}"
 jq -e '
   .corp_workstation.hosts == ["rivest"] and
   (.workstation.children | index("corp_workstation") != null) and
-  .workstation.hosts == ["localhost"]
+  (.workstation.children | index("personal_workstation") != null) and
+  .personal_workstation.hosts == ["localhost"]
 ' <<< "${inventory_json}" >/dev/null
 
 require_single_package_declaration 1password

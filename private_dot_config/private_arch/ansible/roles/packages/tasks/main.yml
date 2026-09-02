@@ -29,6 +29,16 @@
   tags:
     - packages
 
+- name: Validate Notion CLI platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["system"] == "Linux"
+      - ansible_facts["architecture"] == "x86_64"
+    fail_msg: "The managed Notion CLI binary currently supports Linux x86_64 only."
+  when: arch_notion_cli_enabled | bool
+  tags:
+    - packages
+
 - name: Create managed package cache directory
   ansible.builtin.file:
     path: /var/cache/arch-ansible
@@ -36,7 +46,66 @@
     owner: root
     group: root
     mode: "0755"
-  when: arch_oauth2l_enabled | bool
+  when: (arch_oauth2l_enabled | bool) or (arch_notion_cli_enabled | bool)
+  tags:
+    - packages
+
+- name: Download official Notion CLI archive
+  ansible.builtin.get_url:
+    url: >-
+      https://ntn.dev/releases/v{{ arch_notion_cli_version }}/ntn-x86_64-unknown-linux-musl.tar.gz
+    dest: >-
+      /var/cache/arch-ansible/ntn-{{ arch_notion_cli_version }}-linux-x64.tar.gz
+    checksum: "{{ arch_notion_cli_archive_checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: arch_notion_cli_enabled | bool
+  tags:
+    - packages
+
+- name: Create versioned Notion CLI directory
+  ansible.builtin.file:
+    path: "/usr/local/lib/notion-cli/{{ arch_notion_cli_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: arch_notion_cli_enabled | bool
+  tags:
+    - packages
+
+- name: Install official Notion CLI binary
+  ansible.builtin.unarchive:
+    src: >-
+      /var/cache/arch-ansible/ntn-{{ arch_notion_cli_version }}-linux-x64.tar.gz
+    dest: "/usr/local/lib/notion-cli/{{ arch_notion_cli_version }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: "/usr/local/lib/notion-cli/{{ arch_notion_cli_version }}/ntn"
+    owner: root
+    group: root
+  when: arch_notion_cli_enabled | bool
+  tags:
+    - packages
+
+- name: Link managed Notion CLI binary
+  ansible.builtin.file:
+    src: "/usr/local/lib/notion-cli/{{ arch_notion_cli_version }}/ntn"
+    dest: /usr/local/bin/ntn
+    state: link
+    owner: root
+    group: root
+    force: true
+  when: arch_notion_cli_enabled | bool
+  tags:
+    - packages
+
+- name: Verify managed Notion CLI binary
+  ansible.builtin.command: /usr/local/bin/ntn --version
+  changed_when: false
+  when: arch_notion_cli_enabled | bool
   tags:
     - packages
 

@@ -14,12 +14,12 @@ DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then
     DRY_RUN=true
     TEMP_DIR=$(mktemp -d /tmp/bw-restore.XXXXXX)
+    trap 'rm -rf -- "$TEMP_DIR"' EXIT
     SSH_DIR="$TEMP_DIR/.ssh"
     echo "==> DRY RUN MODE - restoring to $TEMP_DIR"
 else
     SSH_DIR="$HOME/.ssh"
-    GPG_HOME="$HOME/.gnupg"
-    echo "==> Restoring SSH and GPG keys from Bitwarden..."
+    echo "==> Restoring SSH keys from Bitwarden..."
 fi
 
 # Create .ssh directory if it doesn't exist
@@ -130,70 +130,18 @@ if ! restore_ssh_key "Git" "vitorpy"; then
 fi
 restore_ssh_key "SSH Key - id_ed25519" "id_ed25519"
 
-# Restore GPG keys
-echo "==> Restoring GPG keys..."
-
-# Function to restore GPG key
-restore_gpg_key() {
-    local item_name="$1"
-    local item_json notes private_key safe_name import_output
-
-    echo "  - Restoring $item_name..."
-
-    if ! item_json="$(get_bw_item_by_exact_name "$item_name" 2>/dev/null)"; then
-        echo "    WARNING: $item_name was not found uniquely in Bitwarden, skipping"
-        return
-    fi
-    notes="$(jq -r '.notes // empty' <<< "$item_json")"
-
-    # Extract private key (between "Private Key:" and "Public Key:")
-    private_key="$(
-        printf '%s\n' "$notes" |
-            sed -n '/Private Key:/,/Public Key:/p' |
-            sed '1d;$d'
-    )"
-    if [[ -z "$private_key" ]]; then
-        echo "    WARNING: $item_name does not contain a private GPG key, skipping"
-        return 1
-    fi
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        # In dry-run, just save to file
-        safe_name="$(printf '%s\n' "$item_name" | sed 's/[^a-zA-Z0-9]/_/g')"
-        printf '%s\n' "$private_key" > "$TEMP_DIR/${safe_name}.asc"
-        echo "    ✓ Would import GPG key: $item_name (saved to $TEMP_DIR/${safe_name}.asc)"
-    else
-        # Import private key
-        if ! import_output="$(printf '%s\n' "$private_key" | gpg --import 2>&1)"; then
-            printf '%s\n' "$import_output" >&2
-            echo "    WARNING: GPG import failed for $item_name"
-            return 1
-        fi
-        printf '%s\n' "$import_output" | grep -v "key.*unchanged" || true
-        echo "    ✓ Imported GPG key: $item_name"
-    fi
-}
-
-# Restore GPG keys
-restore_gpg_key "GPG Key - vitor@vitorpy.com"
-restore_gpg_key "GPG Key - vitor@darklakelabs.com"
-
 echo ""
 if [[ "$DRY_RUN" == "true" ]]; then
-    echo "==> DRY RUN - Files created in $TEMP_DIR"
+    echo "==> DRY RUN successful - temporary files in $TEMP_DIR"
     echo ""
     echo "Directory contents:"
     ls -lah "$TEMP_DIR"
     ls -lah "$SSH_DIR"
-    echo ""
-    read -p "Press Enter to clean up and delete $TEMP_DIR..."
-    rm -rf "$TEMP_DIR"
-    echo "✓ Cleaned up temporary directory"
+    echo "==> Temporary files will be removed automatically"
 else
     echo "==> Restore complete!"
     echo ""
     echo "SSH keys restored to ~/.ssh/"
-    echo "GPG keys imported to GPG keyring"
     echo ""
     echo "To add SSH keys to ssh-agent, run:"
     echo "  ssh-add ~/.ssh/vitorpy"

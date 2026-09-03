@@ -15,7 +15,8 @@ general {
 
 auth {
     fingerprint {
-        enabled = false
+        # Fingerprint auth is opt-in for hosts with a verified reader and enrollment.
+        enabled = {{ eq .chezmoi.hostname "zygalski" }}
         ready_message = Touch sensor to unlock
         present_message = Scanning…
         retry_delay = 250

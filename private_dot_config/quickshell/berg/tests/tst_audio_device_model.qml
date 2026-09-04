@@ -76,4 +76,34 @@ TestCase {
         compare(devices.length, 1);
         compare(devices[0].name, "sink");
     }
+
+    function test_defaultSinkTransitionSuppressesStartupAndDuplicates() {
+        const speakers = node(1, "speakers", "Laptop speakers", "Audio/Sink", true, false);
+
+        const startup = AudioDeviceModel.defaultSinkTransition("", false, speakers);
+        verify(startup.initialized);
+        verify(!startup.shouldAnnounce);
+        compare(startup.name, "speakers");
+
+        const unchanged = AudioDeviceModel.defaultSinkTransition(
+            startup.name,
+            startup.initialized,
+            speakers
+        );
+        verify(!unchanged.shouldAnnounce);
+    }
+
+    function test_defaultSinkTransitionAnnouncesRealRouteChange() {
+        const jabra = node(2, "jabra-output", "Jabra Evolve", "Audio/Sink", true, false);
+        const changed = AudioDeviceModel.defaultSinkTransition("speakers", true, jabra);
+
+        verify(changed.shouldAnnounce);
+        compare(changed.name, "jabra-output");
+        compare(changed.label, "Jabra Evolve");
+
+        const unavailable = AudioDeviceModel.defaultSinkTransition(changed.name, true, null);
+        verify(unavailable.initialized);
+        verify(!unavailable.shouldAnnounce);
+        compare(unavailable.name, "");
+    }
 }

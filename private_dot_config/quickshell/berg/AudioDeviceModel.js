@@ -57,6 +57,18 @@ function labelFor(node, kind) {
         || (kind === "source" ? "Unknown input" : "Unknown output");
 }
 
+function defaultSinkTransition(previousName, initialized, sink) {
+    const name = text(sink && sink.name);
+    return {
+        name: name,
+        initialized: Boolean(initialized) || name.length > 0,
+        shouldAnnounce: Boolean(initialized)
+            && name.length > 0
+            && name !== text(previousName),
+        label: labelFor(sink, "sink")
+    };
+}
+
 function compareDevices(left, right) {
     if (left.jabra !== right.jabra)
         return left.jabra ? -1 : 1;

@@ -54,6 +54,21 @@ These files are intentionally not portable dotfiles:
 Audio devices, brightness devices, media players, monitors, and power state are
 discovered at runtime. They do not require per-host identifiers in Berg.
 
+### Preferred audio hardware
+
+WirePlumber policy in
+`~/.config/wireplumber/wireplumber.conf.d/51-prefer-jabra.conf` prefers Jabra
+ALSA sinks and sources whenever they are connected. It matches the stable card
+family name rather than a USB serial number or transient PipeWire node ID. The
+session priority is deliberately higher than WirePlumber's remembered-default
+bonus, so an external route change cannot silently leave the internal audio
+device selected while the Jabra is available. Normal automatic fallback still
+applies while the Jabra is disconnected.
+
+After changing this policy, restart the user service with
+`systemctl --user restart wireplumber.service`. To roll it back, remove the
+fragment through chezmoi, apply that removal, and restart WirePlumber again.
+
 ### Internal display policy
 
 Berg only changes an active internal `eDP-*` panel. It discovers the panel's

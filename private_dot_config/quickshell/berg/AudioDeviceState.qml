@@ -18,8 +18,12 @@ Scope {
     property var sourceDevices: []
     property string pendingKind: ""
     property string pendingLabel: ""
+    property string pendingSinkName: ""
+    property bool pendingSinkAnnounced: false
     property string pendingScreenName: ""
     property string lastError: ""
+    property string observedSinkName: ""
+    property bool sinkObservationInitialized: false
 
     function scheduleRefresh(): void {
         settleTimer.stop();
@@ -65,6 +69,8 @@ Scope {
 
         pendingKind = kind;
         pendingLabel = AudioDeviceModel.labelFor(node, kind);
+        pendingSinkName = kind === "sink" ? String(node.name) : "";
+        pendingSinkAnnounced = false;
         pendingScreenName = screenName;
         lastError = "";
 
@@ -81,6 +87,35 @@ Scope {
         ];
         routeJob.refresh();
         return true;
+    }
+
+    function observeDefaultSink(): void {
+        const transition = AudioDeviceModel.defaultSinkTransition(
+            observedSinkName,
+            sinkObservationInitialized,
+            Pipewire.defaultAudioSink
+        );
+        observedSinkName = transition.name;
+        sinkObservationInitialized = transition.initialized;
+
+        if (!transition.shouldAnnounce)
+            return;
+
+        const pendingSinkMatched = pendingKind === "sink"
+            && transition.name === pendingSinkName;
+        const requestedScreenName = pendingSinkMatched ? pendingScreenName : "";
+        if (pendingSinkMatched)
+            pendingSinkAnnounced = true;
+
+        osd.showMessage("volume", `Audio output: ${transition.label}`, requestedScreenName);
+    }
+
+    function clearPending(): void {
+        pendingKind = "";
+        pendingLabel = "";
+        pendingSinkName = "";
+        pendingSinkAnnounced = false;
+        pendingScreenName = "";
     }
 
     function selectNamed(kind: string, nodeName: string, screenName: string): bool {
@@ -112,6 +147,7 @@ Scope {
             switching: switching,
             defaultSink: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.name : "",
             defaultSource: Pipewire.defaultAudioSource ? Pipewire.defaultAudioSource.name : "",
+            observedSink: observedSinkName,
             sinks: sinkDevices.map(device => ({
                 name: device.name,
                 label: device.label,
@@ -148,19 +184,23 @@ Scope {
 
         onSucceeded: {
             const kindLabel = root.pendingKind === "source" ? "Audio input" : "Audio output";
-            root.osd.showMessage(
-                root.pendingKind === "source" ? "microphone" : "volume",
-                `${kindLabel}: ${root.pendingLabel}`,
-                root.pendingScreenName
-            );
+            if (root.pendingKind === "source" || !root.pendingSinkAnnounced) {
+                root.osd.showMessage(
+                    root.pendingKind === "source" ? "microphone" : "volume",
+                    `${kindLabel}: ${root.pendingLabel}`,
+                    root.pendingScreenName
+                );
+            }
             root.lastError = "";
             root.scheduleRefresh();
+            root.clearPending();
         }
 
         onFailed: message => {
             root.lastError = message;
             root.osd.showMessage("warning", "Audio route change failed", root.pendingScreenName);
             root.scheduleRefresh();
+            root.clearPending();
         }
     }
 
@@ -206,6 +246,7 @@ Scope {
 
         function onDefaultAudioSinkChanged(): void {
             root.scheduleRefresh();
+            root.observeDefaultSink();
         }
 
         function onDefaultAudioSourceChanged(): void {
@@ -213,5 +254,6 @@ Scope {
         }
     }
 
+    Component.onCompleted: observeDefaultSink()
     onPanelOpenChanged: scheduleRefresh()
 }

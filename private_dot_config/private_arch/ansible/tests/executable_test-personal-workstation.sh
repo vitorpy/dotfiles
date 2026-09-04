@@ -8,6 +8,7 @@ personal_vars="${repo_root}/group_vars/personal_workstation.yml"
 corp_vars="${repo_root}/group_vars/corp_workstation.yml"
 inventory="${repo_root}/inventory/hosts.yml"
 package_tasks="${repo_root}/roles/packages/tasks/main.yml"
+google_earth_desktop="${repo_root}/roles/packages/templates/google-earth-pro.desktop.j2"
 ansible_temp="$(mktemp -d /tmp/ansible-personal-workstation-test.XXXXXX)"
 trap 'rm -rf -- "${ansible_temp}"' EXIT
 inventory_json="$(
@@ -40,6 +41,8 @@ require_literal() {
 
 require_literal "arch_notion_cli_enabled: false" "${all_vars}"
 require_literal "arch_notion_cli_enabled: true" "${personal_vars}"
+require_literal "arch_google_earth_pro_desktop_override_enabled: false" "${all_vars}"
+require_literal "arch_google_earth_pro_desktop_override_enabled: true" "${personal_vars}"
 require_literal "arch_aur_packages_personal: []" "${all_vars}"
 require_literal "arch_aur_packages_personal:" "${personal_vars}"
 require_literal "  - claude-code" "${personal_vars}"
@@ -49,6 +52,9 @@ require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
 require_literal "Download official Notion CLI archive" "${package_tasks}"
 require_literal "checksum: \"{{ arch_notion_cli_archive_checksum }}\"" "${package_tasks}"
 require_literal "Verify managed Notion CLI binary" "${package_tasks}"
+require_literal "Install managed Google Earth Pro desktop override" "${package_tasks}"
+require_literal "    - google-earth-pro" "${package_tasks}"
+require_literal "Exec=/usr/bin/env BROWSER=/usr/bin/google-chrome-stable" "${google_earth_desktop}"
 
 jq -e '
   .personal_workstation.hosts == ["localhost"] and
@@ -59,11 +65,13 @@ jq -e '
 
 jq -e '
   .arch_notion_cli_enabled == true and
+  .arch_google_earth_pro_desktop_override_enabled == true and
   (.arch_aur_packages_personal | index("claude-code") != null) and
   (.arch_aur_packages_personal | index("google-earth-pro") != null)
 ' <<< "${personal_host_json}" >/dev/null
 jq -e '
   .arch_notion_cli_enabled == false and
+  .arch_google_earth_pro_desktop_override_enabled == false and
   (.arch_aur_packages_personal | index("claude-code") == null) and
   (.arch_aur_packages_personal | index("google-earth-pro") == null)
 ' <<< "${corp_host_json}" >/dev/null

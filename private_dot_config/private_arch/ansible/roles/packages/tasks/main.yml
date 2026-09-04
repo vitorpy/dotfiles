@@ -305,6 +305,95 @@
   tags:
     - packages
 
+- name: Check managed Google Earth Pro executable
+  ansible.builtin.stat:
+    path: /opt/google/earth/pro/google-earth-pro
+    follow: true
+  register: packages_google_earth_pro_executable
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Check managed Google Chrome executable
+  ansible.builtin.stat:
+    path: /usr/bin/google-chrome-stable
+    follow: true
+  register: packages_google_chrome_executable
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Require Google Earth Pro for its desktop override
+  ansible.builtin.assert:
+    that:
+      - packages_google_earth_pro_executable.stat.exists | default(false)
+      - packages_google_earth_pro_executable.stat.isreg | default(false)
+      - packages_google_earth_pro_executable.stat.executable | default(false)
+      - packages_google_chrome_executable.stat.exists | default(false)
+      - packages_google_chrome_executable.stat.isreg | default(false)
+      - packages_google_chrome_executable.stat.executable | default(false)
+    fail_msg: >-
+      Google Earth Pro or Google Chrome is not installed. Apply the packages
+      tag before the google-earth-pro desktop override tag.
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Create primary user applications directory
+  ansible.builtin.file:
+    path: "{{ arch_primary_user_home }}/.local/share/applications"
+    state: directory
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0755"
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Install managed Google Earth Pro desktop override
+  ansible.builtin.template:
+    src: google-earth-pro.desktop.j2
+    dest: >-
+      {{ arch_primary_user_home }}/.local/share/applications/google-earth-pro.desktop
+    owner: "{{ arch_primary_user }}"
+    group: "{{ arch_primary_user }}"
+    mode: "0644"
+  register: packages_google_earth_pro_desktop_override
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Validate managed Google Earth Pro desktop override
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/desktop-file-validate
+      {{ arch_primary_user_home }}/.local/share/applications/google-earth-pro.desktop
+  changed_when: false
+  when: arch_google_earth_pro_desktop_override_enabled | bool
+  tags:
+    - packages
+    - google-earth-pro
+
+- name: Refresh primary user desktop entry cache
+  ansible.builtin.command:
+    cmd: >-
+      /usr/bin/update-desktop-database
+      {{ arch_primary_user_home }}/.local/share/applications
+  become: true
+  become_user: "{{ arch_primary_user }}"
+  changed_when: true
+  when:
+    - arch_google_earth_pro_desktop_override_enabled | bool
+    - packages_google_earth_pro_desktop_override.changed
+  tags:
+    - packages
+    - google-earth-pro
+
 - name: Query explicitly installed native packages
   ansible.builtin.command: pacman -Qqen
   register: packages_native_explicit_query

@@ -170,6 +170,7 @@ arch_aur_packages: []
 arch_aur_makepkg_disable_debug: true
 arch_aur_makepkg_no_debug_conf: /tmp/ansible-makepkg-no-debug.conf
 arch_notion_cli_enabled: false
+arch_google_earth_pro_desktop_override_enabled: false
 arch_notion_cli_version: "0.22.12"
 arch_notion_cli_archive_checksum: >-
   sha256:aaa7f752f0e8e050a052797705687cdfe39daf3f8661a632758ed65a60f2b271

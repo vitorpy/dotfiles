@@ -2,6 +2,7 @@
 # Personal workstations inherit the complete workstation profile and add tools
 # that should not be installed on corporate machines.
 arch_notion_cli_enabled: true
+arch_google_earth_pro_desktop_override_enabled: true
 arch_aur_packages_personal:
   - claude-code
   - google-earth-pro

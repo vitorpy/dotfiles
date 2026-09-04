@@ -4,3 +4,4 @@
 arch_notion_cli_enabled: true
 arch_aur_packages_personal:
   - claude-code
+  - google-earth-pro

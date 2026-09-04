@@ -43,6 +43,7 @@ require_literal "arch_notion_cli_enabled: true" "${personal_vars}"
 require_literal "arch_aur_packages_personal: []" "${all_vars}"
 require_literal "arch_aur_packages_personal:" "${personal_vars}"
 require_literal "  - claude-code" "${personal_vars}"
+require_literal "  - google-earth-pro" "${personal_vars}"
 require_literal "+ arch_aur_packages_personal" "${repo_root}/group_vars/workstation.yml"
 require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
 require_literal "Download official Notion CLI archive" "${package_tasks}"
@@ -58,11 +59,13 @@ jq -e '
 
 jq -e '
   .arch_notion_cli_enabled == true and
-  (.arch_aur_packages_personal | index("claude-code") != null)
+  (.arch_aur_packages_personal | index("claude-code") != null) and
+  (.arch_aur_packages_personal | index("google-earth-pro") != null)
 ' <<< "${personal_host_json}" >/dev/null
 jq -e '
   .arch_notion_cli_enabled == false and
-  (.arch_aur_packages_personal | index("claude-code") == null)
+  (.arch_aur_packages_personal | index("claude-code") == null) and
+  (.arch_aur_packages_personal | index("google-earth-pro") == null)
 ' <<< "${corp_host_json}" >/dev/null
 
 echo "Personal workstation invariants passed"

@@ -102,3 +102,9 @@ function verifies(serializedMonitors, displayPolicy, expectedRefreshRate) {
         && Number(monitor.height) === displayPolicy.height
         && Math.abs(Number(monitor.refreshRate) - Number(expectedRefreshRate)) <= 0.05;
 }
+
+function verificationOutcome(serializedMonitors, displayPolicy, expectedRefreshRate, attempt, maxAttempts) {
+    if (verifies(serializedMonitors, displayPolicy, expectedRefreshRate))
+        return "accepted";
+    return attempt < maxAttempts ? "retry" : "rejected";
+}

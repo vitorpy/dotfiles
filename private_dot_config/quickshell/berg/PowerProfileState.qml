@@ -15,6 +15,8 @@ QtObject {
     property string displayPhase: "idle"
     property string displayStatus: ""
     property bool displayPolicyPending: false
+    property int displayVerificationAttempt: 0
+    readonly property int maxDisplayVerificationAttempts: 10
 
     readonly property string health: {
         if (profileHealth === "error" || displayHealth === "error")
@@ -66,7 +68,7 @@ QtObject {
     }
 
     function applyDisplayPolicy(): void {
-        if (displayQuery.running || displayAction.running) {
+        if (displayQuery.running || displayAction.running || displayVerificationTimer.running) {
             displayPolicyPending = true;
             return;
         }
@@ -111,6 +113,15 @@ QtObject {
         displayAction.refresh();
     }
 
+    function scheduleDisplayVerification(): void {
+        displayVerificationAttempt = 0;
+        displayVerificationTimer.restart();
+    }
+
+    function retryDisplayVerification(): void {
+        displayVerificationTimer.restart();
+    }
+
     function consumeDisplayQuery(output: string): void {
         try {
             if (displayPhase === "discover") {
@@ -129,8 +140,19 @@ QtObject {
             }
 
             if (displayPhase === "verifyTarget") {
-                if (PowerProfileDisplay.verifies(output, displayPolicy, displayPolicy.targetRefreshRate)) {
+                const outcome = PowerProfileDisplay.verificationOutcome(
+                    output,
+                    displayPolicy,
+                    displayPolicy.targetRefreshRate,
+                    displayVerificationAttempt,
+                    maxDisplayVerificationAttempts
+                );
+                if (outcome === "accepted") {
                     acceptDisplay(displayPolicy.targetRefreshRate, false);
+                    return;
+                }
+                if (outcome === "retry") {
+                    retryDisplayVerification();
                     return;
                 }
                 startFallback();
@@ -138,8 +160,19 @@ QtObject {
             }
 
             if (displayPhase === "verifyFallback") {
-                if (PowerProfileDisplay.verifies(output, displayPolicy, displayPolicy.fallbackRefreshRate)) {
+                const outcome = PowerProfileDisplay.verificationOutcome(
+                    output,
+                    displayPolicy,
+                    displayPolicy.fallbackRefreshRate,
+                    displayVerificationAttempt,
+                    maxDisplayVerificationAttempts
+                );
+                if (outcome === "accepted") {
                     acceptDisplay(displayPolicy.fallbackRefreshRate, true);
+                    return;
+                }
+                if (outcome === "retry") {
+                    retryDisplayVerification();
                     return;
                 }
                 failDisplay("Display fallback mode was not applied");
@@ -184,6 +217,15 @@ QtObject {
         onTriggered: root.applyAutomaticPolicy()
     }
 
+    readonly property Timer displayVerificationTimer: Timer {
+        interval: 200
+        repeat: false
+        onTriggered: {
+            root.displayVerificationAttempt += 1;
+            root.displayQuery.refresh();
+        }
+    }
+
     readonly property ProcessJob displayQuery: ProcessJob {
         command: ["/usr/bin/hyprctl", "-j", "monitors"]
         runOnStart: false
@@ -197,7 +239,7 @@ QtObject {
         timeoutMs: 5000
         onSucceeded: {
             root.displayPhase = root.displayPhase === "fallbackAction" ? "verifyFallback" : "verifyTarget";
-            root.displayQuery.refresh();
+            root.scheduleDisplayVerification();
         }
         onFailed: (message, exitCode, output, errorOutput) => {
             if (root.displayPhase === "targetAction") {

@@ -121,4 +121,21 @@ TestCase {
             monitor("eDP-1", 1920, 1200, 60, ["1920x1200@60.00Hz"])
         ]), result, 48));
     }
+
+    function test_retriesVerificationBeforeRejecting() {
+        const policy = PowerProfileDisplay.policy(serialized([
+            monitor("eDP-1", 2256, 1504, 60, ["2256x1504@60.00Hz", "2256x1504@48.00Hz"])
+        ]), 48);
+        const oldMode = serialized([
+            monitor("eDP-1", 2256, 1504, 60, ["2256x1504@60.00Hz", "2256x1504@48.00Hz"])
+        ]);
+        const appliedMode = serialized([
+            monitor("eDP-1", 2256, 1504, 47.998, ["2256x1504@60.00Hz", "2256x1504@48.00Hz"])
+        ]);
+
+        compare(PowerProfileDisplay.verificationOutcome(oldMode, policy, 48, 1, 10), "retry");
+        compare(PowerProfileDisplay.verificationOutcome(oldMode, policy, 48, 9, 10), "retry");
+        compare(PowerProfileDisplay.verificationOutcome(oldMode, policy, 48, 10, 10), "rejected");
+        compare(PowerProfileDisplay.verificationOutcome(appliedMode, policy, 48, 1, 10), "accepted");
+    }
 }

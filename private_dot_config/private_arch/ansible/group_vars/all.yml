@@ -394,6 +394,8 @@ arch_aur_packages_communication:
   - chatgpt-desktop
   - zoom
 
+arch_aur_packages_personal: []
+
 arch_aur_packages_corporate:
   - 1password
   - 1password-cli

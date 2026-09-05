@@ -46,7 +46,7 @@ require_literal "arch_aur_packages_personal: []" "${all_vars}"
 require_literal "arch_aur_packages_personal:" "${personal_vars}"
 require_literal "  - shellcheck" "${all_vars}"
 require_literal "  - claude-code" "${personal_vars}"
-require_literal "  - gemini-cli" "${personal_vars}"
+require_literal "  - antigravity-cli" "${personal_vars}"
 require_literal "  - google-earth-pro" "${personal_vars}"
 require_literal "+ arch_aur_packages_personal" "${repo_root}/group_vars/workstation.yml"
 require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
@@ -69,7 +69,8 @@ jq -e '
   .arch_google_earth_pro_desktop_override_enabled == true and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") != null) and
-  (.arch_aur_packages_personal | index("gemini-cli") != null) and
+  (.arch_aur_packages_personal | index("antigravity-cli") != null) and
+  (.arch_aur_packages_personal | index("gemini-cli") == null) and
   (.arch_aur_packages_personal | index("google-earth-pro") != null)
 ' <<< "${personal_host_json}" >/dev/null
 jq -e '
@@ -77,6 +78,7 @@ jq -e '
   .arch_google_earth_pro_desktop_override_enabled == false and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") == null) and
+  (.arch_aur_packages_personal | index("antigravity-cli") == null) and
   (.arch_aur_packages_personal | index("gemini-cli") == null) and
   (.arch_aur_packages_personal | index("google-earth-pro") == null)
 ' <<< "${corp_host_json}" >/dev/null

@@ -1,0 +1,11 @@
+[gdrive]
+type = drive
+client_id = {{ (bitwardenFields "item" "rclone gdrive").client_id.value }}
+client_secret = {{ (bitwardenFields "item" "rclone gdrive").client_secret.value }}
+scope = drive.file
+root_folder_id = 15JmTWrvx_iwJcEen_rrUXUkDO4wSib28
+token = {{ (bitwardenFields "item" "rclone gdrive").token.value }}
+
+[box]
+type = box
+token = {{ (bitwardenFields "item" "rclone box").token.value }}

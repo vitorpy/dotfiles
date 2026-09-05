@@ -312,6 +312,7 @@ arch_pacman_packages_multimedia:
 
 arch_pacman_packages_development:
   - ansible-lint
+  - shellcheck
   - ccache
   - cargo-audit
   - cargo-hack

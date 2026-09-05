@@ -6,7 +6,6 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 all_vars="${repo_root}/group_vars/all.yml"
 personal_vars="${repo_root}/group_vars/personal_workstation.yml"
 corp_vars="${repo_root}/group_vars/corp_workstation.yml"
-inventory="${repo_root}/inventory/hosts.yml"
 package_tasks="${repo_root}/roles/packages/tasks/main.yml"
 google_earth_desktop="${repo_root}/roles/packages/templates/google-earth-pro.desktop.j2"
 ansible_temp="$(mktemp -d /tmp/ansible-personal-workstation-test.XXXXXX)"
@@ -45,7 +44,9 @@ require_literal "arch_google_earth_pro_desktop_override_enabled: false" "${all_v
 require_literal "arch_google_earth_pro_desktop_override_enabled: true" "${personal_vars}"
 require_literal "arch_aur_packages_personal: []" "${all_vars}"
 require_literal "arch_aur_packages_personal:" "${personal_vars}"
+require_literal "  - shellcheck" "${all_vars}"
 require_literal "  - claude-code" "${personal_vars}"
+require_literal "  - gemini-cli" "${personal_vars}"
 require_literal "  - google-earth-pro" "${personal_vars}"
 require_literal "+ arch_aur_packages_personal" "${repo_root}/group_vars/workstation.yml"
 require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
@@ -66,13 +67,17 @@ jq -e '
 jq -e '
   .arch_notion_cli_enabled == true and
   .arch_google_earth_pro_desktop_override_enabled == true and
+  (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") != null) and
+  (.arch_aur_packages_personal | index("gemini-cli") != null) and
   (.arch_aur_packages_personal | index("google-earth-pro") != null)
 ' <<< "${personal_host_json}" >/dev/null
 jq -e '
   .arch_notion_cli_enabled == false and
   .arch_google_earth_pro_desktop_override_enabled == false and
+  (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") == null) and
+  (.arch_aur_packages_personal | index("gemini-cli") == null) and
   (.arch_aur_packages_personal | index("google-earth-pro") == null)
 ' <<< "${corp_host_json}" >/dev/null
 

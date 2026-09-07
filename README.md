@@ -74,6 +74,26 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply https://github.com/vitorpy/
 - **Ansible Playbook** (`~/.config/arch/ansible/`) - Declarative system configuration
 - **Apply Script** (`~/.config/arch/apply-ansible.sh`) - Wrapper for the local Ansible run
 
+## GIMP launcher name
+
+`~/.local/share/applications/gimp.desktop` overrides the packaged entry's
+unlocalized name with `GIMP — GNU Image Manipulation Program`, so Hyprlauncher
+0.1.6 can find it by `gimp`. All other fields are copied from Arch's GIMP
+3.2.4-2 desktop entry. This requires GIMP (`gimp-3.2`) and should be refreshed
+from `/usr/share/applications/gimp.desktop` when package metadata changes.
+
+Apply and verify:
+
+```bash
+chezmoi apply ~/.local/share/applications/gimp.desktop
+desktop-file-validate ~/.local/share/applications/gimp.desktop
+chezmoi diff ~/.local/share/applications/gimp.desktop
+```
+
+Open Win+R and search `gimp`; Hyprlauncher watches desktop-entry changes.
+To roll back, run `chezmoi destroy ~/.local/share/applications/gimp.desktop`
+and commit/push the removal. The packaged entry then supplies the name again.
+
 ## Arch Linux Scripts
 
 ### Arts Wallpaper

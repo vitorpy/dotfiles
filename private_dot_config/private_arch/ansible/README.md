@@ -31,12 +31,14 @@ The old destructive LUKS/bootstrap installer has been removed from this tree.
 From `~/.config/arch/ansible`:
 
 ```bash
-ansible-playbook site.yml
+ansible-playbook --limit zygalski site.yml
 ```
 
-`localhost` is the default workstation target via the included inventory.
+`zygalski` is the personal workstation target in the included inventory and uses
+`ansible_connection: local`. Always select the intended host with `--limit`;
+an unfiltered playbook run targets every inventory host.
 
-On this machine, `sudo` may authenticate via fingerprint. For localhost `become` to work reliably, `sudo -n true` must succeed after `sudo -v`. If needed, configure sudo with `timestamp_type=global` or fall back to `ansible-playbook -K site.yml`.
+On this machine, `sudo` may authenticate via fingerprint. For zygalski `become` to work reliably, `sudo -n true` must succeed after `sudo -v`. If needed, configure sudo with `timestamp_type=global` or fall back to `ansible-playbook -K --limit zygalski site.yml`.
 
 This playbook also manages a basic security baseline:
 
@@ -53,7 +55,7 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/personal_workstation.yml` inherits the workstation profile and
   adds personal-only tools, including Claude Code and the official Notion CLI.
-  Localhost is currently the only member.
+  `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
   corporate-only packages. Rivest is currently the only member.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
@@ -63,7 +65,7 @@ To target a different host or profile, extend `inventory/hosts.yml`.
 Install or update only the personal-workstation Notion CLI with:
 
 ```bash
-~/.config/arch/apply-ansible.sh --limit localhost --tags notion-cli
+~/.config/arch/apply-ansible.sh --limit zygalski --tags notion-cli
 ```
 
 ## Workstation Memory Pressure
@@ -86,7 +88,7 @@ systemctl --user daemon-reload
 systemctl --user restart quickshell-berg.service rclone-box.service
 systemctl --user show quickshell-berg.service rclone-box.service \
   -p Id -p Slice -p ManagedOOMPreference
-~/.config/arch/apply-ansible.sh --limit localhost --tags memory
+~/.config/arch/apply-ansible.sh --limit zygalski --tags memory
 ```
 
 The Ansible run installs the policy and starts `systemd-oomd`; reboot once to
@@ -119,7 +121,7 @@ and user services inherit the same policy after a complete activation boundary.
 Apply the policy with:
 
 ```bash
-~/.config/arch/apply-ansible.sh --limit localhost --tags limits
+~/.config/arch/apply-ansible.sh --limit zygalski --tags limits
 ```
 
 The Ansible role deliberately does not reexecute either systemd manager or
@@ -198,7 +200,7 @@ For this workstation, the scoped migration command is:
 
 ```bash
 cd ~/.config/arch/ansible
-ansible-playbook -K --limit localhost \
+ansible-playbook -K --limit zygalski \
   --tags boot,pacnew,keyring \
   -e arch_boot_recovery_confirmed=true site.yml
 ```

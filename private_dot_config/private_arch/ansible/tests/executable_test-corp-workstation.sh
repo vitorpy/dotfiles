@@ -51,7 +51,7 @@ jq -e '
   .corp_workstation.hosts == ["rivest"] and
   (.workstation.children | index("corp_workstation") != null) and
   (.workstation.children | index("personal_workstation") != null) and
-  .personal_workstation.hosts == ["localhost"]
+  .personal_workstation.hosts == ["zygalski"]
 ' <<< "${inventory_json}" >/dev/null
 
 require_single_package_declaration 1password

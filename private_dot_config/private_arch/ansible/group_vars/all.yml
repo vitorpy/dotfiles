@@ -340,9 +340,12 @@ arch_pacman_packages_development:
   - texlive-fontsextra
 
 arch_pacman_packages_communication:
-  - telegram-desktop
   - discord
   - signal-desktop
+
+# Telegram is required only on corporate workstations.
+arch_pacman_packages_corporate:
+  - telegram-desktop
 
 arch_pacman_packages_theming:
   - kvantum-qt5

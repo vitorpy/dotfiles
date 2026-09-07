@@ -20,6 +20,7 @@ WORKSTATION_PACKAGE_KEYS=(
   arch_pacman_packages_multimedia
   arch_pacman_packages_development
   arch_pacman_packages_communication
+  arch_pacman_packages_corporate
   arch_pacman_packages_theming
   arch_pacman_packages_utilities
   arch_pacman_packages_browsers

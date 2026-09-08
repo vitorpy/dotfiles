@@ -63,8 +63,10 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 To target a different host or profile, extend `inventory/hosts.yml`.
 
 `framework-system` is included on all workstations for Framework hardware tools;
-`gramps` is included only on personal workstations for genealogy research. Both
-use Arch official repository packages. Apply the package configuration with
+`gramps` is included only on personal workstations for genealogy research, with
+`osm-gps-map` to enable its Geography view and prevent the missing OsmGpsMap
+module warning. Restart Gramps after installing the dependency. These packages
+use Arch official repositories. Apply the package configuration with
 `~/.config/arch/apply-ansible.sh --limit zygalski --tags packages` (use
 `--limit rivest` on the corporate workstation). To roll back these additions,
 remove their package entries, synchronize with Chezmoi, and run the same command;

@@ -54,7 +54,7 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/personal_workstation.yml` inherits the workstation profile and
-  adds personal-only tools, including Gramps, Claude Code, and the official Notion CLI.
+  adds personal-only tools, including Claude Code and the official Notion CLI.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
   corporate-only packages. Rivest is currently the only member.
@@ -62,14 +62,11 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
-`framework-system` is included on all workstations for Framework hardware tools;
-`gramps` is included only on personal workstations for genealogy research, with
-`osm-gps-map` to enable its Geography view and prevent the missing OsmGpsMap
-module warning. Restart Gramps after installing the dependency. These packages
-use Arch official repositories. Apply the package configuration with
+`framework-system` is included on all workstations for Framework hardware tools
+and uses the Arch official repositories. Apply the package configuration with
 `~/.config/arch/apply-ansible.sh --limit zygalski --tags packages` (use
-`--limit rivest` on the corporate workstation). To roll back these additions,
-remove their package entries, synchronize with Chezmoi, and run the same command;
+`--limit rivest` on the corporate workstation). To roll back this addition,
+remove its package entry, synchronize with Chezmoi, and run the same command;
 the workstation profile prunes undeclared explicit packages.
 
 Install or update only the personal-workstation Notion CLI with:

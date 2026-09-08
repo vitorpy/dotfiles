@@ -5,8 +5,13 @@
 ----------------
 
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
-hl.monitor({ output = "DP-3", mode = "highres", position = "0x0", scale = 1 })
-hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1 })
+-- Keep the 2560px Philips left of the laptop regardless of connection order.
+-- Mixing a fixed DP-3 origin with automatic eDP-1 placement overlapped both
+-- outputs at (0,0), displaying the cursor on both screens. Keep the laptop
+-- at the origin so unplugging the external display needs no repositioning.
+-- Rollback: restore DP-3 to "0x0" and eDP-1 to "auto", then hyprctl reload.
+hl.monitor({ output = "DP-3", mode = "highres", position = "-2560x0", scale = 1 })
+hl.monitor({ output = "eDP-1", mode = "highres", position = "0x0", scale = 1 })
 
 ----------------
 -- Programs

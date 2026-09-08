@@ -343,6 +343,8 @@ arch_pacman_packages_communication:
   - discord
   - signal-desktop
 
+arch_pacman_packages_personal: []
+
 # Telegram is required only on corporate workstations.
 arch_pacman_packages_corporate:
   - telegram-desktop
@@ -490,6 +492,7 @@ arch_pacman_packages_system_extras:
   - dosfstools
   - efibootmgr
   - exfatprogs
+  - framework-system
   - gptfdisk
   - intel-ucode
   - libfido2

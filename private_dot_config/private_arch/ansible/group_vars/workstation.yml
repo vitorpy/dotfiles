@@ -90,6 +90,7 @@ arch_pacman_packages: >-
     + arch_pacman_packages_multimedia
     + arch_pacman_packages_development
     + arch_pacman_packages_communication
+    + arch_pacman_packages_personal
     + (arch_pacman_packages_corporate if arch_corp_workstation_enabled else [])
     + arch_pacman_packages_theming
     + arch_pacman_packages_utilities

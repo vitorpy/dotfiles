@@ -54,7 +54,8 @@ If AppArmor or kernel lockdown boot parameters change, reboot after applying the
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/personal_workstation.yml` inherits the workstation profile and
-  adds personal-only tools, including Claude Code and the official Notion CLI.
+  adds personal-only tools, including QGIS, Claude Code, and the official Notion CLI.
+  QGIS uses the official Arch `qgis` package for geographic data analysis.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
   corporate-only packages. Rivest is currently the only member.

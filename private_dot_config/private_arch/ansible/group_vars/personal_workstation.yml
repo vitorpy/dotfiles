@@ -11,3 +11,4 @@ arch_aur_packages_personal:
   - claude-desktop
   - antigravity-cli
   - google-earth-pro
+  - grok-bot-bin

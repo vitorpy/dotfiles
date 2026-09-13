@@ -8,5 +8,6 @@ arch_pacman_packages_personal:
 
 arch_aur_packages_personal:
   - claude-code
+  - claude-desktop
   - antigravity-cli
   - google-earth-pro

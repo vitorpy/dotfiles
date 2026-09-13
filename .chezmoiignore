@@ -29,3 +29,9 @@ tests
 .config/systemd/user/rclone-box.service
 .config/systemd/user/graphical-session.target.wants/rclone-box.service
 {{- end }}
+
+# Claude Desktop app launcher override: only installed on the personal
+# workstation (zygalski), via arch_aur_packages_personal
+{{- if ne .chezmoi.hostname "zygalski" }}
+.local/share/applications/com.anthropic.Claude.desktop
+{{- end }}

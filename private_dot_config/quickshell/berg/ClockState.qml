@@ -324,7 +324,7 @@ QtObject {
             "/usr/bin/env",
             `TZ=${root.warsawTimezone}`,
             "/usr/bin/date",
-            "+%d.%m %H:%M\\n%A, %d %B · %H:%M"
+            "+%d.%m %H:%M%n%A, %d %B · %H:%M"
         ]
         runOnStart: false
         timeoutMs: 2000

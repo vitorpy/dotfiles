@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "ClockDisplay.js" as ClockDisplay
 import "ClockFreshness.js" as ClockFreshness
 
 QtObject {
@@ -37,12 +38,12 @@ QtObject {
     readonly property string panelScreenName: panelOpen ? popouts.screenName : ""
     readonly property bool artworkRotating: artworkRotation.running
 
-    readonly property string text: {
-        const local = Qt.formatDateTime(now, "ddd, dd.MM HH:mm");
-        return currentTimezone !== warsawTimezone && warsawCompact
-            ? `${local} (${warsawCompact})`
-            : local;
-    }
+    readonly property string barDate: Qt.formatDateTime(now, "ddd d MMM")
+    readonly property string barTime: Qt.formatDateTime(now, "HH:mm")
+    readonly property string barWarsaw: currentTimezone !== warsawTimezone && warsawCompact
+        ? ClockDisplay.warsawLabel(Qt.formatDateTime(now, "dd.MM"), warsawCompact)
+        : ""
+    readonly property string text: `${barDate} ${barTime}${barWarsaw ? ` | ${barWarsaw}` : ""}`
 
     readonly property string tooltip: {
         const sections = [

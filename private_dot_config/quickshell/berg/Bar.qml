@@ -384,11 +384,58 @@ Scope {
                     onLeftClicked: root.barState.toggleClockPanel(root.modelData.name)
                     onRightClicked: root.barState.refreshClock()
 
-                    MetricLabel {
-                        theme: theme
-                        label: root.barState.clock.text
-                        foreground: root.unhealthy(root.barState.clock) ? theme.error : theme.foreground
-                        warning: root.unhealthy(root.barState.clock)
+                    Row {
+                        spacing: 10
+
+                        Text {
+                            text: root.barState.clock.barDate
+                            height: 22
+                            verticalAlignment: Text.AlignVCenter
+                            color: theme.foregroundMuted
+                            font.family: theme.textFont
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                        }
+
+                        Text {
+                            text: root.barState.clock.barTime
+                            height: 22
+                            verticalAlignment: Text.AlignVCenter
+                            color: root.unhealthy(root.barState.clock) ? theme.error : theme.foreground
+                            font.family: theme.textFont
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                        }
+
+                        Rectangle {
+                            visible: root.barState.clock.barWarsaw.length > 0
+                            y: 2
+                            width: 1
+                            height: 18
+                            color: theme.outlineVariant
+                        }
+
+                        Text {
+                            visible: root.barState.clock.barWarsaw.length > 0
+                            text: root.barState.clock.barWarsaw
+                            height: 22
+                            verticalAlignment: Text.AlignVCenter
+                            color: theme.foregroundMuted
+                            font.family: theme.textFont
+                            font.pixelSize: 14
+                            font.weight: Font.Medium
+                        }
+
+                        Text {
+                            visible: root.unhealthy(root.barState.clock)
+                            text: theme.warning
+                            height: 22
+                            verticalAlignment: Text.AlignVCenter
+                            color: theme.error
+                            font.family: theme.symbolFont
+                            font.pixelSize: theme.fontSize
+                            font.weight: Font.Medium
+                        }
                     }
                 }
             }

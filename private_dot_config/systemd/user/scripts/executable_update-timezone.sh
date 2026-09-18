@@ -5,6 +5,7 @@
 
 LOG_FILE="$HOME/.local/share/auto-timezone.log"
 CACHE_FILE="$HOME/.cache/detected-timezone"
+BERG_LOCATION_CACHE="${BERG_LOCATION_CACHE:-$HOME/.cache/quickshell-berg/location.json}"
 MAX_AGE=3600  # Cache for 1 hour
 
 # Function to log messages
@@ -62,24 +63,57 @@ get_timezone_from_ip() {
     return 1
 }
 
-# Check if cache exists and is recent
-if [ -f "$CACHE_FILE" ]; then
+get_timezone_from_berg_cache() {
+    local now
+    local tz
+
+    [ -f "$BERG_LOCATION_CACHE" ] || return 1
+    now=$(date +%s)
+    tz=$(jq -er --argjson now "$now" --argjson max_age "$MAX_AGE" '
+        select(type == "object")
+        | select(.updated_at | type == "number")
+        | select(($now - .updated_at) >= 0 and ($now - .updated_at) < $max_age)
+        | .timezone
+        | select(type == "string" and length > 0)
+    ' "$BERG_LOCATION_CACHE" 2>/dev/null) || return 1
+
+    if is_valid_timezone "$tz"; then
+        log "Using Berg location cache timezone $tz"
+        echo "$tz"
+        return 0
+    fi
+
+    log "Ignoring invalid Berg location timezone: ${tz:0:120}"
+    return 1
+}
+
+get_timezone_from_cache() {
+    local cache_age
+    local cached_tz
+
+    [ -f "$CACHE_FILE" ] || return 1
     cache_age=$(($(date +%s) - $(stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)))
-    if [ $cache_age -lt $MAX_AGE ]; then
+    if [ "$cache_age" -ge 0 ] && [ "$cache_age" -lt "$MAX_AGE" ]; then
         cached_tz=$(cat "$CACHE_FILE")
         if is_valid_timezone "$cached_tz"; then
             log "Using cached timezone $cached_tz (age: ${cache_age}s)"
-            exit 0
+            echo "$cached_tz"
+            return 0
         fi
         log "Ignoring invalid cached timezone: ${cached_tz:0:120}"
     fi
-fi
+
+    return 1
+}
 
 # Get current system timezone
 current_tz=$(timedatectl show --property=Timezone --value)
 
-# Detect timezone from IP
-detected_tz=$(get_timezone_from_ip)
+# Prefer Berg's shared location result so weather and the system clock cannot
+# disagree after one provider succeeds while another is unavailable.
+detected_tz=$(get_timezone_from_berg_cache) \
+    || detected_tz=$(get_timezone_from_cache) \
+    || detected_tz=$(get_timezone_from_ip)
 
 if [ -z "$detected_tz" ]; then
     log "Failed to detect timezone from IP"

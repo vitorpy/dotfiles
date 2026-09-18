@@ -555,7 +555,6 @@ Scope {
                             theme: theme
                             glyph: root.batteryGlyph()
                             label: `${root.batteryPercent()}%`
-                            glyphAfter: true
                             foreground: root.batteryPercent() <= 5 ? theme.onErrorColor : (root.batteryPercent() <= 10 ? theme.error : theme.foreground)
                         }
                     }

@@ -6,6 +6,7 @@ import Quickshell.Services.UPower
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "components"
+import "BarLayout.js" as BarLayout
 import "GmailUnread.js" as GmailUnread
 
 Scope {
@@ -358,10 +359,15 @@ Scope {
                 id: centerGroup
 
                 anchors {
-                    horizontalCenter: parent.horizontalCenter
                     verticalCenter: parent.verticalCenter
                 }
 
+                x: BarLayout.collisionAwareX(
+                    layoutRoot.width,
+                    width,
+                    leftRow.x + leftRow.width + 16,
+                    rightGroup.x - 16
+                )
                 width: clockCell.implicitWidth + 16
                 height: 54
                 color: theme.surfaceContainerHigh

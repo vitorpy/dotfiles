@@ -526,36 +526,78 @@ Scope {
                         }
                     }
 
-                    BarCell {
-                        theme: theme
-                        minimumWidth: 100
-                        separator: true
-                        interactive: true
-                        tooltipText: root.healthTooltip(root.barState.powerProfile.tooltip, root.barState.powerProfile)
-                        onLeftClicked: root.barState.cyclePowerProfile(root.modelData.name)
+                    Item {
+                        id: powerBatteryControl
 
-                        MetricLabel {
-                            theme: theme
-                            label: root.barState.powerProfile.label
-                            foreground: root.unhealthy(root.barState.powerProfile) ? theme.error : theme.foreground
-                            warning: root.unhealthy(root.barState.powerProfile)
+                        readonly property bool hasBattery: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
+                        readonly property bool profileRevealed: !hasBattery || powerBatteryHover.hovered
+
+                        implicitWidth: profileReveal.width + (batteryCell.visible ? batteryCell.implicitWidth : 0)
+                        implicitHeight: 54
+                        width: implicitWidth
+                        height: implicitHeight
+
+                        Row {
+                            anchors.fill: parent
+
+                            Item {
+                                id: profileReveal
+
+                                width: BarLayout.hoverRevealWidth(powerBatteryControl.profileRevealed, profileCell.implicitWidth)
+                                height: parent.height
+                                clip: true
+
+                                Behavior on width {
+                                    NumberAnimation {
+                                        duration: 140
+                                        easing.type: Easing.OutCubic
+                                    }
+                                }
+
+                                BarCell {
+                                    id: profileCell
+
+                                    anchors.right: parent.right
+                                    theme: theme
+                                    minimumWidth: 100
+                                    separator: true
+                                    interactive: powerBatteryControl.profileRevealed
+                                    enabled: powerBatteryControl.profileRevealed
+                                    tooltipText: root.healthTooltip(root.barState.powerProfile.tooltip, root.barState.powerProfile)
+                                    onLeftClicked: root.barState.cyclePowerProfile(root.modelData.name)
+
+                                    MetricLabel {
+                                        theme: theme
+                                        label: root.barState.powerProfile.label
+                                        foreground: root.unhealthy(root.barState.powerProfile) ? theme.error : theme.foreground
+                                        warning: root.unhealthy(root.barState.powerProfile)
+                                    }
+                                }
+                            }
+
+                            BarCell {
+                                id: batteryCell
+
+                                theme: theme
+                                visible: powerBatteryControl.hasBattery
+                                minimumWidth: 34
+                                separator: true
+                                hoverable: true
+                                tooltipText: root.batteryTooltip()
+                                backgroundColor: root.batteryPercent() <= 5 ? theme.error : "transparent"
+
+                                MetricLabel {
+                                    theme: theme
+                                    glyph: root.batteryGlyph()
+                                    label: `${root.batteryPercent()}%`
+                                    foreground: root.batteryPercent() <= 5 ? theme.onErrorColor : (root.batteryPercent() <= 10 ? theme.error : theme.foreground)
+                                }
+                            }
                         }
-                    }
 
-                    BarCell {
-                        theme: theme
-                        visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
-                        minimumWidth: 34
-                        separator: true
-                        hoverable: true
-                        tooltipText: root.batteryTooltip()
-                        backgroundColor: root.batteryPercent() <= 5 ? theme.error : "transparent"
-
-                        MetricLabel {
-                            theme: theme
-                            glyph: root.batteryGlyph()
-                            label: `${root.batteryPercent()}%`
-                            foreground: root.batteryPercent() <= 5 ? theme.onErrorColor : (root.batteryPercent() <= 10 ? theme.error : theme.foreground)
+                        HoverHandler {
+                            id: powerBatteryHover
+                            enabled: powerBatteryControl.hasBattery
                         }
                     }
 

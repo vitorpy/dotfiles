@@ -20,4 +20,17 @@ TestCase {
     function test_rightBoundaryWinsWhenGapIsTooNarrow() {
         compare(BarLayout.collisionAwareX(800, 300, 220, 480), 180);
     }
+
+    function test_hoverRevealIsCollapsedAtRest() {
+        compare(BarLayout.hoverRevealWidth(false, 100), 0);
+    }
+
+    function test_hoverRevealUsesContentWidthWhileHovered() {
+        compare(BarLayout.hoverRevealWidth(true, 100), 100);
+    }
+
+    function test_hoverRevealRejectsInvalidWidths() {
+        compare(BarLayout.hoverRevealWidth(true, -1), 0);
+        compare(BarLayout.hoverRevealWidth(true, Number.NaN), 0);
+    }
 }

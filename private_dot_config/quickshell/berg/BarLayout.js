@@ -8,3 +8,8 @@ function collisionAwareX(containerWidth, itemWidth, leftBoundary, rightBoundary)
         ? Math.max(leftBoundary, rightLimited)
         : rightLimited;
 }
+
+function hoverRevealWidth(revealed, contentWidth) {
+    const width = Number(contentWidth);
+    return revealed && Number.isFinite(width) ? Math.max(0, width) : 0;
+}

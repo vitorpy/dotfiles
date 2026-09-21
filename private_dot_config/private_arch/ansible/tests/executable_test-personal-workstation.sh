@@ -49,6 +49,7 @@ require_literal "  - gvfs" "${all_vars}"
 require_literal "  - claude-code" "${personal_vars}"
 require_literal "  - antigravity-cli" "${personal_vars}"
 require_literal "  - google-earth-pro" "${personal_vars}"
+require_literal "  - yamis-icon-theme-git" "${personal_vars}"
 require_literal "+ arch_aur_packages_personal" "${repo_root}/group_vars/workstation.yml"
 require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
 require_literal "Download official Notion CLI archive" "${package_tasks}"
@@ -74,7 +75,8 @@ jq -e '
   (.arch_aur_packages_personal | index("claude-code") != null) and
   (.arch_aur_packages_personal | index("antigravity-cli") != null) and
   (.arch_aur_packages_personal | index("gemini-cli") == null) and
-  (.arch_aur_packages_personal | index("google-earth-pro") != null)
+  (.arch_aur_packages_personal | index("google-earth-pro") != null) and
+  (.arch_aur_packages_personal | index("yamis-icon-theme-git") != null)
 ' <<< "${personal_host_json}" >/dev/null
 jq -e '
   .arch_notion_cli_enabled == false and
@@ -83,7 +85,8 @@ jq -e '
   (.arch_aur_packages_personal | index("claude-code") == null) and
   (.arch_aur_packages_personal | index("antigravity-cli") == null) and
   (.arch_aur_packages_personal | index("gemini-cli") == null) and
-  (.arch_aur_packages_personal | index("google-earth-pro") == null)
+  (.arch_aur_packages_personal | index("google-earth-pro") == null) and
+  (.arch_aur_packages_personal | index("yamis-icon-theme-git") == null)
 ' <<< "${corp_host_json}" >/dev/null
 
 echo "Personal workstation invariants passed"

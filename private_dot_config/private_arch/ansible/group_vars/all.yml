@@ -348,6 +348,7 @@ arch_pacman_packages_personal: []
 
 arch_pacman_packages_theming:
   - kvantum-qt5
+  - qt6ct
   - terminus-font
   - noto-fonts
   - noto-fonts-cjk

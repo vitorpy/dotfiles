@@ -10,8 +10,8 @@ all_vars="${repo_root}/group_vars/all.yml"
 workstation_vars="${repo_root}/group_vars/workstation.yml"
 private_config_root="$(cd "${repo_root}/../.." && pwd)"
 berg_unit="${private_config_root}/systemd/user/quickshell-berg.service"
-rclone_unit="${private_config_root}/systemd/user/rclone-box.service"
 rclone_gdrive_unit="${private_config_root}/systemd/user/rclone-gdrive.service"
+box_unit="${private_config_root}/systemd/user/rclone-box.service"
 
 require_literal() {
   local literal="$1"
@@ -46,11 +46,14 @@ require_literal "ManagedOOMMemoryPressure=kill" "${base_templates}/app-slice-oom
 
 require_literal "Slice=session.slice" "${berg_unit}"
 require_literal "ManagedOOMPreference=omit" "${berg_unit}"
-require_literal "Slice=background.slice" "${rclone_unit}"
-require_literal "ManagedOOMPreference=omit" "${rclone_unit}"
 require_literal "Slice=background.slice" "${rclone_gdrive_unit}"
 require_literal "ManagedOOMPreference=omit" "${rclone_gdrive_unit}"
 
-SYSTEMD_LOG_LEVEL=err systemd-analyze --user verify "${berg_unit}" "${rclone_unit}" "${rclone_gdrive_unit}"
+if [[ -e "${box_unit}" ]]; then
+  echo "retired Box mount unit still exists: ${box_unit}" >&2
+  exit 1
+fi
+
+SYSTEMD_LOG_LEVEL=err systemd-analyze --user verify "${berg_unit}" "${rclone_gdrive_unit}"
 
 echo "Memory-pressure policy invariants passed"

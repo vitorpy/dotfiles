@@ -87,8 +87,8 @@ The workstation profile manages a capped zram device and a conservative
 systemd-oomd policy. The zram formula grows gradually to 32 GiB, uses zstd, and
 keeps swap priority 100. systemd-oomd monitors only `app.slice` at the upstream
 90% swap and 60%-for-30s memory-pressure thresholds. Session infrastructure is
-kept outside that boundary: Berg runs in `session.slice`, while the Box rclone
-mount runs in `background.slice`; both are additionally marked
+kept outside that boundary: Berg runs in `session.slice`, while the GDrive
+rclone mount runs in `background.slice`; both are additionally marked
 `ManagedOOMPreference=omit`.
 
 Apply the Chezmoi user-unit changes first, reload the user manager, and restart
@@ -96,10 +96,10 @@ the two services before enabling oomd:
 
 ```bash
 chezmoi apply ~/.config/systemd/user/quickshell-berg.service \
-  ~/.config/systemd/user/rclone-box.service
+  ~/.config/systemd/user/rclone-gdrive.service
 systemctl --user daemon-reload
-systemctl --user restart quickshell-berg.service rclone-box.service
-systemctl --user show quickshell-berg.service rclone-box.service \
+systemctl --user restart quickshell-berg.service rclone-gdrive.service
+systemctl --user show quickshell-berg.service rclone-gdrive.service \
   -p Id -p Slice -p ManagedOOMPreference
 ~/.config/arch/apply-ansible.sh --limit zygalski --tags memory
 ```

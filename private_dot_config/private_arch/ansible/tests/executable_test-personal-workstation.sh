@@ -46,7 +46,6 @@ require_literal "arch_aur_packages_personal: []" "${all_vars}"
 require_literal "arch_aur_packages_personal:" "${personal_vars}"
 require_literal "  - shellcheck" "${all_vars}"
 require_literal "  - gvfs" "${all_vars}"
-require_literal "  - qt6ct" "${all_vars}"
 require_literal "  - claude-code" "${personal_vars}"
 require_literal "  - antigravity-cli" "${personal_vars}"
 require_literal "  - google-earth-pro" "${personal_vars}"
@@ -73,7 +72,6 @@ jq -e '
   .arch_notion_cli_enabled == true and
   .arch_google_earth_pro_desktop_override_enabled == true and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
-  (.arch_pacman_packages_theming | index("qt6ct") != null) and
   (.arch_aur_packages_personal | index("claude-code") != null) and
   (.arch_aur_packages_personal | index("antigravity-cli") != null) and
   (.arch_aur_packages_personal | index("gemini-cli") == null) and
@@ -84,7 +82,6 @@ jq -e '
   .arch_notion_cli_enabled == false and
   .arch_google_earth_pro_desktop_override_enabled == false and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
-  (.arch_pacman_packages_theming | index("qt6ct") != null) and
   (.arch_aur_packages_personal | index("claude-code") == null) and
   (.arch_aur_packages_personal | index("antigravity-cli") == null) and
   (.arch_aur_packages_personal | index("gemini-cli") == null) and

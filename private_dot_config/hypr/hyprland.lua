@@ -28,6 +28,8 @@ local bergAction = "/usr/bin/qs -c berg ipc call actions"
 ----------------
 
 hl.on("hyprland.start", function()
+    -- Keep Qt's GTK platform theme on YAMIS when the personal icon package exists.
+    hl.exec_cmd([[if test -d /usr/share/icons/yet-another-monochrome-icon-set; then gsettings set org.gnome.desktop.interface icon-theme yet-another-monochrome-icon-set; fi]])
     hl.exec_cmd("uwsm app -- hyprlauncher -d")
     hl.exec_cmd("uwsm app -- nm-applet")
     hl.exec_cmd("uwsm app -- /opt/1Password/1password --silent")

@@ -70,6 +70,11 @@ and uses the Arch official repositories. Apply the package configuration with
 remove its package entry, synchronize with Chezmoi, and run the same command;
 the workstation profile prunes undeclared explicit packages.
 
+Before pruning, the packages role promotes declared native packages from
+dependency-installed to explicitly installed. This ensures a package newly
+declared as top-level state is retained even when the package was already
+present only as another package's dependency.
+
 Install or update only the personal-workstation Notion CLI with:
 
 ```bash

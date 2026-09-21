@@ -394,6 +394,33 @@
     - packages
     - google-earth-pro
 
+- name: Query managed native packages installed as dependencies
+  ansible.builtin.command: pacman -Qqdn
+  register: packages_native_dependency_query
+  changed_when: false
+  check_mode: false
+  when: arch_package_prune_explicit | bool
+  tags:
+    - packages
+
+- name: Compute managed native packages requiring explicit install reason
+  ansible.builtin.set_fact:
+    packages_native_promote_explicit: >-
+      {{ packages_native_dependency_query.stdout_lines | intersect(packages_pacman_effective) }}
+  when: arch_package_prune_explicit | bool
+  tags:
+    - packages
+
+- name: Mark managed native packages as explicitly installed
+  ansible.builtin.command:
+    cmd: "pacman -D --asexplicit {{ packages_native_promote_explicit | join(' ') }}"
+  when:
+    - arch_package_prune_explicit | bool
+    - packages_native_promote_explicit | length > 0
+  changed_when: true
+  tags:
+    - packages
+
 - name: Query explicitly installed native packages
   ansible.builtin.command: pacman -Qqen
   register: packages_native_explicit_query

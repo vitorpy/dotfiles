@@ -284,13 +284,13 @@ arch_pacman_packages_hyprland:
   - hyprshutdown
   - xdg-desktop-portal-hyprland
   - xdg-desktop-portal-gtk
+  - gvfs
   - grim
   - slurp
   - brightnessctl
   - playerctl
   - network-manager-applet
   - ghostty
-  - caja
 
 arch_pacman_packages_multimedia:
   - ffmpeg
@@ -348,8 +348,6 @@ arch_pacman_packages_personal: []
 
 arch_pacman_packages_theming:
   - kvantum-qt5
-  - mate-icon-theme
-  - mate-themes
   - terminus-font
   - noto-fonts
   - noto-fonts-cjk
@@ -518,9 +516,6 @@ arch_pacman_packages_cli_extras:
   - waypipe
 
 arch_pacman_packages_desktop_extras:
-  - engrampa
-  - atril
-  - eom
   - ark
   - avahi
   - blueman

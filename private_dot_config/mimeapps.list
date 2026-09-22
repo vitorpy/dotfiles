@@ -1,4 +1,5 @@
 [Default Applications]
+x-scheme-handler/mailto=google-chrome.desktop
 inode/directory=org.kde.dolphin.desktop
 x-scheme-handler/http=google-chrome.desktop
 x-scheme-handler/https=google-chrome.desktop
@@ -36,6 +37,7 @@ x-scheme-handler/grokbot=grok-bot.desktop
 x-scheme-handler/sand=grok-bot.desktop
 
 [Added Associations]
+x-scheme-handler/mailto=google-chrome.desktop;
 inode/directory=org.kde.dolphin.desktop;
 x-scheme-handler/http=firefox.desktop;
 x-scheme-handler/https=firefox.desktop;

@@ -110,7 +110,8 @@ input-field {
 # TIME + DATE (top-right, shared 15px optical line gap)
 label {
     monitor =
-    text = cmd[update:1000] date +"<span size='78pt' line_height='87040'>%H:%M</span>%n<span size='24pt'>%A, %d %B %Y</span>"
+    # Same detected local timezone as Berg; system timezone stays Warsaw.
+    text = cmd[update:1000] {{ .chezmoi.homeDir }}/.config/hypr/hyprlock-clock.sh
     text_align = right
     font_size = 24
     font_family = $font

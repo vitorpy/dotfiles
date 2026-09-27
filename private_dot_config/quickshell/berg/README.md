@@ -131,7 +131,11 @@ primary clock and calendar in the automatically detected timezone from
 secondary when the zones differ; its date is shown when the local date differs.
 The top bar marks Warsaw with the SF Symbols `house.fill` home icon; tooltips
 and the expanded clock retain the city name. The glyph comes from the generated
-`SfSymbols.qml` constants and the pinned `sf-symbols.json` specification.
+`SfSymbols.qml` constants and the pinned `sf-symbols.json` specification. The
+home glyph and time share a text baseline inside a fixed-height row, so the
+SF Symbols and Avenir line metrics cannot independently shift their alignment.
+To undo this alignment change, revert its focused commit, apply these managed
+files with `chezmoi apply`, then run `qs -c berg ipc call shell reload`.
 Other applications retain their own timezone settings or the system default.
 
 `scripts/clock-time.py` uses Python's standard-library `zoneinfo` and installed

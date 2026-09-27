@@ -417,10 +417,13 @@ Scope {
 
                         Row {
                             visible: root.barState.clock.barWarsaw.length > 0
+                            height: 22
                             spacing: 5
 
                             Text {
                                 text: theme.home
+                                // Mixed fonts need a shared baseline, not separately centered line boxes.
+                                anchors.baseline: homeTime.baseline
                                 height: 22
                                 verticalAlignment: Text.AlignVCenter
                                 color: theme.foregroundMuted
@@ -430,6 +433,8 @@ Scope {
                             }
 
                             Text {
+                                id: homeTime
+
                                 // Keep the named label in the model/tooltips;
                                 // the home symbol replaces its prefix here.
                                 text: root.barState.clock.barWarsaw.replace(/^Warsaw /, "")

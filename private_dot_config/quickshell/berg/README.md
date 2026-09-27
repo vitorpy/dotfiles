@@ -123,6 +123,57 @@ hyprctl configerrors
 
 See [CRASH-WATCH.md](CRASH-WATCH.md) for crash capture and recovery details.
 
+## Travel-aware clock
+
+The workstation system timezone stays at `Europe/Warsaw`. Berg formats its
+primary clock and calendar in the automatically detected timezone from
+`$XDG_CACHE_HOME/quickshell-berg/location.json` (default `~/.cache`). Warsaw is
+secondary when the zones differ; its date is shown when the local date differs.
+Other applications retain their own timezone settings or the system default.
+
+`scripts/clock-time.py` uses Python's standard-library `zoneinfo` and installed
+`tzdata`. Each minute it formats both clocks from one epoch; civil calendar dates
+stay separate from the real timestamps used for weather freshness. The formatter
+also runs when the location file changes, independently of weather success.
+No global or process-wide `TZ` override is used.
+
+Location detection is automatic only, using the existing providers and one-hour
+cache. The weather timer refreshes every 15 minutes; the service retries failures
+after 60 seconds. Failed geolocation still returns failure when weather for the
+cached location succeeds. Default locations never count as fresh detections.
+Connection errors are recorded in the journal.
+
+Offline, time continues in the last known valid timezone, with a "last known
+location" note in the panel and tooltip after the cache expires. Without a valid
+location it displays Warsaw with "location unavailable". Invalid/missing caches
+retain the last valid location in the running shell. On shell restart, a valid
+persisted cache is used; otherwise Warsaw is the fallback. These location notes
+alone do not put the clock into an error state.
+
+The old `auto-timezone.service` and `.timer` are masked through chezmoi. Their
+legacy updater and regression test remain solely for rollback; do not invoke the
+updater during normal operation. Stop/disable both old units before applying
+the masks, reload the user manager, and set the system timezone once:
+
+```bash
+systemctl --user disable --now auto-timezone.timer auto-timezone.service
+timedatectl set-timezone Europe/Warsaw
+systemctl --user daemon-reload
+systemctl --user restart quickshell-berg-weather.service
+qs -c berg ipc call shell refreshClock
+qs -c berg ipc call shell clockStatus
+```
+
+`clockStatus` is a read-only diagnostic returning the display timezone, local
+civil date and labels, Warsaw time, location freshness, and health. The timezone
+change uses timedated authorization; if it needs an administrator, have the user
+perform the privileged command.
+
+For timezone rollback, revert the focused dotfiles commit, apply the restored
+units and Berg files, run `systemctl --user daemon-reload`, and
+`systemctl --user enable --now auto-timezone.timer`. That resumes automatic system
+timezone changes. Leave other hosts' explicit Ansible timezone overrides intact.
+
 ## Development and verification
 
 Run static and deterministic checks before reloading the live shell. Lint every
@@ -133,6 +184,8 @@ changed QML file and run the repository tests:
 ~/.config/quickshell/berg/tests/executable_test-package-updates.sh
 python ~/.config/quickshell/berg/tests/test_berg_crash_watch.py
 python -m pytest ~/.config/quickshell/berg/tests/test_gmail_unread.py
+python3 -m unittest discover -s ~/.config/quickshell/berg/tests -p 'test_clock_*.py'
+bash ~/.config/systemd/user/tests/test-auto-timezone.sh
 ```
 
 Run the QML tests from the active Hyprland session with the Qt 6 Wayland
@@ -151,6 +204,13 @@ After those checks pass, apply the managed files, reload Berg, exercise each
 changed IPC interaction, and visually inspect UI changes. Do not smoke-test
 logout, reboot, or poweroff actions. Finish with bounded service, journal,
 Hyprland error, chezmoi parity, and focused Git diff checks.
+
+Before applying clock changes, also run the isolated real-ClockState smoke test
+from the host Wayland session:
+
+```bash
+python3 ~/.config/quickshell/berg/tests/test-clock-runtime.py
+```
 
 ## Troubleshooting
 

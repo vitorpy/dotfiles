@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "ClockDisplay.js" as ClockDisplay
 
 PanelWindow {
     id: root
@@ -8,12 +9,8 @@ PanelWindow {
     required property var clockState
 
     readonly property string screenName: screen ? screen.name : ""
-    readonly property var displayedMonth: new Date(
-        clockState.now.getFullYear(),
-        clockState.now.getMonth() + monthOffset,
-        1
-    )
-    readonly property int firstWeekday: (displayedMonth.getDay() + 6) % 7
+    readonly property var displayedMonth: ClockDisplay.calendarMonth(clockState.localDate, monthOffset)
+    readonly property int firstWeekday: (displayedMonth.getUTCDay() + 6) % 7
     property int monthOffset: 0
 
     visible: clockState.panelOpen
@@ -36,17 +33,7 @@ PanelWindow {
     }
 
     function dateForCell(index: int): var {
-        return new Date(
-            displayedMonth.getFullYear(),
-            displayedMonth.getMonth(),
-            index - firstWeekday + 1
-        );
-    }
-
-    function sameDate(left: var, right: var): bool {
-        return left.getFullYear() === right.getFullYear()
-            && left.getMonth() === right.getMonth()
-            && left.getDate() === right.getDate();
+        return ClockDisplay.calendarCell(displayedMonth, index);
     }
 
     function timezoneLabel(value: string): string {
@@ -131,7 +118,7 @@ PanelWindow {
                     left: parent.left
                     top: parent.top
                 }
-                text: Qt.formatDateTime(root.clockState.now, "HH:mm")
+                text: root.clockState.barTime
                 color: root.theme.foreground
                 font.family: root.theme.textFont
                 font.pixelSize: 32
@@ -145,7 +132,7 @@ PanelWindow {
                     bottom: timeLabel.bottom
                     bottomMargin: 3
                 }
-                text: Qt.formatDateTime(root.clockState.now, "dddd, d MMMM yyyy")
+                text: root.clockState.localFullDate
                 color: root.theme.foregroundMuted
                 font.family: root.theme.textFont
                 font.pixelSize: 14
@@ -214,6 +201,7 @@ PanelWindow {
                     bottom: parent.bottom
                 }
                 text: root.timezoneLabel(root.clockState.currentTimezone)
+                    + (root.clockState.locationNote ? ` · ${root.clockState.locationNote}` : "")
                 color: root.theme.primary
                 font.family: root.theme.textFont
                 font.pixelSize: 12
@@ -257,7 +245,7 @@ PanelWindow {
                     top: parent.top
                     topMargin: 13
                 }
-                text: Qt.formatDateTime(root.displayedMonth, "MMMM yyyy")
+                text: `${Qt.locale().standaloneMonthName(root.displayedMonth.getUTCMonth())} ${root.displayedMonth.getUTCFullYear()}`
                 color: root.theme.foreground
                 font.family: root.theme.textFont
                 font.pixelSize: 15
@@ -368,8 +356,8 @@ PanelWindow {
                         required property int index
 
                         readonly property var day: root.dateForCell(index)
-                        readonly property bool inMonth: day.getMonth() === root.displayedMonth.getMonth()
-                        readonly property bool today: root.sameDate(day, root.clockState.now)
+                        readonly property bool inMonth: day.getUTCMonth() === root.displayedMonth.getUTCMonth()
+                        readonly property bool today: ClockDisplay.isToday(day, root.clockState.localDate)
 
                         width: (calendarGrid.width - calendarGrid.columnSpacing * 6) / 7
                         height: 31
@@ -380,7 +368,7 @@ PanelWindow {
 
                         Text {
                             anchors.centerIn: parent
-                            text: parent.day.getDate().toString()
+                            text: parent.day.getUTCDate().toString()
                             color: parent.today
                                 ? root.theme.onErrorColor
                                 : (parent.inMonth ? root.theme.foreground : root.theme.foregroundMuted)
@@ -431,7 +419,7 @@ PanelWindow {
                     top: parent.top
                     topMargin: 35
                 }
-                text: `${root.timezoneLabel(root.clockState.currentTimezone)} · ${Qt.formatDateTime(root.clockState.now, "HH:mm")}`
+                text: `${root.timezoneLabel(root.clockState.currentTimezone)} · ${root.clockState.barTime}`
                 color: root.theme.foreground
                 font.family: root.theme.textFont
                 font.pixelSize: 13

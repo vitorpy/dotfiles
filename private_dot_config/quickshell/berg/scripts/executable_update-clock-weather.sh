@@ -6,6 +6,7 @@ CACHE_DIR="${CLOCK_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-berg}"
 LOCATION_CACHE="${CLOCK_LOCATION_CACHE:-$CACHE_DIR/location.json}"
 WEATHER_CACHE="${CLOCK_WEATHER_CACHE:-$CACHE_DIR/weather.json}"
 LOCATION_MAX_AGE="${CLOCK_LOCATION_MAX_AGE:-3600}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 IPAPI_URL="${CLOCK_IPAPI_URL:-https://ipapi.co/json/}"
 IP_API_URL="${CLOCK_IP_API_URL:-http://ip-api.com/json/?fields=status,message,city,countryCode,lat,lon,timezone}"
@@ -28,13 +29,18 @@ is_nonnegative_integer() {
 cache_is_fresh() {
     local path="$1"
     local max_age="$2"
-    local modified_at age
+    local detected_at age
 
     [[ -f $path ]] || return 1
     is_nonnegative_integer "$max_age" || return 1
 
-    modified_at=$(stat -c %Y -- "$path" 2>/dev/null) || return 1
-    age=$(($(date +%s) - modified_at))
+    # Only a successful detection earns a fresh-cache interval. A default
+    # location must never postpone recovery after Wi-Fi becomes available.
+    detected_at=$(jq -er '
+        select(.source == "ipapi.co" or .source == "ip-api.com")
+        | .updated_at | select(type == "number" and . >= 0 and floor == .)
+    ' "$path" 2>/dev/null) || return 1
+    age=$(($(date +%s) - detected_at))
     (( age >= 0 && age < max_age ))
 }
 
@@ -46,7 +52,13 @@ valid_location_file() {
         and (.latitude | type == "number" and . >= -90 and . <= 90)
         and (.longitude | type == "number" and . >= -180 and . <= 180)
         and (.timezone | type == "string" and length > 0)
-    ' "$1" >/dev/null 2>&1
+    ' "$1" >/dev/null 2>&1 && valid_location_timezone "$(cat -- "$1")"
+}
+
+valid_location_timezone() {
+    local tz
+    tz=$(jq -er '.timezone' <<<"$1") || return 1
+    /usr/bin/python3 "$SCRIPT_DIR/clock-time.py" --validate-timezone "$tz"
 }
 
 atomic_write() {
@@ -119,14 +131,16 @@ detect_location() {
     local now="$1"
     local response normalized
 
-    if response=$(curl --fail --silent --connect-timeout 5 --max-time 10 "$IPAPI_URL") &&
-        normalized=$(normalize_ipapi_location "$response" "$now"); then
+    if response=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 10 "$IPAPI_URL") &&
+        normalized=$(normalize_ipapi_location "$response" "$now") &&
+        valid_location_timezone "$normalized"; then
         printf '%s\n' "$normalized"
         return 0
     fi
 
-    if response=$(curl --fail --silent --connect-timeout 5 --max-time 10 "$IP_API_URL") &&
-        normalized=$(normalize_ip_api_location "$response" "$now"); then
+    if response=$(curl --fail --silent --show-error --connect-timeout 5 --max-time 10 "$IP_API_URL") &&
+        normalized=$(normalize_ip_api_location "$response" "$now") &&
+        valid_location_timezone "$normalized"; then
         printf '%s\n' "$normalized"
         return 0
     fi
@@ -238,6 +252,7 @@ normalize_weather() {
 }
 
 now=$(date +%s)
+location_refresh_failed=0
 
 if cache_is_fresh "$LOCATION_CACHE" "$LOCATION_MAX_AGE" && valid_location_file "$LOCATION_CACHE"; then
     location=$(jq -c . "$LOCATION_CACHE")
@@ -248,9 +263,15 @@ elif detected_location=$(detect_location "$now"); then
         exit 1
     }
 elif valid_location_file "$LOCATION_CACHE"; then
+    location_refresh_failed=1
     location=$(jq -c . "$LOCATION_CACHE")
 else
+    location_refresh_failed=1
     location=$(default_location "$now") || exit 1
+    valid_location_timezone "$location" || {
+        printf 'Default location has an invalid timezone\n' >&2
+        exit 1
+    }
     atomic_write "$LOCATION_CACHE" "$location" || {
         printf 'Unable to write default clock location cache\n' >&2
         exit 1
@@ -286,3 +307,9 @@ atomic_write "$WEATHER_CACHE" "$weather" || {
     printf 'Unable to update clock weather cache\n' >&2
     exit 1
 }
+
+# Cached-location weather success must not suppress location recovery retries.
+if (( location_refresh_failed )); then
+    printf 'Unable to refresh location; retaining last known/default location and retrying\n' >&2
+    exit 1
+fi

@@ -15,19 +15,29 @@ QtObject {
     readonly property int postResumeWeatherGraceSeconds: 1200
     readonly property string home: Quickshell.env("HOME")
     readonly property string cacheHome: Quickshell.env("XDG_CACHE_HOME") || `${home}/.cache`
+    readonly property string locationPath: `${cacheHome}/quickshell-berg/location.json`
+    readonly property string formatterPath: Qt.resolvedUrl("scripts/clock-time.py").toString().replace(/^file:\/\//, "")
     readonly property string weatherPath: `${cacheHome}/quickshell-berg/weather.json`
     readonly property string artworkPath: "/var/lib/arts-wallpaper/current.json"
 
     property var now: new Date()
     property double lastClockUpdateMs: -1
     property double weatherFreshnessGraceUntilMs: -1
-    property string currentTimezone: warsawTimezone
-    property string warsawCompact: ""
-    property string warsawFull: ""
+    // Keep real instants separate from civil dates used by the display/calendar.
+    property var display: null
+    property var lastLocation: null
+    property string locationStatus: "unavailable"
+    readonly property string currentTimezone: display ? display.local.timezone : warsawTimezone
+    readonly property var localDate: display ? display.local : null
+    readonly property string localFullDate: display ? display.local.fullDate : ""
+    readonly property string localFull: display ? display.local.full : ""
+    readonly property string locationNote: locationStatus === "fresh" ? ""
+        : locationStatus === "stale" ? "last known location" : "location unavailable"
+    readonly property string warsawCompact: display ? display.warsaw.compact : ""
+    readonly property string warsawFull: display ? display.warsaw.full : ""
     property var weather: null
     property var artwork: null
     property string timezoneError: ""
-    property string warsawError: ""
     property string weatherError: ""
     property string artworkError: ""
     property string health: "loading"
@@ -38,20 +48,23 @@ QtObject {
     readonly property string panelScreenName: panelOpen ? popouts.screenName : ""
     readonly property bool artworkRotating: artworkRotation.running
 
-    readonly property string barDate: Qt.formatDateTime(now, "ddd d MMM")
-    readonly property string barTime: Qt.formatDateTime(now, "HH:mm")
+    readonly property string barDate: display ? display.local.barDate : ""
+    readonly property string barTime: display ? display.local.time : "--:--"
     readonly property string barWarsaw: currentTimezone !== warsawTimezone && warsawCompact
-        ? ClockDisplay.warsawLabel(Qt.formatDateTime(now, "dd.MM"), warsawCompact)
+        ? ClockDisplay.warsawLabel(display.local.shortDate, warsawCompact)
         : ""
     readonly property string text: `${barDate} ${barTime}${barWarsaw ? ` | ${barWarsaw}` : ""}`
 
     readonly property string tooltip: {
         const sections = [
-            `Time\nLocal · ${Qt.formatDateTime(now, "dddd, dd MMMM · HH:mm")}`
+            `Time\nLocal · ${localFull}`
         ];
 
         if (currentTimezone !== warsawTimezone && warsawFull)
             sections[0] += `\nWarsaw · ${warsawFull}`;
+
+        if (locationNote)
+            sections[0] += `\n${currentTimezone} · ${locationNote}`;
 
         const weatherText = weatherTooltip();
         if (weatherText)
@@ -68,7 +81,9 @@ QtObject {
     }
 
     readonly property string compactTooltip: {
-        const lines = [Qt.formatDateTime(now, "dddd, d MMMM · HH:mm")];
+        const lines = [localFull];
+        if (locationNote)
+            lines.push(`${currentTimezone} · ${locationNote}`);
 
         if (currentTimezone !== warsawTimezone && warsawCompact)
             lines.push(`Warsaw · ${warsawCompact}`);
@@ -114,7 +129,7 @@ QtObject {
     }
 
     function updateHealth(): void {
-        const errors = [timezoneError, warsawError, weatherError, artworkError]
+        const errors = [timezoneError, weatherError, artworkError]
             .filter(message => message.length > 0);
         lastError = errors.join("\n");
         if (errors.length === 0) {
@@ -125,38 +140,17 @@ QtObject {
         }
     }
 
-    function consumeTimezone(text: string): void {
-        const value = text.trim();
-        if (!value) {
-            timezoneError = "Timezone could not be determined; assuming Europe/Warsaw";
-            currentTimezone = warsawTimezone;
-        } else {
-            currentTimezone = value;
+    function consumeDisplay(text: string): void {
+        try {
+            const value = JSON.parse(text);
+            if (!ClockDisplay.validSnapshot(value))
+                throw new Error("incomplete clock snapshot");
+            display = value;
+            lastLocation = value.location;
+            locationStatus = value.locationStatus;
             timezoneError = "";
-        }
-        refreshWarsaw();
-        updateHealth();
-    }
-
-    function refreshWarsaw(): void {
-        if (currentTimezone === warsawTimezone) {
-            warsawCompact = "";
-            warsawFull = "";
-            warsawError = "";
-            updateHealth();
-            return;
-        }
-        warsawQuery.refresh();
-    }
-
-    function consumeWarsaw(text: string): void {
-        const lines = text.split(/\r?\n/);
-        if (lines.length < 2 || !lines[0].trim() || !lines[1].trim()) {
-            warsawError = "Warsaw time formatter returned incomplete output";
-        } else {
-            warsawCompact = lines[0].trim();
-            warsawFull = lines[1].trim();
-            warsawError = "";
+        } catch (error) {
+            timezoneError = `Clock formatter returned invalid output: ${error}`;
         }
         updateHealth();
     }
@@ -268,7 +262,8 @@ QtObject {
 
     function refresh(): void {
         advanceClock(new Date());
-        timezoneQuery.refresh();
+        locationFile.reload();
+        displayQuery.refresh();
         weatherFile.reload();
         artworkFile.reload();
         validateWeatherAge();
@@ -302,38 +297,34 @@ QtObject {
         precision: SystemClock.Minutes
         onDateChanged: {
             root.advanceClock(date);
-            root.refreshWarsaw();
+            root.displayQuery.refresh();
             root.validateWeatherAge();
         }
     }
 
-    readonly property ProcessJob timezoneQuery: ProcessJob {
-        command: ["/usr/bin/timedatectl", "show", "--property=Timezone", "--value"]
+    readonly property ProcessJob displayQuery: ProcessJob {
+        command: [
+            "/usr/bin/python3", root.formatterPath,
+            "--epoch", String(root.now.getTime() / 1000),
+            "--location-cache", root.locationPath,
+            "--fallback-location", JSON.stringify(root.lastLocation)
+        ]
         runOnStart: false
         timeoutMs: 3000
-        onSucceeded: (exitCode, output, errorOutput) => root.consumeTimezone(output)
+        onSucceeded: (exitCode, output, errorOutput) => root.consumeDisplay(output)
         onFailed: (message, exitCode, output, errorOutput) => {
-            root.currentTimezone = root.warsawTimezone;
-            root.timezoneError = `Timezone lookup failed: ${message}`;
-            root.refreshWarsaw();
+            root.timezoneError = `Clock formatter failed: ${message}`;
             root.updateHealth();
         }
     }
 
-    readonly property ProcessJob warsawQuery: ProcessJob {
-        command: [
-            "/usr/bin/env",
-            `TZ=${root.warsawTimezone}`,
-            "/usr/bin/date",
-            "+%d.%m %H:%M%n%A, %d %B · %H:%M"
-        ]
-        runOnStart: false
-        timeoutMs: 2000
-        onSucceeded: (exitCode, output, errorOutput) => root.consumeWarsaw(output)
-        onFailed: (message, exitCode, output, errorOutput) => {
-            root.warsawError = `Warsaw time lookup failed: ${message}`;
-            root.updateHealth();
-        }
+    readonly property FileView locationFile: FileView {
+        path: root.locationPath
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.displayQuery.refresh()
+        onLoadFailed: error => root.displayQuery.refresh()
     }
 
     readonly property FileView weatherFile: FileView {

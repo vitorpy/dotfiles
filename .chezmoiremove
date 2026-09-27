@@ -1,0 +1,2 @@
+# Retired system-timezone automation; the units are now masked.
+.config/systemd/user/timers.target.wants/auto-timezone.timer

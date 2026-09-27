@@ -9,3 +9,6 @@ ExecStart=%h/.config/quickshell/berg/scripts/update-clock-weather.sh
 ExecStartPost=-/usr/bin/qs -c berg ipc call shell refreshClock
 TimeoutStartSec=45s
 UMask=0077
+# Recover promptly when boot/resume precedes usable Wi-Fi.
+Restart=on-failure
+RestartSec=60s

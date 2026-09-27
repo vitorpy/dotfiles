@@ -35,6 +35,17 @@ ShellRoot {
             sharedState.refreshClock();
         }
 
+        function clockStatus(): string {
+            return JSON.stringify({
+                timezone: sharedState.clock.currentTimezone,
+                local: sharedState.clock.localDate,
+                warsaw: sharedState.clock.warsawCompact,
+                locationStatus: sharedState.clock.locationStatus,
+                health: sharedState.clock.health,
+                lastError: sharedState.clock.lastError
+            });
+        }
+
         function rotateArtwork(): string {
             return sharedState.clock.rotateArtwork() ? "started" : "busy";
         }

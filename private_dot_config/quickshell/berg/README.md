@@ -129,6 +129,9 @@ The workstation system timezone stays at `Europe/Warsaw`. Berg formats its
 primary clock and calendar in the automatically detected timezone from
 `$XDG_CACHE_HOME/quickshell-berg/location.json` (default `~/.cache`). Warsaw is
 secondary when the zones differ; its date is shown when the local date differs.
+The top bar marks Warsaw with the SF Symbols `house.fill` home icon; tooltips
+and the expanded clock retain the city name. The glyph comes from the generated
+`SfSymbols.qml` constants and the pinned `sf-symbols.json` specification.
 Other applications retain their own timezone settings or the system default.
 
 `scripts/clock-time.py` uses Python's standard-library `zoneinfo` and installed

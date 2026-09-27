@@ -80,6 +80,10 @@
     {
       "property": "warning",
       "symbol": "exclamationmark.triangle.fill"
+    },
+    {
+      "property": "home",
+      "symbol": "house.fill"
     }
   ]
 }

@@ -28,4 +28,5 @@ QtObject {
     readonly property string updates: "􀁹" // arrow.down.circle.fill (U+100079)
     readonly property string reboot: "􀚂" // arrow.clockwise.circle.fill (U+100682)
     readonly property string warning: "􀇿" // exclamationmark.triangle.fill (U+1001FF)
+    readonly property string home: "􀎟" // house.fill (U+10039F)
 }

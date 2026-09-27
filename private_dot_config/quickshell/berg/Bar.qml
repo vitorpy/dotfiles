@@ -415,15 +415,31 @@ Scope {
                             color: theme.outlineVariant
                         }
 
-                        Text {
+                        Row {
                             visible: root.barState.clock.barWarsaw.length > 0
-                            text: root.barState.clock.barWarsaw
-                            height: 22
-                            verticalAlignment: Text.AlignVCenter
-                            color: theme.foregroundMuted
-                            font.family: theme.textFont
-                            font.pixelSize: 14
-                            font.weight: Font.Medium
+                            spacing: 5
+
+                            Text {
+                                text: theme.home
+                                height: 22
+                                verticalAlignment: Text.AlignVCenter
+                                color: theme.foregroundMuted
+                                font.family: theme.symbolFont
+                                font.pixelSize: 14
+                                font.weight: Font.Medium
+                            }
+
+                            Text {
+                                // Keep the named label in the model/tooltips;
+                                // the home symbol replaces its prefix here.
+                                text: root.barState.clock.barWarsaw.replace(/^Warsaw /, "")
+                                height: 22
+                                verticalAlignment: Text.AlignVCenter
+                                color: theme.foregroundMuted
+                                font.family: theme.textFont
+                                font.pixelSize: 14
+                                font.weight: Font.Medium
+                            }
                         }
 
                         Text {

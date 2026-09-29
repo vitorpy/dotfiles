@@ -1,0 +1,9 @@
+[Unit]
+Description=Shared memory budget for Codex sessions
+
+[Slice]
+# Throttle above 3 GiB; keep a hard ceiling and bounded zram consumption.
+MemoryAccounting=yes
+MemoryHigh=3G
+MemoryMax=4G
+MemorySwapMax=1G

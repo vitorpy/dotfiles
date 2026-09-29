@@ -293,6 +293,53 @@ yay -Ss package-name     # Search AUR
 pacman -Ss package-name  # Search official repos
 ```
 
+## Codex memory containment on rivest
+
+`~/.local/bin/codex` wraps `/usr/bin/codex` in a user scope beneath
+`app-codex.slice`. All wrapped sessions and their ordinary children share
+**3 GiB MemoryHigh**, **4 GiB MemoryMax**, and **1 GiB MemorySwapMax**.
+Above the soft limit the kernel reclaims/throttles; the hard limit can kill
+processes inside the slice. These limits reduce desktop exhaustion risk;
+they do not bound other applications. Existing zram and oomd policy remain.
+
+The wrapper preserves arguments (including empty arguments and literal `$`),
+working directory, environment, terminal/streams, and exit status. Nested
+invocations already in the slice run directly. New invocations fail closed
+if the user manager or expected limits are unavailable. Both files are
+chezmoi-managed only on Linux host `rivest`. Requires systemd with cgroup v2,
+`systemd-run --expand-environment=no`, coreutils `timeout`, and the packaged
+Codex binary at `/usr/bin/codex`. Existing Zsh setup prepends `~/.local/bin`.
+
+Apply and verify (no sudo):
+
+```sh
+chezmoi apply ~/.local/bin/codex ~/.config/systemd/user/app-codex.slice
+systemctl --user daemon-reload
+rehash  # Zsh: discard a previously cached executable path
+command -v codex
+codex --version
+systemctl --user show app-codex.slice -p MemoryHigh -p MemoryMax -p MemorySwapMax
+systemd-cgls --user-unit app-codex.slice
+systemctl --user show app-codex.slice -p MemoryCurrent -p MemoryPeak -p MemorySwapCurrent
+cat /sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/app.slice/app-codex.slice/memory.events
+journalctl -u systemd-oomd -b --no-pager -n 30
+```
+
+The slice starts on demand; no enablement or reboot is necessary. Existing
+sessions are not moved or terminated: exit and relaunch them normally to
+use containment. Calling `/usr/bin/codex` directly bypasses the wrapper;
+independently launched desktop services can also fall outside the slice.
+If changing the budget, update both the slice and wrapper's expected byte
+values together and rerun `python3 tests/test_codex_wrapper.py`.
+
+Rollback: after contained sessions exit, revert the containment commit,
+remove the deployed `~/.local/bin/codex` and
+`~/.config/systemd/user/app-codex.slice` (chezmoi does not automatically remove
+files merely removed from source), then run `systemctl --user daemon-reload`
+and `rehash`. Check `command -v codex` resolves to `/usr/bin/codex`.
+Use focused chezmoi diffs for these paths; global diffs may require unlocking
+the unrelated Bitwarden-backed templates.
+
 ## License
 
 Personal configuration files - use at your own discretion.

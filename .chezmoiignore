@@ -36,3 +36,9 @@ tests
 .local/bin/claude-desktop
 .config/environment.d/10-user-bin-path.conf
 {{- end }}
+
+# Shared Codex memory budget: rivest only.
+{{- if not (and (eq .chezmoi.os "linux") (eq .chezmoi.hostname "rivest")) }}
+.local/bin/codex
+.config/systemd/user/app-codex.slice
+{{- end }}

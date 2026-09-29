@@ -1,0 +1,39 @@
+#!/bin/sh
+# Share one memory budget across Codex sessions and their ordinary children.
+set -eu
+
+slice=app-codex.slice
+while IFS= read -r membership; do
+    case "$membership" in
+        0::*/"$slice"|0::*/"$slice"/*)
+            exec /usr/bin/codex "$@"
+            ;;
+    esac
+done < /proc/self/cgroup
+
+# systemd can implicitly create slices: refuse to run if our limits are absent.
+if ! properties=$(/usr/bin/timeout 5 /usr/bin/systemctl --user show "$slice" \
+    -p LoadState -p MemoryAccounting -p MemoryHigh -p MemoryMax -p MemorySwapMax); then
+    printf '%s\n' 'codex: cannot reach the user manager; run from your host user session.' >&2
+    exit 1
+fi
+load=no accounting=no high=no max=no swap=no
+while IFS= read -r property; do
+    case "$property" in
+        LoadState=loaded) load=yes ;;
+        MemoryAccounting=yes) accounting=yes ;;
+        MemoryHigh=3221225472) high=yes ;;
+        MemoryMax=4294967296) max=yes ;;
+        MemorySwapMax=1073741824) swap=yes ;;
+    esac
+done <<EOF
+$properties
+EOF
+if [ "$load:$accounting:$high:$max:$swap" != yes:yes:yes:yes:yes ]; then
+    printf '%s\n' 'codex: app-codex.slice lacks the expected 3G/4G RAM and 1G swap limits.' \
+        'Apply the managed slice, then run: systemctl --user daemon-reload' >&2
+    exit 1
+fi
+
+exec /usr/bin/systemd-run --user --scope --quiet --collect \
+    --slice="$slice" --expand-environment=no -- /usr/bin/codex "$@"

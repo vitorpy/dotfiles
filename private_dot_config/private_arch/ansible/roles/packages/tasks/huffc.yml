@@ -1,0 +1,61 @@
+---
+- name: Validate huffc platform and release pin
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["system"] == "Linux"
+      - ansible_facts["architecture"] == "x86_64"
+      - arch_huffc_version is match('^nightly-[0-9a-f]{40}$')
+      - arch_huffc_archive_checksum is match('^sha256:[0-9a-f]{64}$')
+    fail_msg: "Managed huffc requires Linux x86_64 and an explicit upstream release/checksum pin."
+
+- name: Create huffc cache and versioned installation directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/cache/arch-ansible
+    - "/usr/local/lib/huffc/{{ arch_huffc_version }}"
+
+- name: Download pinned official huffc archive
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/huff-language/huff-rs/releases/download/{{ arch_huffc_version }}/huff_nightly_linux_amd64.tar.gz
+    dest: "/var/cache/arch-ansible/huffc-{{ arch_huffc_version }}-linux-amd64.tar.gz"
+    checksum: "{{ arch_huffc_archive_checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Extract managed huffc binary
+  ansible.builtin.unarchive:
+    src: "/var/cache/arch-ansible/huffc-{{ arch_huffc_version }}-linux-amd64.tar.gz"
+    dest: "/usr/local/lib/huffc/{{ arch_huffc_version }}"
+    remote_src: true
+    creates: "/usr/local/lib/huffc/{{ arch_huffc_version }}/huffc"
+    owner: root
+    group: root
+
+- name: Set managed huffc executable permissions
+  ansible.builtin.file:
+    path: "/usr/local/lib/huffc/{{ arch_huffc_version }}/huffc"
+    mode: "0755"
+    owner: root
+    group: root
+  when: not ansible_check_mode
+
+- name: Link managed huffc binary
+  ansible.builtin.file:
+    src: "/usr/local/lib/huffc/{{ arch_huffc_version }}/huffc"
+    dest: /usr/local/bin/huffc
+    state: link
+    owner: root
+    group: root
+    force: true
+
+- name: Verify managed huffc binary
+  ansible.builtin.command: /usr/local/bin/huffc --version
+  changed_when: false
+  when: not ansible_check_mode

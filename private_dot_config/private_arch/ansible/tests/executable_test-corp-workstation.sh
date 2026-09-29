@@ -57,5 +57,15 @@ jq -e '
 require_single_package_declaration 1password
 require_single_package_declaration 1password-cli
 require_single_package_declaration slack-desktop
+require_single_package_declaration noirup-bin
+require_single_package_declaration foundry-bin
+
+jq -e '
+  ._meta.hostvars.rivest.arch_huffc_enabled == true and
+  ._meta.hostvars.zygalski.arch_huffc_enabled == false and
+  ._meta.hostvars.dembe.arch_huffc_enabled == false and
+  (._meta.hostvars.rivest.arch_aur_packages_corporate | index("noirup-bin") != null) and
+  (._meta.hostvars.rivest.arch_aur_packages_corporate | index("foundry-bin") != null)
+' <<< "${inventory_json}" >/dev/null
 
 echo "Corporate workstation invariants passed"

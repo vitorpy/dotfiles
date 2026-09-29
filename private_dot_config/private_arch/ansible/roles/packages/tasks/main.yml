@@ -175,6 +175,13 @@
   tags:
     - packages
 
+- name: Install managed Huff compiler
+  ansible.builtin.import_tasks: huffc.yml
+  when: arch_huffc_enabled | bool
+  tags:
+    - packages
+    - huffc
+
 - name: Compute declared package set
   ansible.builtin.set_fact:
     packages_declared_all: "{{ (packages_pacman_effective + packages_aur_effective + arch_package_prune_exclude) | unique }}"

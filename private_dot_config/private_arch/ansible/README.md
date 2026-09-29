@@ -50,6 +50,47 @@ This playbook also manages a basic security baseline:
 
 If AppArmor or kernel lockdown boot parameters change, reboot after applying the playbook.
 
+## Corporate smart-contract tooling
+
+Corporate workstations install `noirup-bin` and `foundry-bin` from the AUR.
+`noirup-bin` supplies the Noir toolchain installer, not Nargo itself: run
+`noirup` as your user to select/install the project-required Noir toolchain.
+Foundry uses prebuilt binaries, avoiding a local Rust build.
+
+The packages role also installs the original `huffc` from the official
+[huff-language/huff-rs release](https://github.com/huff-language/huff-rs/releases/tag/nightly-4c4ae27378224b6a3a1afd35116f0da710ff1418).
+This legacy upstream is archived; it is retained for `huffc` compatibility,
+not represented as an actively maintained compiler or replaced with huff2.
+The Linux x86_64 artifact reports `huffc 0.3.2`. Its immutable-style commit tag
+and locally computed SHA-256 are pinned in `group_vars/all.yml`; upstream does
+not publish an independent checksum. Ansible verifies that pin on download,
+extracts into `/usr/local/lib/huffc/<release>/`, and links `/usr/local/bin/huffc`.
+Unsupported architectures fail explicitly. No installer script is piped to a
+shell, and no Rust compilation is required. `arch_huffc_enabled` defaults to
+false and is enabled only by the corporate profile.
+
+After applying the managed Ansible configuration, run as your user (the helper
+requests sudo credentials):
+
+```bash
+~/.config/arch/apply-ansible.sh --limit rivest --tags packages
+# To install/update only the managed Huff binary:
+~/.config/arch/apply-ansible.sh --limit rivest --tags huffc
+huffc --version
+forge --version
+noirup --help
+```
+
+The packages tag also performs the existing declared-package pruning. Review
+the package changes before applying. To update Huff, change the release pin
+and reviewed archive checksum together. Re-running the role is idempotent.
+For rollback, remove the two AUR entries and apply the packages tag (the
+existing pruning removes undeclared explicit packages); disable Huff in the
+corporate profile and manually remove only its managed `/usr/local/bin/huffc`
+symlink and `/usr/local/lib/huffc/<release>/` directory with administrator
+privileges. Disabling the flag alone leaves an existing Huff install intact.
+User-installed Noir toolchains are managed separately by noirup.
+
 ## Profiles
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.

@@ -104,5 +104,7 @@ fi
 # Ensure truecolor works over mosh
 export COLORTERM=truecolor
 
-# OpenClaw Completion
-source "/home/vitorpy/.openclaw/completions/openclaw.zsh"
+# OpenClaw Completion (optional: only load when installed)
+if [[ -f "$HOME/.openclaw/completions/openclaw.zsh" ]]; then
+    source "$HOME/.openclaw/completions/openclaw.zsh"
+fi

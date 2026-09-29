@@ -1,9 +1,7 @@
 [user]
 	email = vitor@vitorpy.com
 	name = Vitor Py
-{{ if eq .chezmoi.hostname "rivest" -}}
-  signingkey = ~/.ssh/id_ed25519.pub
-{{ else -}}
+{{ if ne .chezmoi.hostname "rivest" -}}
   signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICCHiLKhovfixpOHPCnLzOsdRIUad248KhnBRA1ETUEd
 {{ end -}}
 [gpg]
@@ -41,3 +39,12 @@
 	path = git-xet
 	args = transfer
 	concurrent = true
+
+{{ if eq .chezmoi.hostname "rivest" -}}
+# This machine has no signing key. Keep this after includes so it takes precedence.
+# To restore signing, remove this override and configure an available key.
+[commit]
+    gpgsign = false
+[tag]
+    gpgsign = false
+{{ end -}}

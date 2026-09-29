@@ -38,7 +38,23 @@ ansible-playbook --limit zygalski site.yml
 `ansible_connection: local`. Always select the intended host with `--limit`;
 an unfiltered playbook run targets every inventory host.
 
-On this machine, `sudo` may authenticate via fingerprint. For zygalski `become` to work reliably, `sudo -n true` must succeed after `sudo -v`. If needed, configure sudo with `timestamp_type=global` or fall back to `ansible-playbook -K --limit zygalski site.yml`.
+The `apply-ansible.sh` helper asks for the sudo password through Ansible's
+`--ask-become-pass` (`BECOME password:` prompt). Enter your account password;
+a fingerprint or a sudo timestamp established in another shell is not a
+substitute for this prompt. The helper does not run a separate `sudo -v`
+or require changes to sudo timestamp policy. Ansible handles the password;
+the helper does not read, store, or export it.
+
+Explicit `-K`/`--ask-become-pass` or `--become-password-file` options are passed
+through unchanged. For passwordless hosts or credentials already supplied
+through Ansible, set `ARCH_ANSIBLE_ASK_BECOME_PASS=0`. Syntax checks, help,
+version, and list operations do not prompt automatically; check mode still
+can require privilege escalation. Arguments and Ansible's exit status are
+preserved. Regression test: `python3 ../tests/test_apply_ansible.py`.
+
+Rollback of this authentication change: revert its dotfiles commit and apply
+`~/.config/arch/apply-ansible.sh` through chezmoi. With the older helper, pass
+`--ask-become-pass` explicitly if Ansible cannot reuse the shell's sudo ticket.
 
 This playbook also manages a basic security baseline:
 
@@ -70,7 +86,7 @@ shell, and no Rust compilation is required. `arch_huffc_enabled` defaults to
 false and is enabled only by the corporate profile.
 
 After applying the managed Ansible configuration, run as your user (the helper
-requests sudo credentials):
+asks Ansible for the become password):
 
 ```bash
 ~/.config/arch/apply-ansible.sh --limit rivest --tags packages

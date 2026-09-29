@@ -66,6 +66,30 @@ This playbook also manages a basic security baseline:
 
 If AppArmor or kernel lockdown boot parameters change, reboot after applying the playbook.
 
+## AUR authentication
+
+AUR builds run as `arch_primary_user`. Yay and the makepkg bootstrap invoke
+sudo again when installing packages or dependencies; Ansible's outer become
+authentication does not automatically authenticate those nested calls.
+The local `aur_command` action forwards the configured Ansible become
+credential (including `-K`) to `ansible.builtin.expect`, which answers the
+fixed `SUDO_PROMPT` over a pseudo-terminal with input echo disabled.
+No password is put in command arguments, environment variables, or a separate
+persistent password file; normal Ansible module transport and cleanup apply.
+Both credential-bearing tasks require `no_log: true`, so their detailed output
+is suppressed. Passwordless hosts use the normal command path.
+No sudoers rule or timestamp policy is changed.
+
+`python-pexpect` is included in the effective native package list whenever AUR
+packages are declared, so it is installed before use and retained by package
+pruning. Both the yay bootstrap and regular AUR install use this mechanism.
+Check mode skips builds. Validate the action without sudo using
+`python3 tests/test_aur_command.py`. If an AUR task fails after authentication,
+run the same yay install interactively to inspect its unsuppressed build error.
+Rollback: revert the AUR-authentication commit and apply the packages task and
+action changes through chezmoi; the older path again requires an independently
+usable sudo ticket. No system security configuration needs restoring.
+
 ## Corporate smart-contract tooling
 
 Corporate workstations install `noirup-bin` and `foundry-bin` from the AUR.

@@ -1,7 +1,9 @@
 ---
 - name: Compute effective pacman package list
   ansible.builtin.set_fact:
-    packages_pacman_effective: "{{ (arch_pacman_packages + arch_host_pacman_packages_extra) | unique }}"
+    packages_pacman_effective: >-
+      {{ (arch_pacman_packages + arch_host_pacman_packages_extra
+          + (['python-pexpect'] if (arch_aur_packages + arch_host_aur_packages_extra) | length > 0 else [])) | unique }}
   tags:
     - packages
 
@@ -257,9 +259,13 @@
     - packages
 
 - name: Build and install yay
-  ansible.builtin.command:
-    cmd: makepkg -si --noconfirm
+  aur_command:
+    command: makepkg -si --noconfirm
     chdir: "/tmp/{{ packages_yay_bootstrap_package }}"
+  # Prompt replies contain the Ansible become credential; never log this task.
+  no_log: true
+  environment:
+    SUDO_PROMPT: "[arch-ansible-aur-sudo] password:"
   become: true
   become_user: "{{ arch_primary_user }}"
   when:
@@ -297,12 +303,16 @@
     - packages
 
 - name: Install AUR packages
-  ansible.builtin.command:
-    cmd: >-
+  aur_command:
+    command: >-
       yay -S --needed --noconfirm
       {{ '--rebuild' if arch_aur_makepkg_disable_debug | bool else '' }}
       {{ ('--makepkgconf ' ~ arch_aur_makepkg_no_debug_conf) if arch_aur_makepkg_disable_debug | bool else '' }}
       {{ packages_missing_aur | join(' ') }}
+  # Prompt replies contain the Ansible become credential; never log this task.
+  no_log: true
+  environment:
+    SUDO_PROMPT: "[arch-ansible-aur-sudo] password:"
   become: true
   become_user: "{{ arch_primary_user }}"
   when:

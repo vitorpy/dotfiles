@@ -408,6 +408,7 @@ arch_aur_packages_corporate:
   - 1password
   - 1password-cli
   - slack-desktop
+  - roam
   - noirup-bin
   - foundry-bin
 

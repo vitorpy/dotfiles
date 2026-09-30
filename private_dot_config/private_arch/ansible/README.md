@@ -139,10 +139,18 @@ User-installed Noir toolchains are managed separately by noirup.
   QGIS uses the official Arch `qgis` package for geographic data analysis.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
-  corporate-only packages. Rivest is currently the only member.
+  corporate-only packages, including the Roam workplace app (`roam` from the
+  AUR). Rivest is currently the only member.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
+
+To install Roam on Rivest, run
+`~/.config/arch/apply-ansible.sh --limit rivest --tags packages` and provide
+the administrator password when prompted. The existing AUR package role
+installs its dependencies. To roll back, remove `roam` from
+`arch_aur_packages_corporate`, synchronize with Chezmoi, and rerun that command;
+the workstation profile prunes undeclared explicit packages.
 
 `framework-system` is included on all workstations for Framework hardware tools
 and uses the Arch official repositories. Apply the package configuration with

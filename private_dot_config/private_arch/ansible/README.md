@@ -135,7 +135,7 @@ User-installed Noir toolchains are managed separately by noirup.
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/personal_workstation.yml` inherits the workstation profile and
-  adds personal-only tools, including QGIS, Claude Code, and the official Notion CLI.
+  adds personal-only tools, including QGIS, Google Earth Pro, and the official Notion CLI.
   QGIS uses the official Arch `qgis` package for geographic data analysis.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
@@ -144,6 +144,15 @@ User-installed Noir toolchains are managed separately by noirup.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
+
+The personal profile no longer declares `grok-bot-bin`, `claude-code`, or
+`claude-desktop`. To remove the installed packages on zygalski, run
+`sudo pacman -R grok-bot-bin claude-code claude-desktop`; this requires local
+administrator authentication and leaves application data in your home directory.
+The next package reconciliation also prunes these undeclared explicit packages.
+To roll back, restore the three entries in `arch_aur_packages_personal`, synchronize
+with Chezmoi, and run
+`~/.config/arch/apply-ansible.sh --limit zygalski --tags packages`.
 
 To install Roam on Rivest, run
 `~/.config/arch/apply-ansible.sh --limit rivest --tags packages` and provide

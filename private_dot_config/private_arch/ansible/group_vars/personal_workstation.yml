@@ -8,9 +8,6 @@ arch_pacman_packages_personal:
   - qpdf
 
 arch_aur_packages_personal:
-  - claude-code
-  - claude-desktop
   - antigravity-cli
   - google-earth-pro
-  - grok-bot-bin
   - yamis-icon-theme-git

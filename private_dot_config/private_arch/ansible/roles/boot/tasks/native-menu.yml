@@ -46,7 +46,8 @@
       {{ '--check' if ansible_check_mode else '' }}
     executable: /usr/bin/python3
   register: boot_menu_cleanup
-  changed_when: (boot_menu_cleanup.stdout | from_json).changed
+  # A failure can follow mutations. Preserve its stderr instead of parsing empty stdout.
+  changed_when: boot_menu_cleanup.rc != 0 or (boot_menu_cleanup.stdout | from_json).changed
   check_mode: false
 
 - name: Report the boot menu cleanup result

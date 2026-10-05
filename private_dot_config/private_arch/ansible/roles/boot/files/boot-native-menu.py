@@ -25,7 +25,36 @@ def run(*args):
 
 
 def entries():
-    return set(re.findall(r'^\s*id:\s*(\S+)\s*$', run('bootctl', 'list', '--no-pager'), re.M))
+    report = json.loads(run('bootctl', 'list', '--json=short', '--no-pager'))
+    if not isinstance(report, list):
+        raise ValueError('Expected a JSON array of boot entries')
+    result = {}
+    for row in report:
+        if (not isinstance(row, dict) or not isinstance(row.get('id'), str)
+                or row.get('type') not in ('type1', 'type2', 'loader', 'auto')
+                or not isinstance(row.get('path'), str) or row['id'] in result):
+            raise ValueError(f'Invalid or duplicate boot entry: {row!r}')
+        result[row['id']] = row
+    return result
+
+
+def require_native_entries(report):
+    for image in (NORMAL, FALLBACK):
+        row = report.get(image, {})
+        if (row.get('type') != 'type2'
+                or Path(row.get('path', '')) != ESP / 'EFI/Linux' / image):
+            raise ValueError(f'Native UKI entry missing or at an unexpected path: {image}')
+
+
+def verify_retirement(report, retire):
+    require_native_entries(report)
+    # LoaderEntries describes the menu at boot time, not the current ESP files.
+    # systemd exposes deleted entries as type=loader until the next boot.
+    remaining = set(ALIASES) & {name for name, row in report.items()
+                               if row['type'] in ('type1', 'type2')}
+    present = [str(path) for path in retire if path.exists() or path.is_symlink()]
+    if remaining or present:
+        raise ValueError(f'Boot menu post-validation failed: entries={sorted(remaining)}, files={present}')
 
 
 def efi_value(name):
@@ -73,8 +102,7 @@ def cleanup(uuid, check=False):
         report = json.loads(run('sbctl', 'verify', '--json', str(path)))
         if not any(row.get('file_name') == str(path) and row.get('is_signed') == 1 for row in report):
             raise ValueError(f'Invalid Secure Boot signature: {path}')
-    if not {NORMAL, FALLBACK} <= entries():
-        raise ValueError('Both native UKI entries must be discoverable before cleanup')
+    require_native_entries(entries())
     for name, image in WRAPPERS.items():
         validate_wrapper(ESP / 'loader/entries' / name, image)
     retire = [ESP / 'loader/entries' / name for name in WRAPPERS]
@@ -114,8 +142,7 @@ def cleanup(uuid, check=False):
         for path in removals:
             path.unlink()
         remaining = entries()
-        if not {NORMAL, FALLBACK} <= remaining or set(ALIASES) & remaining:
-            raise ValueError('Boot menu post-validation failed')
+        verify_retirement(remaining, retire)
         if efi_value('LoaderEntryDefault') != NORMAL or loader.read_text() != desired:
             raise ValueError('Native default post-validation failed')
     return {'changed': changed, 'check': check, 'retired': [str(p) for p in removals],

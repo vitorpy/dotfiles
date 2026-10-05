@@ -511,6 +511,14 @@ full boot-role runs use native entries and validate the archive without recreati
 rescue entries. Check mode performs all preflight checks without boot mutations;
 a repeated apply reports no cleanup changes.
 
+Until the next boot, `bootctl list` may still show the retired IDs as
+`Reported by Boot Loader` (`type: loader` in JSON, sourced from `LoaderEntries`).
+These are records of the menu seen at startup, not files still on the ESP. The
+recipe verifies that both retained entries are Type #2 UKIs at their expected
+paths, that retired files are absent, and that no retired Type #1/Type #2 entry
+remains. It leaves the boot-time EFI history intact. Script failures retain their
+original error rather than producing a secondary JSON parsing error.
+
 Rollback: disable `arch_boot_native_entries` in `host_vars/zygalski.yml` before the
 next boot-role run. The existing `boot-pcr-recovery.py --restore` procedure above
 restores the preserved pre-PCR boot files, including the wrapper entries and old

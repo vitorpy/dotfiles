@@ -83,6 +83,10 @@
     fail_msg: Secure Boot signing requested, but sbctl key material is missing.
   when: arch_manage_secure_boot | bool
 
+- name: Prepare signed PCR policies and preserve recovery artifacts
+  ansible.builtin.include_tasks: pcr-prepare.yml
+  when: arch_uki_pcr_signing_enabled | bool
+
 - name: Mount the ESP with root-only host permissions
   ansible.posix.mount:
     src: "UUID={{ arch_esp_uuid }}"
@@ -209,6 +213,7 @@
         boot_mkinitcpio_config.changed
         or boot_kernel_cmdline.changed
         or boot_mkinitcpio_preset.changed
+        or (boot_pcr_regenerate | default(false) | bool)
         or not (boot_uki_files_before.results
           | map(attribute='stat.exists') | min)
       }}
@@ -287,6 +292,12 @@
   loop: "{{ boot_uki_inspection.results }}"
   when: not ansible_check_mode
 
+- name: Verify generated PCR policies before signing or loader changes
+  ansible.builtin.include_tasks: pcr-verify.yml
+  when:
+    - arch_uki_pcr_signing_enabled | bool
+    - not ansible_check_mode
+
 - name: Install or update systemd-boot
   ansible.builtin.command: bootctl install
   changed_when: true
@@ -344,6 +355,35 @@
     - arch_manage_secure_boot | bool
     - not ansible_check_mode
 
+- name: Read explicit Secure Boot signature results
+  ansible.builtin.command:
+    argv: >-
+      {{ ['sbctl', 'verify', '--json',
+          '/boot/EFI/systemd/systemd-bootx64.efi', '/boot/EFI/BOOT/BOOTX64.EFI',
+          arch_uki_default_path, arch_uki_fallback_path]
+         + (['/boot/EFI/Linux/arch-linux-pre-pcr.efi']
+             if arch_uki_pcr_signing_enabled | bool else []) }}
+  register: boot_explicit_signatures
+  changed_when: false
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
+
+- name: Require verified signatures for every managed boot artifact
+  ansible.builtin.assert:
+    that:
+      - (boot_explicit_signatures.stdout | from_json) | length == (5 if arch_uki_pcr_signing_enabled | bool else 4)
+      - (boot_explicit_signatures.stdout | from_json) | map(attribute='is_signed') | min == 1
+      - >-
+        (['/boot/EFI/systemd/systemd-bootx64.efi', '/boot/EFI/BOOT/BOOTX64.EFI',
+          arch_uki_default_path, arch_uki_fallback_path]
+         + (['/boot/EFI/Linux/arch-linux-pre-pcr.efi'] if arch_uki_pcr_signing_enabled | bool else []))
+        | difference(boot_explicit_signatures.stdout | from_json | map(attribute='file_name') | list) | length == 0
+    fail_msg: An EFI artifact is missing or not signed by the configured sbctl key.
+  when:
+    - arch_manage_secure_boot | bool
+    - not ansible_check_mode
+
 - name: Render systemd-boot loader configuration
   ansible.builtin.template:
     src: loader.conf.j2
@@ -383,6 +423,13 @@
       - "'Arch Linux (fallback)' in boot_loader_entries.stdout"
     fail_msg: systemd-boot did not discover both managed UKI entries.
   when: not ansible_check_mode
+
+- name: Require the preserved PCR recovery entry to be discoverable
+  ansible.builtin.assert:
+    that: "'arch-pre-pcr.conf' in boot_loader_entries.stdout"
+  when:
+    - arch_uki_pcr_signing_enabled | bool
+    - not ansible_check_mode
 
 - name: Retire legacy split boot entries after a confirmed UKI boot
   ansible.builtin.file:

@@ -320,6 +320,102 @@ After the first reboot, run the same command without the extra variable to
 retire the accepted split boot entries. Verify the result with `bootctl status`
 and `sbctl verify` as root.
 
+### TPM NvPCR initialization and PCR signing (Zygalski)
+
+`arch_uki_pcr_signing_enabled` is disabled by default and enabled only for
+Zygalski. It adds `systemd-ukify` to the effective package declaration, including
+package-pruning retention, and installs it during a scoped `boot` apply. Systemd
+and ukify must have matching upstream versions, at least 262.
+
+The boot role generates one persistent host-local PCR key pair under
+`/etc/systemd/` (private `0600`, public `0644`, both root-owned). It refuses an
+incomplete or mismatched pair and never rotates an existing pair. Private keys
+are not copied into Chezmoi, Git, or the boot recovery snapshot. The managed
+`/etc/kernel/uki.conf` enables SHA-256 initrd policy signing and explicitly embeds
+the public key. These signatures authorize NvPCR initialization; `sbctl` continues
+to provide the outer Secure Boot signatures. This addresses the configuration
+requirements discussed in
+https://github.com/systemd/systemd/issues/43848#issuecomment-5983071126.
+
+Before installing ukify or changing the signing configuration, the role verifies
+the current default/fallback signatures and snapshots both UKIs, bootloader EFI
+files, loader entries, fstab, and kernel/mkinitcpio configuration into
+`/var/lib/arch-boot/pre-pcr`. A manifest records SHA-256 hashes and whether
+`uki.conf` originally existed. The snapshot is never overwritten. The old default
+UKI is also preserved as `/boot/EFI/Linux/arch-linux-pre-pcr.efi`, selectable as
+**Arch Linux — before PCR signing**. An existing conflicting rescue image or
+entry fails the apply. Keep this recovery entry until post-reboot acceptance;
+retiring it is a separate explicit maintenance change.
+
+Run these commands yourself: the wrapper authenticates with sudo, and the
+repository policy requires user-run privileged application.
+
+```bash
+~/.config/arch/apply-ansible.sh --limit zygalski --tags boot --check --diff
+~/.config/arch/apply-ansible.sh --limit zygalski --tags boot
+```
+
+Check mode reports planned installation/key creation but cannot certify artifacts
+that have not been built. The real apply must pass all key, PCR metadata, root and
+security command-line, EFI signature, and boot-menu checks before reboot. Both
+default and fallback UKIs must contain the managed `.pcrpkey` and a SHA-256 PCR 11
+signature with `ref: "initrd"`. No service is masked, no TPM is cleared, and no NV
+index is removed. Do not restart early TPM setup manually after boot: its policy
+is intentionally bound to the initrd phase.
+
+Re-run the scoped apply to check idempotence: keys, configuration, rescue copies,
+and UKI generation should show no changes. Existing unconditional systemd-boot
+installation/signing tasks may still report changes. Normal package updates use
+the existing mkinitcpio and sbctl pacman hooks. For manual rebuilds, use the boot
+role above so signing and verification follow the build; `mkinitcpio -P` alone
+does not run the sbctl pacman hook.
+
+After a user-controlled reboot, collect:
+
+```bash
+sudo bootctl status --no-pager
+sudo sbctl verify
+systemctl --failed --no-pager
+journalctl -b -u systemd-tpm2-setup-early.service -u systemd-tpm2-setup.service \
+  -u systemd-pcrproduct.service -u 'systemd-pcrlogin@*.service' --no-pager
+ls -l /run/systemd/tpm2-pcr-public-key.pem /run/systemd/tpm2-pcr-signature.json
+```
+
+Acceptance requires the normal managed UKI, Secure Boot enabled, successful early
+TPM/NvPCR initialization, and successful product/user-record measurements with no
+NvPCR errors. Artifact inspection alone is not runtime acceptance. If the error
+persists with correct signed metadata, retain the evidence and investigate it;
+do not erase TPM indexes or suppress the failing services.
+
+For rollback, select **Arch Linux — before PCR signing** in the boot menu if the
+normal entry cannot boot. The following user-run command verifies the immutable
+backup hashes, restores the saved files and original `uki.conf` presence, and
+checks the restored UKI signatures:
+
+```bash
+sudo python3 ~/.config/arch/ansible/roles/boot/files/boot-pcr-recovery.py \
+  --default /boot/EFI/Linux/arch-linux.efi \
+  --fallback /boot/EFI/Linux/arch-linux-fallback.efi --kernel linux --restore
+```
+
+Then revert the managed PCR-signing change before the next boot-role apply or
+kernel update. Keep the generated PCR keys for diagnosis. The rescue image and
+backup are retained. If the kernel package has since changed, the old image may
+lack matching on-disk modules; use recovery media to restore a matching kernel
+package before treating it as a long-term boot option.
+
+Repository validation:
+
+```bash
+cd ~/.config/arch/ansible
+python3 tests/test_boot_pcr.py
+bash tests/test-boot-pcr-integration.sh # Requires systemd-ukify; uses only temporary keys/images.
+bash tests/test-boot.sh
+bash tests/test-personal-workstation.sh
+bash tests/test-corp-workstation.sh
+ansible-playbook --syntax-check site.yml
+```
+
 ## Pacnew Reconciliation
 
 The `pacnew` role is fail-closed. Every pending path must have a reviewed

@@ -1,0 +1,17 @@
+---
+- name: Validate PCR metadata in both generated UKIs
+  ansible.builtin.script:
+    cmd: >-
+      boot-pcr-check.py uki {{ item | quote }} /etc/systemd/tpm2-pcr-public-key.pem
+    executable: /usr/bin/python3
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_pcr_generated
+  changed_when: false
+
+- name: Require the matching public key and signed initrd PCR policy
+  ansible.builtin.assert:
+    that: (item.stdout | from_json).valid
+    fail_msg: "PCR validation failed for {{ item.item }}: {{ item.stdout }}"
+  loop: "{{ boot_pcr_generated.results }}"

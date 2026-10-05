@@ -1,0 +1,3 @@
+---
+# Authorize NvPCR initialization from this host's signed initrd policies.
+arch_uki_pcr_signing_enabled: true

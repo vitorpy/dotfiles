@@ -1,0 +1,143 @@
+---
+- name: Require the existing signed UKI workflow for PCR signing
+  ansible.builtin.assert:
+    that:
+      - arch_manage_secure_boot | bool
+      - arch_esp_mountpoint == '/boot'
+      - boot_running_managed_uki | bool
+    fail_msg: PCR signing requires a confirmed boot of this host's managed signed UKI.
+
+- name: Preserve and verify the pre-PCR recovery boot state
+  ansible.builtin.script:
+    cmd: >-
+      boot-pcr-recovery.py --default {{ arch_uki_default_path | quote }}
+      --fallback {{ arch_uki_fallback_path | quote }} --kernel {{ arch_kernel_pkg | quote }}
+      {{ '--check' if ansible_check_mode else '' }}
+    executable: /usr/bin/python3
+  register: boot_pcr_recovery
+  changed_when: (boot_pcr_recovery.stdout | from_json).changed
+  check_mode: false
+
+- name: Install the matching UKI signing tool
+  ansible.builtin.package:
+    name: systemd-ukify
+    state: present
+  register: boot_pcr_tool_install
+
+- name: Check whether ukify is available for validation
+  ansible.builtin.stat:
+    path: /usr/bin/ukify
+  register: boot_pcr_tool
+
+- name: Validate installed systemd and ukify versions
+  when: boot_pcr_tool.stat.exists
+  block:
+    - name: Read systemd and ukify package versions
+      ansible.builtin.command: pacman -Q systemd systemd-ukify
+      register: boot_pcr_versions
+      changed_when: false
+      check_mode: false
+
+    - name: Require matching systemd versions with initrd PCR signing support
+      ansible.builtin.assert:
+        that:
+          - boot_pcr_versions.stdout_lines | length == 2
+          - boot_pcr_versions.stdout_lines[0].split()[1].split('-')[0] == boot_pcr_versions.stdout_lines[1].split()[1].split('-')[0]
+          - boot_pcr_versions.stdout_lines[0].split()[1].split('-')[0] is version('262', '>=')
+
+    - name: Inspect the persistent PCR key pair without exposing private material
+      ansible.builtin.script:
+        cmd: >-
+          boot-pcr-check.py pair /etc/systemd/tpm2-pcr-private-key.pem
+          /etc/systemd/tpm2-pcr-public-key.pem
+        executable: /usr/bin/python3
+      register: boot_pcr_pair_before
+      changed_when: false
+      check_mode: false
+
+    - name: Generate the PCR key pair only when both files are absent
+      ansible.builtin.command:
+        argv:
+          - ukify
+          - genkey
+          - --config=/dev/null
+          - --pcr-private-key=/etc/systemd/tpm2-pcr-private-key.pem
+          - --pcr-public-key=/etc/systemd/tpm2-pcr-public-key.pem
+      when:
+        - not (boot_pcr_pair_before.stdout | from_json).exists
+        - not ansible_check_mode
+      register: boot_pcr_key_generation
+      changed_when: true
+
+    - name: Set root ownership and permissions on the PCR keys
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: /etc/systemd/tpm2-pcr-private-key.pem, mode: "0600"}
+        - {path: /etc/systemd/tpm2-pcr-public-key.pem, mode: "0644"}
+      when: not ansible_check_mode or (boot_pcr_pair_before.stdout | from_json).exists
+
+    - name: Verify the generated or reused PCR key pair
+      ansible.builtin.script:
+        cmd: >-
+          boot-pcr-check.py pair /etc/systemd/tpm2-pcr-private-key.pem
+          /etc/systemd/tpm2-pcr-public-key.pem
+        executable: /usr/bin/python3
+      register: boot_pcr_pair_verified
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode or (boot_pcr_pair_before.stdout | from_json).exists
+
+    - name: Require a complete PCR key pair
+      ansible.builtin.assert:
+        that: (boot_pcr_pair_verified.stdout | from_json).exists
+      when: not ansible_check_mode or (boot_pcr_pair_before.stdout | from_json).exists
+
+- name: Report validation that requires installing the tool or generating keys
+  ansible.builtin.debug:
+    msg: >-
+      Check mode cannot build or validate new PCR-signed UKIs. The real apply
+      must install ukify, generate the missing key pair, and pass all artifact
+      checks before reboot.
+  when: ansible_check_mode
+
+- name: Render the UKI PCR signing configuration
+  ansible.builtin.template:
+    src: uki.conf.j2
+    dest: /etc/kernel/uki.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: boot_pcr_config
+
+- name: Parse the installed UKI signing configuration
+  ansible.builtin.command: ukify --config=/etc/kernel/uki.conf --output=/dev/null --summary build
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Inspect PCR metadata in existing UKIs
+  ansible.builtin.script:
+    cmd: >-
+      boot-pcr-check.py uki {{ item | quote }} /etc/systemd/tpm2-pcr-public-key.pem
+    executable: /usr/bin/python3
+  loop:
+    - "{{ arch_uki_default_path }}"
+    - "{{ arch_uki_fallback_path }}"
+  register: boot_pcr_existing
+  changed_when: false
+  check_mode: false
+  when: boot_pcr_tool.stat.exists
+
+- name: Record whether PCR signing requires a UKI rebuild
+  ansible.builtin.set_fact:
+    boot_pcr_regenerate: >-
+      {{ boot_pcr_tool_install.changed or boot_pcr_config.changed
+         or ((boot_pcr_key_generation | default({})).changed | default(false))
+         or not boot_pcr_tool.stat.exists
+         or (boot_pcr_existing.results | default([])
+             | selectattr('stdout', 'defined') | map(attribute='stdout')
+             | map('from_json') | selectattr('valid', 'equalto', false) | list | length > 0) }}

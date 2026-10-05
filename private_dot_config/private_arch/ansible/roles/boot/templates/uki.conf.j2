@@ -1,0 +1,10 @@
+# Managed by Ansible. PCR policy signing is separate from sbctl Secure Boot signing.
+[UKI]
+SignKernel=false
+SignInitrdPCRs=yes
+PCRBanks=sha256
+PCRPKey=/etc/systemd/tpm2-pcr-public-key.pem
+
+[PCRSignature:all]
+PCRPrivateKey=/etc/systemd/tpm2-pcr-private-key.pem
+PCRPublicKey=/etc/systemd/tpm2-pcr-public-key.pem

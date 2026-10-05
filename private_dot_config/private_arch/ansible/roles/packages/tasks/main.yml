@@ -3,6 +3,8 @@
   ansible.builtin.set_fact:
     packages_pacman_effective: >-
       {{ (arch_pacman_packages + arch_host_pacman_packages_extra
+          + (['systemd-ukify'] if (arch_boot_enabled | bool
+              and arch_uki_pcr_signing_enabled | bool) else [])
           + (['python-pexpect'] if (arch_aur_packages + arch_host_aur_packages_extra) | length > 0 else [])) | unique }}
   tags:
     - packages

@@ -1,0 +1,54 @@
+---
+- name: Require the confirmed signed PCR workflow for menu cleanup
+  ansible.builtin.assert:
+    that:
+      - arch_boot_enabled | bool
+      - arch_uki_pcr_signing_enabled | bool
+      - arch_manage_secure_boot | bool
+      - arch_esp_mountpoint == '/boot'
+      - arch_uki_default_path == '/boot/EFI/Linux/arch-linux.efi'
+      - arch_uki_fallback_path == '/boot/EFI/Linux/arch-linux-fallback.efi'
+
+- name: Validate the immutable recovery archive without recreating rescue entries
+  ansible.builtin.script:
+    cmd: >-
+      boot-pcr-recovery.py --default {{ arch_uki_default_path | quote }}
+      --fallback {{ arch_uki_fallback_path | quote }} --kernel {{ arch_kernel_pkg | quote }}
+      --archive-only --check
+    executable: /usr/bin/python3
+  changed_when: false
+  check_mode: false
+
+- name: Check PCR signatures in the running boot and both retained images
+  ansible.builtin.script:
+    cmd: >-
+      boot-pcr-check.py {{ item.mode }} {{ item.path | quote }}
+      /etc/systemd/tpm2-pcr-public-key.pem
+    executable: /usr/bin/python3
+  loop:
+    - {mode: runtime, path: /run/systemd}
+    - {mode: uki, path: /boot/EFI/Linux/arch-linux.efi}
+    - {mode: uki, path: /boot/EFI/Linux/arch-linux-fallback.efi}
+  register: boot_menu_pcr_checks
+  changed_when: false
+  check_mode: false
+
+- name: Require matching signed initrd policies before retiring recovery entries
+  ansible.builtin.assert:
+    that: (item.stdout | from_json).valid
+    fail_msg: "PCR validation failed: {{ item.stdout }}"
+  loop: "{{ boot_menu_pcr_checks.results }}"
+
+- name: Select native UKIs and retire only duplicate and pre-PCR menu files
+  ansible.builtin.script:
+    cmd: >-
+      boot-native-menu.py --esp-uuid {{ arch_esp_uuid | quote }}
+      {{ '--check' if ansible_check_mode else '' }}
+    executable: /usr/bin/python3
+  register: boot_menu_cleanup
+  changed_when: (boot_menu_cleanup.stdout | from_json).changed
+  check_mode: false
+
+- name: Report the boot menu cleanup result
+  ansible.builtin.debug:
+    var: boot_menu_cleanup.stdout

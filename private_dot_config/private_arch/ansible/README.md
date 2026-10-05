@@ -484,3 +484,37 @@ retained or deleted.
 - Password prompting is intentionally left out.
 - Bitwarden restore remains a separate explicit step.
 - AUR management still depends on `yay`, which this playbook bootstraps if missing.
+
+### Clean the UKI boot menu after the confirmed PCR boot
+
+Zygalski enables `arch_boot_native_entries`; other hosts default to false. After
+booting the normal signed PCR UKI successfully, preview and apply this scoped recipe:
+
+```sh
+~/.config/arch/apply-ansible.sh --limit zygalski --tags boot-menu --check --diff
+~/.config/arch/apply-ansible.sh --limit zygalski --tags boot-menu
+sudo bootctl list --no-pager
+```
+
+The recipe validates the immutable pre-PCR archive, current runtime PCR signature,
+both UKIs' PCR and Secure Boot signatures, successful current-boot PCR measurement
+services, mounted ESP UUID, and native menu discovery before changing selections.
+It sets `arch-linux.efi` as the persistent EFI and loader.conf default, translates
+saved one-shot/system-failure selections that point at retired entries, and removes
+only `arch.conf`, `arch-fallback.conf`, `arch-pre-pcr.conf`, and
+`EFI/Linux/arch-linux-pre-pcr.efi`. Customized wrapper entries require review.
+
+The normal and fallback UKIs, shared loader credentials, firmware menu option, and
+`/var/lib/arch-boot/pre-pcr` recovery archive remain. No kernel rebuild, bootloader
+installation, TPM reset, or reboot is performed by the `boot-menu` tag. Subsequent
+full boot-role runs use native entries and validate the archive without recreating
+rescue entries. Check mode performs all preflight checks without boot mutations;
+a repeated apply reports no cleanup changes.
+
+Rollback: disable `arch_boot_native_entries` in `host_vars/zygalski.yml` before the
+next boot-role run. The existing `boot-pcr-recovery.py --restore` procedure above
+restores the preserved pre-PCR boot files, including the wrapper entries and old
+loader.conf. After restoring them, run `sudo bootctl set-default arch.conf` (the
+snapshot does not restore EFI variables); if needed, clear a pending override with
+`sudo bootctl set-oneshot ''`. This restores the old PCR behavior as well, so use
+it only when intentionally rolling back the PCR migration.

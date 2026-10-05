@@ -84,10 +84,18 @@ def check_uki(image_path, public_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("pair", "uki"))
+    parser.add_argument("mode", choices=("pair", "uki", "runtime"))
     parser.add_argument("first")
     parser.add_argument("public")
     args = parser.parse_args()
+    if args.mode == "runtime":
+        runtime = Path(args.first)
+        result = check_sections({
+            ".pcrpkey": {"text": (runtime / "tpm2-pcr-public-key.pem").read_text()},
+            ".pcrsig": {"text": (runtime / "tpm2-pcr-signature.json").read_text()},
+        }, Path(args.public).read_bytes())
+        print(json.dumps(result))
+        return
     result = (check_pair(args.first, args.public) if args.mode == "pair"
               else check_uki(args.first, args.public))
     print(json.dumps(result))

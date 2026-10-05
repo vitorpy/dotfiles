@@ -1,4 +1,8 @@
+{% if arch_boot_native_entries | bool %}
+default {{ arch_uki_default_path | basename }}
+{% else %}
 default arch.conf
+{% endif %}
 timeout 3
 console-mode max
 editor no

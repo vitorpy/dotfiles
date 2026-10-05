@@ -195,6 +195,8 @@ arch_package_prune_explicit: false
 arch_package_prune_exclude: []
 
 arch_boot_enabled: false
+# Opt in only after a successful boot with signed PCR policies.
+arch_boot_native_entries: false
 arch_uki_pcr_signing_enabled: false
 arch_kernel_pkg: linux
 arch_root_kernel_cmdline: ""

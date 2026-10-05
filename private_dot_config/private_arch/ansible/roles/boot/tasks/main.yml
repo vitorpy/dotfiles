@@ -362,7 +362,7 @@
           '/boot/EFI/systemd/systemd-bootx64.efi', '/boot/EFI/BOOT/BOOTX64.EFI',
           arch_uki_default_path, arch_uki_fallback_path]
          + (['/boot/EFI/Linux/arch-linux-pre-pcr.efi']
-             if arch_uki_pcr_signing_enabled | bool else []) }}
+             if (arch_uki_pcr_signing_enabled | bool and not arch_boot_native_entries | bool) else []) }}
   register: boot_explicit_signatures
   changed_when: false
   when:
@@ -372,17 +372,23 @@
 - name: Require verified signatures for every managed boot artifact
   ansible.builtin.assert:
     that:
-      - (boot_explicit_signatures.stdout | from_json) | length == (5 if arch_uki_pcr_signing_enabled | bool else 4)
+      - (boot_explicit_signatures.stdout | from_json) | length == (5 if (arch_uki_pcr_signing_enabled | bool and not arch_boot_native_entries | bool) else 4)
       - (boot_explicit_signatures.stdout | from_json) | map(attribute='is_signed') | min == 1
       - >-
         (['/boot/EFI/systemd/systemd-bootx64.efi', '/boot/EFI/BOOT/BOOTX64.EFI',
           arch_uki_default_path, arch_uki_fallback_path]
-         + (['/boot/EFI/Linux/arch-linux-pre-pcr.efi'] if arch_uki_pcr_signing_enabled | bool else []))
+         + (['/boot/EFI/Linux/arch-linux-pre-pcr.efi'] if (arch_uki_pcr_signing_enabled | bool and not arch_boot_native_entries | bool) else []))
         | difference(boot_explicit_signatures.stdout | from_json | map(attribute='file_name') | list) | length == 0
     fail_msg: An EFI artifact is missing or not signed by the configured sbctl key.
   when:
     - arch_manage_secure_boot | bool
     - not ansible_check_mode
+
+- name: Maintain the native UKI menu after a verified PCR boot
+  ansible.builtin.import_tasks: native-menu.yml
+  when: arch_boot_native_entries | bool
+  tags:
+    - boot-menu
 
 - name: Render systemd-boot loader configuration
   ansible.builtin.template:
@@ -393,6 +399,7 @@
     mode: "0600"
 
 - name: Render systemd-boot UKI entries
+  when: not arch_boot_native_entries | bool
   ansible.builtin.template:
     src: uki-entry.conf.j2
     dest: "/boot/loader/entries/{{ item.id }}.conf"
@@ -420,7 +427,7 @@
   ansible.builtin.assert:
     that:
       - "'Arch Linux' in boot_loader_entries.stdout"
-      - "'Arch Linux (fallback)' in boot_loader_entries.stdout"
+      - "('arch-linux-fallback.efi' if arch_boot_native_entries | bool else 'Arch Linux (fallback)') in boot_loader_entries.stdout"
     fail_msg: systemd-boot did not discover both managed UKI entries.
   when: not ansible_check_mode
 
@@ -429,6 +436,7 @@
     that: "'arch-pre-pcr.conf' in boot_loader_entries.stdout"
   when:
     - arch_uki_pcr_signing_enabled | bool
+    - not arch_boot_native_entries | bool
     - not ansible_check_mode
 
 - name: Retire legacy split boot entries after a confirmed UKI boot

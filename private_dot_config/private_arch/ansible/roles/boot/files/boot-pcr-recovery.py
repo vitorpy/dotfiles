@@ -84,11 +84,12 @@ def main():
     parser.add_argument("--kernel", required=True)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--restore", action="store_true")
+    parser.add_argument("--archive-only", action="store_true")
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error("Run as root to inspect or preserve the root-only ESP")
-    if args.check and args.restore:
-        parser.error("--check and --restore are mutually exclusive")
+    if args.restore and (args.check or args.archive_only):
+        parser.error("--restore cannot be combined with --check or --archive-only")
     if not args.kernel.replace("-", "").isalnum():
         parser.error("Invalid kernel package name")
 
@@ -106,8 +107,8 @@ def main():
         raise ValueError("Managed UKI and recovery paths must be distinct")
 
     if not backup.exists():
-        if args.restore:
-            raise ValueError("No pre-PCR snapshot to restore")
+        if args.restore or args.archive_only:
+            raise ValueError("No pre-PCR snapshot to restore or validate")
         if rescue.exists() or entry.exists():
             raise ValueError("Rescue files already exist without a matching snapshot")
         verify_signed(default)
@@ -143,12 +144,12 @@ def main():
     entry_content = "title   Arch Linux — before PCR signing\nefi     /EFI/Linux/arch-linux-pre-pcr.efi\n"
     if entry.exists() and (entry.is_symlink() or entry.read_text() != entry_content):
         raise ValueError("Existing rescue loader entry differs; refusing to overwrite it")
-    if args.check:
+    if args.check or args.archive_only:
         if rescue.exists():
             if digest(rescue) != expected_hash:
                 raise ValueError("Rescue checksum differs from backup")
             verify_signed(rescue)
-        print(json.dumps({"changed": not rescue.exists() or not entry.exists(), "backup": str(backup)}))
+        print(json.dumps({"changed": not args.archive_only and (not rescue.exists() or not entry.exists()), "backup": str(backup)}))
         return
     changed |= copy_once(backup / "files" / str(default).lstrip("/"), rescue, expected_hash)
     verify_signed(rescue)

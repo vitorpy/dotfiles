@@ -13,6 +13,7 @@
       boot-pcr-recovery.py --default {{ arch_uki_default_path | quote }}
       --fallback {{ arch_uki_fallback_path | quote }} --kernel {{ arch_kernel_pkg | quote }}
       {{ '--check' if ansible_check_mode else '' }}
+      {{ '--archive-only' if arch_boot_native_entries | bool else '' }}
     executable: /usr/bin/python3
   register: boot_pcr_recovery
   changed_when: (boot_pcr_recovery.stdout | from_json).changed

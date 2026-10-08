@@ -232,29 +232,54 @@ local function groupRoamWindows()
     table.sort(windows, function(a, b) return a.stable_id < b.stable_id end)
     local anchor = windows[1]
     if not anchor then return end
+    local anchorSelector = "address:" .. anchor.address
     if not anchor.group then
-        hl.dispatch(hl.dsp.group.toggle({ window = anchor }))
+        hl.dispatch(hl.dsp.group.toggle({ window = anchorSelector }))
     end
     local group = anchor.group
+    local pending = {}
     for i = 2, #windows do
         local window = windows[i]
         local alreadyGrouped = false
         for _, member in ipairs(group.members) do
             if member.address == window.address then alreadyGrouped = true end
         end
-        if not alreadyGrouped then group:add(window) end
+        if not alreadyGrouped then table.insert(pending, window) end
     end
-    if not group.locked then
-        local previous = hl.get_active_window()
-        hl.dispatch(hl.dsp.focus({ window = anchor }))
-        hl.dispatch(hl.dsp.group.lock_active({ action = "lock" }))
-        if previous and previous.address ~= anchor.address then
-            hl.dispatch(hl.dsp.focus({ window = previous }))
-        end
+    if #pending == 0 and group.locked then return end
+
+    local previous = hl.get_active_window()
+    local previousSelector = previous and ("address:" .. previous.address)
+    hl.dispatch(hl.dsp.focus({ window = "address:" .. group.current.address }))
+    -- Static rules create locked singleton groups at startup. Native add()
+    -- refuses a locked destination or a window still in another group.
+    hl.dispatch(hl.dsp.group.lock_active({ action = "disable" }))
+    for _, window in ipairs(pending) do
+        if window.group then window.group:remove(window) end
+        group:add(window)
+    end
+    hl.dispatch(hl.dsp.focus({ window = "address:" .. group.current.address }))
+    hl.dispatch(hl.dsp.group.lock_active({ action = "enable" }))
+    if previousSelector and previousSelector ~= anchorSelector then
+        hl.dispatch(hl.dsp.focus({ window = previousSelector }))
     end
 end
 
-hl.on("window.open", function(window)
-    if window.class == "roam" then groupRoamWindows() end
+-- XWayland's open event can precede the final class/mapped/group state.
+-- Debounce until window initialization and static rules have settled.
+local roamGroupTimer
+local function scheduleRoamGrouping()
+    -- Recreate the one-shot: re-enabling a fired timer does not restart it.
+    if roamGroupTimer then roamGroupTimer:set_enabled(false) end
+    roamGroupTimer = hl.timer(groupRoamWindows, { timeout = 150, type = "oneshot" })
+end
+
+hl.on("window.open", scheduleRoamGrouping)
+hl.on("window.class", function(window)
+    if window.class == "roam" then scheduleRoamGrouping() end
 end)
-hl.on("config.reloaded", groupRoamWindows)
+hl.on("window.destroy", function(window)
+    if window.class == "roam" then scheduleRoamGrouping() end
+end)
+hl.on("hyprland.start", scheduleRoamGrouping)
+hl.on("config.reloaded", scheduleRoamGrouping)

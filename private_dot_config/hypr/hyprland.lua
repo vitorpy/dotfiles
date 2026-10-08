@@ -75,6 +75,14 @@ hl.config({
             -- Title backgrounds require gradients; 95% opacity keeps white
             -- text legible over light wallpaper and application content.
             gradients = true,
+            font_size = 10,
+            height = 26,
+            -- Match Berg's 12 px status-bar corners on every tab.
+            gradient_rounding = 12,
+            gradient_round_only_edges = false,
+            rounding = 12,
+            round_only_edges = false,
+            gaps_in = 4,
             text_color = "rgba(ffffffff)",
             text_color_inactive = "rgba(e0e0e0ff)",
             text_color_locked_active = "rgba(ffffffff)",

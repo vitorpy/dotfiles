@@ -20,7 +20,9 @@ verified on Hyprland 0.56.2). No extra service or script is required.
 
 Tab titles use a dark background at 95% opacity with light text, including
 locked tabs. This is configured under `group.groupbar` in `hl.config` and applies
-to all Hyprland groups. The active tab has a subtle dark green background.
+to all Hyprland groups. The active tab has a subtle dark green background. Titles use font size 10
+in a 26 px high bar; each tab has a 12 px background corner radius matching
+Berg's status-bar blocks, with 4 px gaps between tabs.
 Remove that block and reload to restore the default transparent title styling.
 
 ## Verification

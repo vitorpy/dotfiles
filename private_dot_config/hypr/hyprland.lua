@@ -70,6 +70,23 @@ hl.config({
         allow_tearing = false,
         layout = "dwindle",
     },
+    group = {
+        groupbar = {
+            -- Title backgrounds require gradients; 95% opacity keeps white
+            -- text legible over light wallpaper and application content.
+            gradients = true,
+            text_color = "rgba(ffffffff)",
+            text_color_inactive = "rgba(e0e0e0ff)",
+            text_color_locked_active = "rgba(ffffffff)",
+            text_color_locked_inactive = "rgba(e0e0e0ff)",
+            col = {
+                active = "rgba(263c29f2)",
+                inactive = "rgba(242424f2)",
+                locked_active = "rgba(263c29f2)",
+                locked_inactive = "rgba(242424f2)",
+            },
+        },
+    },
     decoration = {
         rounding = 10,
         active_opacity = 1.0,

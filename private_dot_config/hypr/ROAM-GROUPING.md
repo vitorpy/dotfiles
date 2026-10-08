@@ -18,6 +18,11 @@ the previously focused window. Native group additions refuse locked groups.
 Requires the Hyprland Lua API and native `HL.Group:add` method (configured and
 verified on Hyprland 0.56.2). No extra service or script is required.
 
+Tab titles use a dark background at 95% opacity with light text, including
+locked tabs. This is configured under `group.groupbar` in `hl.config` and applies
+to all Hyprland groups. The active tab has a subtle dark green background.
+Remove that block and reload to restore the default transparent title styling.
+
 ## Verification
 
 ```bash

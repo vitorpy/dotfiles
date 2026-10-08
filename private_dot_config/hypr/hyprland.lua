@@ -153,6 +153,10 @@ hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("hyprctl switchxkblayout all next
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("systemctl --user reload quickshell-berg.service"))
 
+-- Switch tabs within a grouped application.
+hl.bind(mainMod .. " + Tab", hl.dsp.group.next())
+hl.bind(mainMod .. " + SHIFT + Tab", hl.dsp.group.prev())
+
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.window.move({ monitor = "+1" }))
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.window.move({ workspace = "emptynm", follow = true }))
 
@@ -208,3 +212,49 @@ hl.window_rule({
     },
     no_focus = true,
 })
+
+
+-- Roam's inbox and chat windows share one locked tabbed container.
+-- "barred" prevents a new Roam window from joining an unrelated focused group.
+hl.window_rule({
+    name = "roam-tabs",
+    match = { class = "^roam$" },
+    group = "barred set lock",
+})
+
+local function groupRoamWindows()
+    local windows = {}
+    for _, window in ipairs(hl.get_windows()) do
+        if window.class == "roam" and window.mapped then
+            table.insert(windows, window)
+        end
+    end
+    table.sort(windows, function(a, b) return a.stable_id < b.stable_id end)
+    local anchor = windows[1]
+    if not anchor then return end
+    if not anchor.group then
+        hl.dispatch(hl.dsp.group.toggle({ window = anchor }))
+    end
+    local group = anchor.group
+    for i = 2, #windows do
+        local window = windows[i]
+        local alreadyGrouped = false
+        for _, member in ipairs(group.members) do
+            if member.address == window.address then alreadyGrouped = true end
+        end
+        if not alreadyGrouped then group:add(window) end
+    end
+    if not group.locked then
+        local previous = hl.get_active_window()
+        hl.dispatch(hl.dsp.focus({ window = anchor }))
+        hl.dispatch(hl.dsp.group.lock_active({ action = "lock" }))
+        if previous and previous.address ~= anchor.address then
+            hl.dispatch(hl.dsp.focus({ window = previous }))
+        end
+    end
+end
+
+hl.on("window.open", function(window)
+    if window.class == "roam" then groupRoamWindows() end
+end)
+hl.on("config.reloaded", groupRoamWindows)

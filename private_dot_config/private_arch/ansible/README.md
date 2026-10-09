@@ -121,6 +121,46 @@ location is `~/.gam`. Roll back by removing `gam` from
 `arch_aur_packages_corporate`, synchronizing the managed configuration, and running
 `sudo pacman -R gam` yourself. Removing the package leaves user credentials intact.
 
+### GAM migration profiles on Rivest
+
+`~/.gam/gam.cfg` contains two native GAM sections: `target` for
+`houdiniswap.com`, and `source` for `solstrategies.io`. Select the profile for
+each command explicitly; the default section does not select either tenant.
+
+| Profile | Workspace domain | Administrator |
+| --- | --- | --- |
+| `target` | `houdiniswap.com` | `vitor@houdiniswap.com` |
+| `source` | `solstrategies.io` | `vitor.pybraga@solstrategies.io` |
+
+```bash
+gam showsections
+gam select target verify variables '^(domain|config_dir|oauth2_txt|oauth2service_json)$'
+gam select source verify variables '^(domain|config_dir|oauth2_txt|oauth2service_json)$'
+# After authorizing each profile:
+gam select target info domain
+gam select source info domain
+```
+
+Each profile has its own credential directory (`~/.config/gam/target` or
+`~/.config/gam/source`) and discovery cache (`~/.cache/gam/target` or
+`~/.cache/gam/source`). The profile metadata is tracked as a private chezmoi
+template and applied only on Rivest. Authorization files are local and untracked.
+The credential directories are created with mode `0700`; `gam.cfg` uses `0600`.
+
+Authorize each tenant independently following the official
+[GAM multi-customer setup](https://github.com/GAM-team/GAM/wiki/gam.cfg#multiple-customers-and-domains).
+A fresh profile needs its own project/client configuration and administrator
+OAuth authorization before domain exploration works. After authorization,
+confirm the tenant with `gam select <profile> info domain` before querying users.
+For initial exploration, select the read-only API scopes needed for the queries.
+Adding these profile sections performs no Workspace data migration.
+
+To restore the metadata, apply `~/.gam/gam.cfg` with chezmoi. To roll back,
+remove the managed file from the source and delete only the `[target]` and
+`[source]` sections from the live file; retain local credentials unless you intend
+to revoke/remove them. After making local GAM configuration changes that should
+persist, update the corresponding source-template settings before applying it.
+
 ## Corporate smart-contract tooling
 
 Corporate workstations install `noirup-bin` and `foundry-bin` from the AUR.

@@ -42,3 +42,8 @@ tests
 .local/bin/codex
 .config/systemd/user/app-codex.slice
 {{- end }}
+
+# GAM migration profiles: Rivest only; credentials remain outside chezmoi.
+{{- if not (and (eq .chezmoi.os "linux") (eq .chezmoi.hostname "rivest")) }}
+.gam/gam.cfg
+{{- end }}

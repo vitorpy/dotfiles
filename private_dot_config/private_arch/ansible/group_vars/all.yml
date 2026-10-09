@@ -414,6 +414,7 @@ arch_aur_packages_corporate:
   - roam
   - noirup-bin
   - foundry-bin
+  - gam
 
 arch_aur_packages_theming: []
 

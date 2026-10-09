@@ -90,6 +90,37 @@ Rollback: revert the AUR-authentication commit and apply the packages task and
 action changes through chezmoi; the older path again requires an independently
 usable sudo ticket. No system security configuration needs restoring.
 
+## Google Workspace administration
+
+Corporate workstations select the AUR `gam` package (GAM7 from the official
+[GAM-team/GAM upstream](https://github.com/GAM-team/GAM)) through
+`arch_aur_packages_corporate`. The existing AUR role installs its Python and
+Google API dependencies and provides `/usr/bin/gam`; a separate pip installation
+is not required. Personal workstations and servers do not select this package.
+
+On Rivest, install only GAM and its dependencies, then verify the command:
+
+```bash
+yay -S --needed gam
+gam version
+```
+
+For normal corporate package reconciliation, run:
+
+```bash
+~/.config/arch/apply-ansible.sh --limit corp_workstation --tags packages
+```
+
+Run these installation commands yourself; they require administrator
+authentication. The packages tag also performs existing declared-package pruning.
+To update an installed GAM package separately, run `yay -S gam`.
+
+Google Workspace authorization is a separate setup step. Keep OAuth credentials
+and service-account keys out of tracked dotfiles; GAM's default configuration
+location is `~/.gam`. Roll back by removing `gam` from
+`arch_aur_packages_corporate`, synchronizing the managed configuration, and running
+`sudo pacman -R gam` yourself. Removing the package leaves user credentials intact.
+
 ## Corporate smart-contract tooling
 
 Corporate workstations install `noirup-bin` and `foundry-bin` from the AUR.

@@ -206,7 +206,7 @@ User-installed Noir toolchains are managed separately by noirup.
 
 - `group_vars/workstation.yml` enables desktop, SDDM, and the full package set.
 - `group_vars/personal_workstation.yml` inherits the workstation profile and
-  adds personal-only tools, including QGIS, Google Earth Pro, and the official Notion CLI.
+  adds personal-only tools, including LibreOffice, QGIS, Google Earth Pro, and the official Notion CLI.
   QGIS uses the official Arch `qgis` package for geographic data analysis.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
@@ -215,6 +215,15 @@ User-installed Noir toolchains are managed separately by noirup.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
+
+LibreOffice uses the official Arch `libreoffice-fresh` package to read DOCX and
+export PDF. To install it without reconciling the other managed packages, run
+`sudo pacman -Syu --needed libreoffice-fresh`; Pacman resolves its dependencies.
+Alternatively, reconcile the full personal package profile with
+`~/.config/arch/apply-ansible.sh --limit zygalski --tags packages`.
+Convert a document with `libreoffice --headless --convert-to pdf --outdir . document.docx`.
+To roll back, remove `libreoffice-fresh` from `arch_pacman_packages_personal`,
+synchronize with Chezmoi, and run `sudo pacman -R libreoffice-fresh`.
 
 The personal profile no longer declares `grok-bot-bin`, `claude-code`, or
 `claude-desktop`. To remove the installed packages on zygalski, run

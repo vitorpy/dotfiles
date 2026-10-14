@@ -5,7 +5,10 @@ installer plus an unencrypted ext4 partition labelled `RIVEST_BACKUP`.
 `home.tar.zst` contains home, hidden files, permissions, ACLs, extended attributes,
 symlinks/hardlinks and the protected root-reference archive. Disposable caches
 and the old restore-test directory are excluded. No backup password is needed.
-Check `BACKUP-VERIFIED.json` on the USB before erasing Arch.
+Check `BACKUP-VERIFIED.json` on the USB before erasing Arch. The archive passed
+full read-back SHA256 and decompression checks. Source comparison differed only
+for live application caches/logs, metadata and the active Codex session; consistent
+Codex SQLite snapshots and its current session logs are included separately.
 
 1. Boot the SanDisk using Framework F12. Start the normal Fedora KDE installer.
 2. Connect Wi-Fi normally. Install to the internal **WD PC SN5000S SDEPTSJ-512G**,
@@ -21,7 +24,7 @@ Check `BACKUP-VERIFIED.json` on the USB before erasing Arch.
 udisksctl mount -b /dev/disk/by-label/RIVEST_BACKUP
 backup=/run/media/vitorpy/RIVEST_BACKUP
 cat "$backup/BACKUP-VERIFIED.json"
-(cd "$backup" && sha256sum -c SHA256SUMS)
+(cd "$backup" && sha256sum -c SHA256SUMS CODEX-SESSION-SHA256SUMS)
 cp -a ~/.config ~/.config.fedora-fresh
 sudo tar --zstd --extract --file="$backup/home.tar.zst" --directory=/home \
   --preserve-permissions --numeric-owner --acls --xattrs --xattrs-include='*' \
@@ -31,6 +34,12 @@ sudo tar --zstd --extract --file="$backup/home.tar.zst" --directory=/home \
   --exclude='vitorpy/.config/uwsm' \
   --exclude='vitorpy/.local/share/dbus-1/services' \
   --exclude='vitorpy/.dmrc'
+# Use consistent snapshots for the databases that were live during capture.
+for db in "$backup"/codex-session/*.sqlite; do
+  name="${db##*/}"
+  rm -f "$HOME/.codex/$name-wal" "$HOME/.codex/$name-shm"
+done
+cp -a "$backup/codex-session/." "$HOME/.codex/"
 sudo restorecon -RF /home/vitorpy
 sudo reboot
 ```

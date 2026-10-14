@@ -20,7 +20,10 @@ custom installation controller is used by this standard installer.
 
 The backup is streamed directly from home to `home.tar.zst` on the USB; no second
 copy is created locally or on the NAS. `SHA256SUMS` and `BACKUP-VERIFIED.json`
-record verification. The original NAS snapshots are preserved.
+record verification. The 5.89 GiB archive passed full USB read-back SHA256 and
+decompression. All other archived source files matched apart from live background
+application activity; consistent Codex database snapshots and session logs are
+provided separately. The original NAS snapshots are preserved.
 
 Use F12 to boot the standard Fedora KDE installer. Choose only the internal
 512 GB WD disk for installation and keep the SanDisk intact. Create vitorpy as

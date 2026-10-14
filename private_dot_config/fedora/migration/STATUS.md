@@ -7,9 +7,12 @@ installation, followed by home recovery. Personal Zygalski stays Arch.
 The standard installer remains on the authorized SanDisk. Its complete original
 3,368,683,520-byte image was rechecked successfully before adding an unencrypted
 ext4 `RIVEST_BACKUP` partition in unused space. The installer media checksum was
-refreshed after the GPT change. A compressed home archive is being written
-straight to USB, including the protected recovery capture, without encryption or
-a new NAS copy. SIMPLE-INSTALL.md is the current runbook.
+refreshed after the GPT change. A 6,327,220,383-byte compressed home archive was written directly to USB,
+including the protected recovery capture, without encryption or a new NAS copy.
+Full USB read-back SHA256 and decompression passed. Source comparison matched
+except for background application caches/logs, metadata and active Codex state;
+consistent online Codex SQLite snapshots and its current session logs supplement
+the archive. SIMPLE-INSTALL.md is the current runbook.
 
 ## Abandoned guided automation — historical rehearsal evidence
 
@@ -170,6 +173,6 @@ a new NAS copy. SIMPLE-INSTALL.md is the current runbook.
   rendered, but input-method integration has not been accepted.
 - Independent-device recovery confirmation, authenticated corporate workflows,
   security keys and Framework hardware checks remain pending in ACCEPTANCE.md.
-- Complete and verify the unencrypted USB home archive, then use the normal
+- The unencrypted USB home archive is complete and verified. Use the normal
   Fedora installer. Actual hardware/account acceptance follows data recovery,
   beginning with Plasma. Guided automation and its bootstrap passphrase are retired.

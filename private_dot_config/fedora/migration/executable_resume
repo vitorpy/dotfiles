@@ -1,0 +1,4 @@
+#!/bin/sh
+# On installed Fedora only. Caller must already be root; never invokes sudo.
+set -eu
+exec /usr/bin/python3 /opt/rivest-migration/installer.py "${1:-status}"

@@ -27,3 +27,32 @@
     method: user
     state: present
   become_user: "{{ fedora_primary_user }}"
+- name: Provide the shared Hyprland Bitwarden launcher on Fedora
+  ansible.builtin.copy:
+    dest: /usr/local/bin/bitwarden-desktop
+    content: |
+      #!/bin/sh
+      exec /usr/bin/flatpak run com.bitwarden.desktop "$@"
+    owner: root
+    group: root
+    mode: '0755'
+- name: Create the user desktop-entry directory
+  ansible.builtin.file:
+    path: "/home/{{ fedora_primary_user }}/.local/share/applications"
+    state: directory
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0755'
+- name: Register Berg with the desktop portal
+  ansible.builtin.copy:
+    dest: "/home/{{ fedora_primary_user }}/.local/share/applications/org.vitorpy.berg.desktop"
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0644'
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Berg
+      Exec=/usr/bin/qs -c berg
+      Icon=preferences-system-panel
+      NoDisplay=true

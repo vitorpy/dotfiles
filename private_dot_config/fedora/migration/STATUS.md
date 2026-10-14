@@ -4,6 +4,23 @@ Corporate Rivest remains Arch with its partitions and boot configuration intact.
 The authorized SanDisk USB is now imaged and fully read-back verified. Personal
 Zygalski stays Arch.
 
+## Guided automation — implementation/rehearsal in progress
+
+- User selected direct guided installation, USB-local encrypted recovery, existing
+  login password, Wi-Fi bootstrap, and first Plasma login followed by Hyprland
+  selection. A separate live hardware-test boot is no longer a cutover gate.
+- New guard/controller, local preparation/composer, UDisks writer and runbook:
+  GUIDED-INSTALL.md. Real recovery preparation and physical re-imaging are pending.
+- Eleven migration boundary tests, eight Arch/Fedora Codex wrapper tests, Python
+  syntax and focused ShellCheck pass. Bitwarden's Fedora Flatpak launcher and Berg
+  portal desktop registration are included in the playbook.
+- Lorax remastered ISO builds and validates with Fedora 44 Kickstart. The first
+  USB boot exposed an embedded media-check mismatch after GPT relocation. The
+  composer now refreshes/checks that checksum after partition writes; repeat VM
+  boot and full install/recovery/provisioning remain in progress.
+- The isolated guided VM has its own full-capacity dummy USB, thin NVMe and decoy
+  disk. Its model/network adapter is lab-only; no real secrets/data are sent.
+
 ## USB installation media — passed
 
 - Explicit user authorization received for the connected SanDisk 3.2Gen1,
@@ -126,6 +143,7 @@ Zygalski stays Arch.
   rendered, but input-method integration has not been accepted.
 - Independent-device recovery confirmation, authenticated corporate workflows,
   security keys and Framework hardware checks remain pending in ACCEPTANCE.md.
-- Boot the verified USB and complete the physical live-session checks.
-  Refresh root capture and inventory, quiesce apps, take and verify the final
-  pre-install backup, and record its full snapshot ID before physical cutover.
+- Finish the guided USB rehearsal, refresh root capture, quiesce apps, take and
+  verify the final backup, independently retrieve the bootstrap passphrase, and
+  record pinned snapshot IDs before physical cutover. Actual hardware/account
+  acceptance follows installation, beginning with Plasma.

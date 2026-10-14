@@ -2,8 +2,9 @@
 
 This checklist is for corporate Rivest. Personal Zygalski stays Arch. Rehearsal
 results are recorded in STATUS.md; an installed package alone does not establish
-an authenticated workflow. The live USB is prepared and fully read-back verified; see USB.md. Physical
-boot and hardware checks remain pending.
+an authenticated workflow. The current standard KDE USB is verified; guided
+installation/recovery media is being implemented (GUIDED-INSTALL.md). Physical
+hardware/account acceptance happens after installation, per the user's choice.
 
 ## Independent recovery
 
@@ -18,9 +19,10 @@ Install restic there using Arch's package manager if the helper requests it.
 Open Bitwarden independently and use **Rivest migration backup**. The helper
 restores only the known public fixture, verifies its SHA256, and deletes its
 private staging directory and password file. It does not apply workstation
-configuration. Record its successful snapshot ID before scheduling installation.
-Keep NAS SSH access and the repository password usable without Rivest's unlocked
-1Password agent. Do not put a real vault or repository password on Scherbius.
+configuration. The guided USB additionally requires independent Bitwarden
+retrieval of its bootstrap passphrase. Its encrypted local recovery copy removes
+the installer's dependency on NAS SSH/1Password. Retain NAS access for rollback.
+Do not put a real vault or repository password on Scherbius.
 
 ## Account workflows — user verification pending
 
@@ -46,7 +48,7 @@ Plasma as a comparison session where a Hyprland workflow fails.
 
 ## Physical hardware and desktop — pending
 
-Use the signed KDE live USB first, then repeat relevant checks after installation:
+After guided installation, start in Plasma and check:
 Wi-Fi, Bluetooth, camera, audio/microphone, touch, sensors, brightness, external
 monitor/dock, USB devices and Android access. Check suspend/resume on battery and
 AC, lid close/open, fingerprint enrollment, Secure Boot/LUKS recovery and storage.

@@ -1,0 +1,17 @@
+[Unit]
+Description=Complete the verified Rivest migration before desktop login
+Wants=network-online.target
+After=network-online.target
+Before=display-manager.service
+ConditionPathExists=!/var/lib/rivest-migration/complete
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/rivest-migration/installer.py provision
+TimeoutStartSec=infinity
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

@@ -37,9 +37,12 @@ sys.stdout.write(sys.stdin.read())
 sys.stderr.write('child stderr\\n')
 sys.exit(int(os.environ.get('CHILD_EXIT', '0')))
 ''')
-        source = SOURCE.read_text()
+        self.os_release = self.root / 'os-release'
+        self.os_release.write_text('ID=arch\n')
+        self.fedora_binary = self.script('fedora-binary', '#!/bin/sh\ntouch \"$CAPTURE.fedora\"\nexec ' + str(self.binary) + ' \"$@\"\n')
+        source = SOURCE.read_text().replace('/etc/os-release', str(self.os_release))
         for old, new in [('/proc/self/cgroup', self.cgroup), ('/usr/bin/systemctl', self.manager),
-                         ('/usr/bin/systemd-run', self.runner), ('/usr/bin/codex', self.binary)]:
+                         ('/usr/bin/systemd-run', self.runner), ('/usr/local/bin/codex', self.fedora_binary), ('/usr/bin/codex', self.binary)]:
             source = source.replace(old, str(new))
         self.wrapper = self.script('wrapper', source)
 
@@ -60,8 +63,21 @@ sys.exit(int(os.environ.get('CHILD_EXIT', '0')))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.capture.read_text()),
                          {'args': args, 'cwd': str(self.root), 'env': 'preserved'})
+        self.assertFalse(Path(str(self.capture) + '.fedora').exists())
         self.assertEqual(result.stdout, 'piped input\n')
         self.assertEqual(result.stderr, 'child stderr\n')
+
+    def test_fedora_preserves_execution_and_nested_behavior(self):
+        self.os_release.write_text('ID=fedora\n')
+        self.assertEqual(self.run_wrapper(['--version']).returncode, 0)
+        self.assertTrue(Path(str(self.capture) + '.fedora').exists())
+        self.test_nested_invocation_needs_no_manager()
+
+    def test_distribution_selects_native_path(self):
+        text = SOURCE.read_text()
+        self.assertIn('codex_native=/usr/bin/codex', text)
+        self.assertIn('fedora) codex_native=/usr/local/bin/codex', text)
+        self.assertNotIn('command -v codex', text)
 
     def test_exit_status(self):
         self.env['CHILD_EXIT'] = '37'

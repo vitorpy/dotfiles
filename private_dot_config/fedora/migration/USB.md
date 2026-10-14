@@ -1,5 +1,11 @@
 # Rivest Fedora live USB — 2026-10-14
 
+This records the **currently written standard KDE image**. The selected next
+cutover is guided installation/recovery (GUIDED-INSTALL.md), which is still being
+rehearsed. Wait for its final write/read-back receipt before using the USB for
+that workflow. The earlier proposal for a separate live hardware-test boot below
+has been superseded by the user's choice to test hardware after installation.
+
 The user explicitly authorized re-imaging the connected installer USB. The target
 is the 15,376,000,000-byte SanDisk 3.2Gen1, serial 03021830022221114151, identified
 through its persistent device ID. It previously contained ARCH_202605 and had no
@@ -26,7 +32,7 @@ A post-write UDisks rescan confirmed GPT, `Fedora-KDE-Live-44` and its BOOT EFI
 partition. Both USB partitions remain unmounted.
 The ISO and signed checksum remain under `~/.cache/fedora-migration/usb/`.
 
-## Next boot: live hardware checks
+## Earlier standard-media instructions (superseded)
 
 1. Save work and reboot when convenient. Keep the SanDisk connected and tap F12
    immediately after powering on, before the Framework logo. Select its EFI USB

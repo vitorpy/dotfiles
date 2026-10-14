@@ -120,19 +120,25 @@ migration-ready.
 
 ## Cutover gates
 
+The selected path is now the guided USB installer and full home recovery in
+[`migration/GUIDED-INSTALL.md`](migration/GUIDED-INSTALL.md). The current USB is
+still the standard KDE live image until guided rehearsal/private preparation
+finish. No separate live hardware-test boot or validation reboot is required.
+
 1. Complete `migration/packages.tsv`: every explicit package is accounted for;
-   unresolved apps or untested required workflows block installation. Repository
+   unresolved package routes require review. Authenticated workflows are accepted
+   after installation, beginning in Plasma. Repository
    availability is not proof an app launches or its credentials work.
-2. Verify recovery access from another device: Bitwarden login, restic password,
-   NAS SSH authentication, and the recorded snapshot ID. Do not depend on the
+2. Verify recovery access from another device: Bitwarden login, USB bootstrap
+   passphrase and the recorded snapshot IDs. Retain NAS recovery access. Do not depend on the
    laptop's current desktop or an unlocked local password manager.
 3. Run `restic check --read-data`, restore representative real files into a private
    local directory, and use `migration/verify-restore.py` to compare contents and
    metadata. Use only sanitized fixtures for remote VM restore tests.
-4. The authorized SanDisk USB is prepared and fully read-back verified; see
-   `migration/USB.md`. Follow its F12/media-test boot instructions and the official
-   Framework guide linked below. Boot live and check Wi-Fi, Bluetooth, audio/microphone, camera, touch,
-   brightness, graphics, docking and suspend/resume. Record actual results.
+4. Finish the guided USB rehearsal and private recovery preparation, write the
+   authorized SanDisk and require complete read-back verification. Follow the
+   Framework F12 instructions to launch the guided installer. Wi-Fi, backup and
+   disk checks must pass before its explicit erase confirmation.
 5. Close stateful apps, save work, refresh root capture and inventory, take a final
    backup and record its snapshot ID. Only then schedule the installation.
 
@@ -141,9 +147,8 @@ partitioning defaults. Keep hostname `rivest` and UID 1000. **Formatting current
 `/dev/nvme0n1p2` also deletes home:** `@` and `@home` share this partition.
 Store the LUKS recovery secret outside the laptop before proceeding.
 
-After installation: recover NAS/Bitwarden access, restore into a private staging
-directory, provision Fedora, apply selected chezmoi configuration, then restore
-application state with apps closed. Restore user data with matching UID; run
+The guided installer restores into private staging before its reboot; first-boot
+provisioning finishes before the Plasma greeter. Restore user data with matching UID; run
 Fedora's `restorecon` on restored paths instead of preserving Arch SELinux labels.
 Do not restore Arch `/etc`, `/boot`, PAM, keyring D-Bus overrides or systemd units
 wholesale. Retain old keyring files and passwords until browser/secret access is

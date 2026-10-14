@@ -1,0 +1,244 @@
+arch_package	fedora_package	source	status
+1password	1password	Vendor RPM	Needs install and launch verification
+1password-cli	1password-cli	Vendor RPM	Needs install and launch verification
+alsa-firmware	alsa-firmware	Fedora	Available; package/install identity verified by repoquery
+alsa-utils	alsa-utils	Fedora	Available; package/install identity verified by repoquery
+amd-ucode	microcode_ctl	Fedora	Framework Intel laptop uses Intel microcode
+android-udev	android-udev	Unresolved	BLOCKER: verify upstream distribution or approve omission
+ansible	ansible	Fedora	Available; package/install identity verified by repoquery
+ansible-lint	ansible-lint	Unresolved	BLOCKER: verify upstream distribution or approve omission
+apparmor	SELinux	Fedora default	Use Fedora Enforcing policy; do not port Arch AppArmor policy
+arch-install-scripts	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+archiso	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+ark	ark	Fedora	Available; package/install identity verified by repoquery
+audit	audit	Fedora	Available; package/install identity verified by repoquery
+avahi	avahi	Fedora	Available; package/install identity verified by repoquery
+aws-cli-bin	awscli2	Fedora	Available; repoquery verified
+base	@core	Fedora group	Base/development group equivalent
+base-devel	@development-tools	Fedora group	Base/development group equivalent
+bat	bat	Fedora	Available; package/install identity verified by repoquery
+bc	bc	Fedora	Available; package/install identity verified by repoquery
+bind	bind-utils	Fedora	Available; package/install identity verified by repoquery
+bitwarden	bitwarden	Unresolved	BLOCKER: verify upstream distribution or approve omission
+bitwarden-cli	bitwarden-cli	Unresolved	BLOCKER: verify upstream distribution or approve omission
+blueman	blueman	Fedora	Available; package/install identity verified by repoquery
+bluez	bluez	Fedora	Available; package/install identity verified by repoquery
+bluez-utils	bluez	Fedora	Available; package/install identity verified by repoquery
+brightnessctl	brightnessctl	Fedora	Available; package/install identity verified by repoquery
+btrfs-progs	btrfs-progs	Fedora	Available; package/install identity verified by repoquery
+calibre	calibre	Fedora	Available; package/install identity verified by repoquery
+cargo-audit	cargo-audit	Unresolved	BLOCKER: verify upstream distribution or approve omission
+cargo-hack	cargo-hack	Unresolved	BLOCKER: verify upstream distribution or approve omission
+cargo-sort	cargo-sort	Unresolved	BLOCKER: verify upstream distribution or approve omission
+ccache	ccache	Fedora	Available; package/install identity verified by repoquery
+chatgpt-desktop	chatgpt-desktop	Unresolved	BLOCKER: verify upstream distribution or approve omission
+chezmoi	chezmoi	Fedora	Available; package/install identity verified by repoquery
+clang	clang	Fedora	Available; package/install identity verified by repoquery
+colord	colord	Fedora	Available; package/install identity verified by repoquery
+cpio	cpio	Fedora	Available; package/install identity verified by repoquery
+cups	cups	Fedora	Available; package/install identity verified by repoquery
+curl	curl	Fedora	Available; package/install identity verified by repoquery
+deezer	deezer	Unresolved	BLOCKER: verify upstream distribution or approve omission
+direnv	direnv	Fedora	Available; package/install identity verified by repoquery
+discord	discord	Unresolved	BLOCKER: verify upstream distribution or approve omission
+dolphin	dolphin	Fedora	Available; package/install identity verified by repoquery
+dosfstools	dosfstools	Fedora	Available; package/install identity verified by repoquery
+efibootmgr	efibootmgr	Fedora	Available; package/install identity verified by repoquery
+eternalterminal-client	eternalterminal-client	Unresolved	BLOCKER: verify upstream distribution or approve omission
+exfatprogs	exfatprogs	Fedora	Available; package/install identity verified by repoquery
+fastfetch	fastfetch	Fedora	Available; package/install identity verified by repoquery
+ffmpeg	ffmpeg-free	Fedora	Available; package/install identity verified by repoquery
+firefox	firefox	Fedora	Available; package/install identity verified by repoquery
+fontforge	fontforge	Fedora	Available; package/install identity verified by repoquery
+foundry-bin	foundry-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+fprintd	fprintd	Fedora	Available; package/install identity verified by repoquery
+framework-system	framework-system	Unresolved	BLOCKER: verify upstream distribution or approve omission
+freerdp	freerdp	Fedora	Available; package/install identity verified by repoquery
+fwupd	fwupd	Fedora	Available; package/install identity verified by repoquery
+fzf	fzf	Fedora	Available; package/install identity verified by repoquery
+gam	gam	Unresolved	BLOCKER: verify upstream distribution or approve omission
+gdb	gdb	Fedora	Available; package/install identity verified by repoquery
+ghostty	ghostty	Scoped COPR	Desktop runtime under test
+gimp	gimp	Fedora	Available; package/install identity verified by repoquery
+git	git	Fedora	Available; package/install identity verified by repoquery
+git-lfs	git-lfs	Fedora	Available; package/install identity verified by repoquery
+github-cli	gh	Fedora	Available; package/install identity verified by repoquery
+gnome-keyring	gnome-keyring	Fedora	Available; package/install identity verified by repoquery
+go	golang	Fedora	Available; repoquery verified
+google-chrome	google-chrome-stable	Vendor RPM	Needs install and launch verification
+gptfdisk	gdisk	Fedora	Available; repoquery verified
+grim	grim	Fedora	Available; package/install identity verified by repoquery
+gst-plugin-pipewire	pipewire-gstreamer	Fedora	Available; package/install identity verified by repoquery
+gvfs	gvfs	Fedora	Available; package/install identity verified by repoquery
+gvfs-gphoto2	gvfs-gphoto2	Fedora	Available; package/install identity verified by repoquery
+gvfs-mtp	gvfs-mtp	Fedora	Available; package/install identity verified by repoquery
+gwenview	gwenview	Fedora	Available; package/install identity verified by repoquery
+helm	helm	Fedora	Available; package/install identity verified by repoquery
+hugo	hugo	Fedora	Available; package/install identity verified by repoquery
+hypridle	hypridle	Scoped COPR	Desktop runtime under test
+hyprland	hyprland	Scoped COPR	Desktop runtime under test
+hyprlauncher	hyprlauncher	Scoped COPR	Desktop runtime under test
+hyprlock	hyprlock	Scoped COPR	Desktop runtime under test
+hyprpaper	hyprpaper	Scoped COPR	Desktop runtime under test
+hyprpolkitagent	hyprpolkitagent	Scoped COPR	Desktop runtime under test
+hyprshutdown	hyprshutdown	Scoped COPR	Desktop runtime under test
+hyprsunset	hyprsunset	Scoped COPR	Desktop runtime under test
+iio-sensor-proxy	iio-sensor-proxy	Fedora	Available; package/install identity verified by repoquery
+imagemagick	ImageMagick	Fedora	Available; package/install identity verified by repoquery
+intel-gpu-tools	igt-gpu-tools	Fedora	Available; package/install identity verified by repoquery
+intel-media-driver	libva-intel-media-driver	Fedora	Available; repoquery verified
+intel-ucode	microcode_ctl	Fedora	Available; package/install identity verified by repoquery
+iotop	iotop-c	Fedora	Available; repoquery verified
+iw	iw	Fedora	Available; package/install identity verified by repoquery
+iwd	iwd	Fedora	Available; package/install identity verified by repoquery
+jira-cli-bin	jira-cli-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+jq	jq	Fedora	Available; package/install identity verified by repoquery
+kpat	kpat	Fedora	Available; package/install identity verified by repoquery
+kubectl	kubectl	Unresolved	BLOCKER: verify upstream distribution or approve omission
+kvantum-qt5	kvantum	Fedora	Available; package/install identity verified by repoquery
+less	less	Fedora	Available; package/install identity verified by repoquery
+libfido2	libfido2	Fedora	Available; package/install identity verified by repoquery
+libfprint	libfprint	Fedora	Available; package/install identity verified by repoquery
+libinput-gestures	libinput-gestures	Unresolved	BLOCKER: verify upstream distribution or approve omission
+libnotify	libnotify	Fedora	Available; package/install identity verified by repoquery
+libpulse	pulseaudio-libs	Fedora	Available; package/install identity verified by repoquery
+libva-intel-driver	libva-intel-driver	Unresolved	BLOCKER: verify upstream distribution or approve omission
+libva-utils	libva-utils	Fedora	Available; package/install identity verified by repoquery
+linux	kernel	Fedora	Available; package/install identity verified by repoquery
+linux-firmware	linux-firmware	Fedora	Available; package/install identity verified by repoquery
+linux-firmware-intel	intel-gpu-firmware	Fedora	Available; package/install identity verified by repoquery
+llvm	llvm	Fedora	Available; package/install identity verified by repoquery
+lsd	lsd	Fedora	Available; package/install identity verified by repoquery
+man-db	man-db	Fedora	Available; package/install identity verified by repoquery
+man-pages	man-pages	Fedora	Available; package/install identity verified by repoquery
+mesa	mesa-dri-drivers	Fedora	Available; package/install identity verified by repoquery
+mkinitcpio	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+mosh	mosh	Fedora	Available; package/install identity verified by repoquery
+neovim	neovim	Fedora	Available; package/install identity verified by repoquery
+net-tools	net-tools	Fedora	Available; package/install identity verified by repoquery
+network-manager-applet	network-manager-applet	Fedora	Available; package/install identity verified by repoquery
+networkmanager	NetworkManager	Fedora	Available; package/install identity verified by repoquery
+nftables	nftables	Fedora	Available; package/install identity verified by repoquery
+nmap	nmap	Fedora	Available; package/install identity verified by repoquery
+noirup-bin	noirup-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+noto-fonts	google-noto-sans-fonts	Fedora	Available; package/install identity verified by repoquery
+noto-fonts-cjk	google-noto-sans-cjk-fonts	Fedora	Available; package/install identity verified by repoquery
+noto-fonts-emoji	google-noto-color-emoji-fonts	Fedora	Available; package/install identity verified by repoquery
+noto-fonts-extra	google-noto-fonts-all	Fedora	Available; package/install identity verified by repoquery
+nss-mdns	nss-mdns	Fedora	Available; package/install identity verified by repoquery
+nvm	nvm	Unresolved	BLOCKER: verify upstream distribution or approve omission
+okular	okular	Fedora	Available; package/install identity verified by repoquery
+openai-codex	codex	Unresolved	BLOCKER: verify upstream distribution or approve omission
+openbsd-netcat	nmap-ncat	Fedora	Available; package/install identity verified by repoquery
+openresolv	openresolv	Fedora	Available; package/install identity verified by repoquery
+openssh	openssh-clients openssh-server	Fedora	Available; package/install identity verified by repoquery
+openvpn	openvpn	Fedora	Available; package/install identity verified by repoquery
+pacman-contrib	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+pipewire	pipewire	Fedora	Available; package/install identity verified by repoquery
+pipewire-alsa	pipewire-alsa	Fedora	Available; package/install identity verified by repoquery
+pipewire-jack	pipewire-jack-audio-connection-kit	Fedora	Available; package/install identity verified by repoquery
+pipewire-pulse	pipewire-pulseaudio	Fedora	Available; package/install identity verified by repoquery
+playerctl	playerctl	Fedora	Available; package/install identity verified by repoquery
+podman	podman	Fedora	Available; package/install identity verified by repoquery
+podman-compose	podman-compose	Fedora	Available; package/install identity verified by repoquery
+podman-docker	podman-docker	Fedora	Available; package/install identity verified by repoquery
+power-profiles-daemon	power-profiles-daemon	Fedora	Available; package/install identity verified by repoquery
+powertop	powertop	Fedora	Available; package/install identity verified by repoquery
+python	python3	Fedora	Available; package/install identity verified by repoquery
+python-gobject	python3-gobject	Fedora	Available; package/install identity verified by repoquery
+python-huggingface-hub	python3-huggingface-hub	Fedora	Available; package/install identity verified by repoquery
+python-pexpect	python3-pexpect	Fedora	Available; package/install identity verified by repoquery
+quickshell	quickshell	Scoped COPR	Desktop runtime under test
+radeontop	radeontop	Fedora	Available; package/install identity verified by repoquery
+rclone	rclone	Fedora	Available; package/install identity verified by repoquery
+ripgrep	ripgrep	Fedora	Available; package/install identity verified by repoquery
+roam	roam	Vendor RPM	Needs install and launch verification
+rocm-ml-sdk	rocm-ml-sdk	Unresolved	BLOCKER: verify upstream distribution or approve omission
+rsync	rsync	Fedora	Available; package/install identity verified by repoquery
+rustup	rustup	Fedora	Available; package/install identity verified by repoquery
+sbctl	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+sddm	sddm	Fedora	Available; package/install identity verified by repoquery
+shellcheck	ShellCheck	Fedora	Available; repoquery verified
+signal-desktop	signal-desktop	Unresolved	BLOCKER: verify upstream distribution or approve omission
+slack-desktop	slack	Vendor RPM	Needs install and launch verification
+slurp	slurp	Fedora	Available; package/install identity verified by repoquery
+socat	socat	Fedora	Available; package/install identity verified by repoquery
+sof-firmware	alsa-sof-firmware	Fedora	Available; package/install identity verified by repoquery
+solaar	solaar	Fedora	Available; package/install identity verified by repoquery
+spirv-headers	spirv-headers-devel	Fedora	Available; repoquery verified
+sshfs	fuse-sshfs	Fedora	Available; repoquery verified
+starship	starship	Unresolved	BLOCKER: verify upstream distribution or approve omission
+strace	strace	Fedora	Available; package/install identity verified by repoquery
+sudo	sudo	Fedora	Available; package/install identity verified by repoquery
+system-config-printer	system-config-printer	Fedora	Available; package/install identity verified by repoquery
+tailscale	tailscale	Vendor RPM	Needs install and launch verification
+telegram-desktop	telegram-desktop	Unresolved	BLOCKER: verify upstream distribution or approve omission
+terminus-font	terminus-fonts	Fedora	Available; package/install identity verified by repoquery
+terraform	terraform	Vendor RPM	Needs install and launch verification
+testdisk	testdisk	Fedora	Available; package/install identity verified by repoquery
+texlive-fontsextra	texlive-collection-fontsextra	Fedora	Available; package/install identity verified by repoquery
+texlive-fontsrecommended	texlive-collection-fontsrecommended	Fedora	Available; package/install identity verified by repoquery
+texlive-latex	texlive-latex	Fedora	Available; package/install identity verified by repoquery
+texlive-latexextra	texlive-collection-latexextra	Fedora	Available; package/install identity verified by repoquery
+texlive-latexrecommended	texlive-collection-latexrecommended	Fedora	Available; package/install identity verified by repoquery
+texlive-luatex	texlive-luatex	Fedora	Available; package/install identity verified by repoquery
+texlive-pictures	texlive-collection-pictures	Fedora	Available; package/install identity verified by repoquery
+tmux	tmux	Fedora	Available; package/install identity verified by repoquery
+tpm2-tools	tpm2-tools	Fedora	Available; package/install identity verified by repoquery
+transmission-qt	transmission-qt	Fedora	Available; package/install identity verified by repoquery
+tree	tree	Fedora	Available; package/install identity verified by repoquery
+ttf-material-symbols-variable	ttf-material-symbols-variable	Unresolved	BLOCKER: verify upstream distribution or approve omission
+udisks2	udisks2	Fedora	Available; package/install identity verified by repoquery
+unzip	unzip	Fedora	Available; package/install identity verified by repoquery
+usbutils	usbutils	Fedora	Available; package/install identity verified by repoquery
+uv	uv	Fedora	Available; package/install identity verified by repoquery
+uwsm	uwsm	Scoped COPR	Desktop runtime under test
+v4l-utils	v4l-utils	Fedora	Available; package/install identity verified by repoquery
+veracrypt	veracrypt	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc	vlc	Fedora	Available; package/install identity verified by repoquery
+vlc-plugin-aribb25	vlc-plugin-aribb25	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-ass	vlc-plugin-ass	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-ffmpeg	vlc-plugin-ffmpeg	Fedora	Available; package/install identity verified by repoquery
+vlc-plugin-freetype	vlc-plugin-freetype	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-gstreamer	vlc-plugin-gstreamer	Fedora	Available; package/install identity verified by repoquery
+vlc-plugin-mad	vlc-plugin-mad	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-matroska	vlc-plugin-matroska	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-mpeg2	vlc-plugin-mpeg2	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-musepack	vlc-plugin-musepack	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-srt	vlc-plugin-srt	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-x264	vlc-plugin-x264	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vlc-plugin-x265	vlc-plugin-x265	Unresolved	BLOCKER: verify upstream distribution or approve omission
+volk	volk	Fedora	Available; package/install identity verified by repoquery
+vsce	vsce	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vscodium-bin	codium	Vendor RPM	Needs install and launch verification
+vulkan-extra-layers	vulkan-extra-layers	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vulkan-extra-tools	vulkan-tools	Fedora	Available; package/install identity verified by repoquery
+vulkan-headers	vulkan-headers	Fedora	Available; package/install identity verified by repoquery
+vulkan-html-docs	vulkan-headers	Fedora	Available; package/install identity verified by repoquery
+vulkan-intel	mesa-vulkan-drivers	Fedora	Available; package/install identity verified by repoquery
+vulkan-profiles	vulkan-profiles	Unresolved	BLOCKER: verify upstream distribution or approve omission
+vulkan-radeon	mesa-vulkan-drivers	Fedora	Available; package/install identity verified by repoquery
+vulkan-tools	vulkan-tools	Fedora	Available; package/install identity verified by repoquery
+vulkan-utility-libraries	vulkan-utility-libraries-devel	Fedora	Available; repoquery verified
+vulkan-validation-layers	vulkan-validation-layers	Fedora	Available; package/install identity verified by repoquery
+waypipe	waypipe	Fedora	Available; package/install identity verified by repoquery
+wget	wget2-wget	Fedora	Available; repoquery verified
+wireguard-tools	wireguard-tools	Fedora	Available; package/install identity verified by repoquery
+wireless-regdb	wireless-regdb	Fedora	Available; package/install identity verified by repoquery
+wireplumber	wireplumber	Fedora	Available; package/install identity verified by repoquery
+wl-clipboard	wl-clipboard	Fedora	Available; package/install identity verified by repoquery
+wpa_supplicant	wpa_supplicant	Fedora	Available; package/install identity verified by repoquery
+xdg-desktop-portal-gtk	xdg-desktop-portal-gtk	Fedora	Available; package/install identity verified by repoquery
+xdg-desktop-portal-hyprland	xdg-desktop-portal-hyprland	Scoped COPR	Desktop runtime under test
+xdg-user-dirs	xdg-user-dirs	Fedora	Available; package/install identity verified by repoquery
+xdg-utils	xdg-utils	Fedora	Available; package/install identity verified by repoquery
+xf86-input-libinput	xorg-x11-drv-libinput	Fedora	Available; repoquery verified
+xorg-xrandr	xrandr	Fedora	Available; package/install identity verified by repoquery
+yay-bin	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
+zoom	zoom	Vendor RPM	Needs install and launch verification
+zotero-bin	zotero-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+zoxide	zoxide	Fedora	Available; package/install identity verified by repoquery
+zram-generator	zram-generator-defaults	Fedora	Available; package/install identity verified by repoquery
+zsh	zsh	Fedora	Available; package/install identity verified by repoquery
+zsh-syntax-highlighting	zsh-syntax-highlighting	Fedora	Available; package/install identity verified by repoquery
+zvm	zvm	Unresolved	BLOCKER: verify upstream distribution or approve omission

@@ -1,1 +1,9 @@
 export HYPRCURSOR_SIZE=24
+
+# Hyprland styling; leave Plasma native themes and portals intact.
+export MOZ_ENABLE_WAYLAND=1
+export GTK_THEME=Adwaita:dark
+export QT_QPA_PLATFORMTHEME=gtk3
+export QT_STYLE_OVERRIDE=kvantum
+export XCURSOR_THEME=Adwaita
+export XCURSOR_SIZE=24

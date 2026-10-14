@@ -1,0 +1,144 @@
+---
+# Sources: upstream installation docs linked in ../README.md.
+fedora_repositories:
+  - name: fedora-hyprland
+    description: Hyprland desktop (lionheartp COPR)
+    baseurl: https://download.copr.fedorainfracloud.org/results/lionheartp/Hyprland/fedora-$releasever-$basearch/
+    gpgkey: https://download.copr.fedorainfracloud.org/results/lionheartp/Hyprland/pubkey.gpg
+    packages: ['hypr*', 'aquamarine*', 'quickshell*', 'uwsm*', 'xdg-desktop-portal-hyprland*']
+  - name: fedora-ghostty
+    description: Ghostty (scottames COPR)
+    baseurl: https://download.copr.fedorainfracloud.org/results/scottames/ghostty/fedora-$releasever-$basearch/
+    gpgkey: https://download.copr.fedorainfracloud.org/results/scottames/ghostty/pubkey.gpg
+    packages: ['ghostty*']
+  - name: 1password
+    description: 1Password stable
+    baseurl: https://downloads.1password.com/linux/rpm/stable/$basearch
+    gpgkey: https://downloads.1password.com/linux/keys/1password.asc
+    repo_gpgcheck: true
+    packages: ['1password', '1password-cli']
+    corporate: true
+  - name: roam
+    description: Roam vendor RPMs
+    baseurl: https://download.ro.am/Roam/8a86d88cfc9da3551063102e9a4e2a83/linux/redhat
+    gpgkey: https://download.ro.am/public.key
+    packages: ['roam']
+    corporate: true
+  - name: vscodium
+    description: VSCodium upstream
+    baseurl: https://repo.vscodium.dev/rpm
+    gpgkey: https://repo.vscodium.dev/vscodium.gpg
+    repo_gpgcheck: true
+    packages: ['codium']
+  - name: google-chrome
+    description: Google Chrome stable
+    baseurl: https://dl.google.com/linux/chrome/rpm/stable/$basearch
+    gpgkey: https://dl.google.com/linux/linux_signing_key.pub
+    packages: ['google-chrome-stable']
+  - name: tailscale-stable
+    description: Tailscale stable
+    baseurl: https://pkgs.tailscale.com/stable/fedora/$basearch
+    gpgkey: https://pkgs.tailscale.com/stable/fedora/repo.gpg
+    repo_gpgcheck: true
+    packages: ['tailscale']
+  - name: hashicorp
+    description: HashiCorp stable
+    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
+    gpgkey: https://rpm.releases.hashicorp.com/gpg
+    packages: ['terraform']
+fedora_packages:
+  - codium
+  - google-chrome-stable
+  - tailscale
+  - terraform
+  - awscli2
+  - ShellCheck
+  - golang
+  - fuse-sshfs
+  - hyprland
+  - quickshell
+  - uwsm
+  - hypridle
+  - hyprlock
+  - hyprpaper
+  - hyprsunset
+  - hyprpolkitagent
+  - hyprlauncher
+  - hyprshutdown
+  - ghostty
+  - chezmoi
+  - ripgrep
+  - fzf
+  - bat
+  - lsd
+  - zoxide
+  - uv
+  - tmux
+  - direnv
+  - neovim
+  - xdg-desktop-portal-hyprland
+  - xdg-desktop-portal-gtk
+  - pipewire
+  - pipewire-pulseaudio
+  - wireplumber
+  - playerctl
+  - brightnessctl
+  - libnotify
+  - gnome-keyring
+  - libsecret
+  - power-profiles-daemon
+  - network-manager-applet
+  - bluez
+  - grim
+  - slurp
+  - wl-clipboard
+  - zsh
+  - git
+  - git-lfs
+  - rsync
+  - restic
+  - jq
+  - curl
+  - python3
+  - python3-pytest
+  - qt6-qtdeclarative-devel
+  - qt6-qtsvg
+  - qt6-qt5compat
+  - mesa-dri-drivers
+  - mesa-vulkan-drivers
+  - google-noto-sans-fonts
+  - google-noto-color-emoji-fonts
+  - ImageMagick
+  - libwebp-tools
+  - flatpak
+fedora_corporate_packages:
+  - 1password
+  - 1password-cli
+  - roam
+fedora_tool_archives:
+  - name: starship-1.26.0
+    archive: starship-1.26.0.tar.gz
+    url: https://github.com/starship/starship/releases/download/v1.26.0/starship-x86_64-unknown-linux-musl.tar.gz
+    checksum: sha256:b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaadf3
+    binaries: [{name: starship, source: starship}]
+  - name: foundry-1.8.5
+    archive: foundry-1.8.5.tar.gz
+    url: https://github.com/foundry-rs/foundry/releases/download/v1.8.5/foundry_v1.8.5_linux_amd64.tar.gz
+    checksum: sha256:6c66ffcc55fa4249197721baa3098bc208014ea1d8aa04b2ed50ac6bccffb226
+    corporate: true
+    binaries:
+      - {name: forge, source: forge}
+      - {name: cast, source: cast}
+      - {name: anvil, source: anvil}
+      - {name: chisel, source: chisel}
+  - name: gam-7.48.07
+    archive: gam-7.48.07.tar.xz
+    url: https://github.com/GAM-team/GAM/releases/download/v7.48.07/gam-7.48.07-linux-x86_64-glibc2.39.tar.xz
+    checksum: sha256:5ed872cf1fde84b184e7f24148f318762e99fae2eeeb3b7ed2fe0b97fd86263c
+    corporate: true
+    binaries: [{name: gam, source: gam7/gam}]
+  - name: jira-1.7.0
+    archive: jira-1.7.0.tar.gz
+    url: https://github.com/ankitpokhrel/jira-cli/releases/download/v1.7.0/jira_1.7.0_linux_x86_64.tar.gz
+    checksum: sha256:b5e0ba4804f3f11f92c483d9a6ea9ebccec1c735cd2e12b0440cab9d7afd626a
+    binaries: [{name: jira, source: jira_1.7.0_linux_x86_64/bin/jira}]

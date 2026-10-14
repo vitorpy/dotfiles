@@ -253,3 +253,42 @@ chezmoi.
 - [cloud-init NoCloud](https://docs.cloud-init.io/en/latest/reference/datasources/nocloud.html)
 - [QEMU invocation](https://www.qemu.org/docs/master/system/invocation.html)
 - [Selected Hyprland COPR](https://copr.fedorainfracloud.org/coprs/lionheartp/Hyprland/)
+
+## KDE/LUKS installation rehearsal
+
+The original Cloud guest is retained. A separate VM uses
+`~/.local/share/fedora-kde-rehearsal` on Scherbius, 8 vCPUs/16 GiB/80 GiB,
+UEFI firmware, SSH `127.0.0.1:22245`, and VNC `127.0.0.1:5905`.
+The KDE live ISO and Everything netinstaller are Fedora 44-1.7 and have verified
+Fedora 44 signatures and SHA256 checksums. The live installer explicitly rejects
+Kickstart; automated installation uses the standard netinstaller with the KDE
+Plasma desktop environment, LUKS-encrypted Btrfs, UID 1000 and enforcing SELinux.
+The signed KDE live ISO remains the physical USB candidate.
+
+`kde-prepare.sh` verifies media and builds a private recipe, `kde-start.sh --install`
+boots the supported automated installer, and `--disk` boots the installed system.
+For the first installation only, serve the private seed directory on Scherbius:
+
+```sh
+python3 -m http.server 48765 --bind 127.0.0.1 \
+  --directory ~/.local/share/fedora-kde-rehearsal/seed
+```
+
+The guest reaches this loopback endpoint through QEMU's private user network.
+Stop this server after installation; it must not be made publicly accessible.
+The disposable VM's console/LUKS password is generated server-side and kept in
+`console-password`, mode 0600. It is unrelated to personal or backup passwords.
+`kde-control.py text` accepts console input on stdin without logging it; use it
+for unlocking the VM. `kde-guest.sh` uses the existing dedicated lab SSH key and
+its own host-key file. On the first installed boot, verify the new guest host key
+from its console before replacing the live image's entry. Never bypass a changed
+host-key warning against a remote physical host.
+
+Do not rerun `--install` on an installed disk: its VM-only Kickstart clears `vda`.
+The helpers never touch a physical workstation disk. Graceful shutdown is
+available through `kde-control.py shutdown`; removing its dedicated disk after
+shutdown discards only this VM. There is no host autostart.
+
+The Berg port now handles Arch and Fedora update backends and failed executable
+starts. Current test counts are maintained in `../migration/STATUS.md`; the older
+baseline results above describe the pre-port guest, not current readiness.

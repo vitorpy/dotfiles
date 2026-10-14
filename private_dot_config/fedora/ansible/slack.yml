@@ -1,0 +1,32 @@
+---
+- name: Trust the current Slack RPM signing key
+  ansible.builtin.rpm_key:
+    key: https://slack.com/gpg/slack_pubkey_20251016.gpg
+    state: present
+- name: Fetch the reviewed Slack RPM
+  ansible.builtin.get_url:
+    url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.52.178/slack-4.52.178-0.1.el8.x86_64.rpm
+    dest: /var/cache/slack-4.52.178.rpm
+    checksum: sha256:3ba948304f7c4a003befc343c8ab45d2f61120adc8fe43e0ba57e2ea59ce1aa2
+    mode: '0644'
+- name: Verify the Slack package signature
+  ansible.builtin.command:
+    argv: [rpmkeys, --checksig, /var/cache/slack-4.52.178.rpm]
+  changed_when: false
+- name: Install the verified Slack package
+  ansible.builtin.dnf5:
+    name: /var/cache/slack-4.52.178.rpm
+    state: present
+- name: Configure scoped Slack updates
+  ansible.builtin.yum_repository:
+    name: slack
+    description: Slack vendor RPM updates
+    baseurl: https://packagecloud.io/slacktechnologies/slack/fedora/21/$basearch
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey:
+      - https://packagecloud.io/slacktechnologies/slack/gpgkey
+      - https://slack.com/gpg/slack_pubkey_20251016.gpg
+    includepkgs: [slack]
+    enabled: true
+    file: fedora-workstation-slack

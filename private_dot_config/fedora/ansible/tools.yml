@@ -1,0 +1,20 @@
+---
+- name: Create the custom workstation tools directory
+  ansible.builtin.file:
+    path: /opt/fedora-workstation
+    state: directory
+    mode: '0755'
+- name: Install pinned upstream archives
+  ansible.builtin.include_tasks: tool-archive.yml
+  loop: "{{ fedora_tool_archives }}"
+  loop_control:
+    loop_var: tool
+    label: "{{ tool.name }}"
+  when: not tool.corporate | default(false) or fedora_corporate | bool
+- name: Install the reviewed Noirup script
+  ansible.builtin.get_url:
+    url: https://github.com/noir-lang/noirup/releases/download/v0.1.5/noirup
+    dest: /usr/local/bin/noirup
+    checksum: sha256:b37012eb25a0c44fa84a1b524c3c6d3acbb86d56c8a0bdc3982fddb7772d4772
+    mode: '0755'
+  when: fedora_corporate | bool

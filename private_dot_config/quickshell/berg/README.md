@@ -236,3 +236,18 @@ Revert the relevant commit in the chezmoi source repository, then apply only
 the affected Berg paths. If a user unit changed, run
 `systemctl --user daemon-reload`; finally reload Berg and repeat the health
 checks above.
+
+## Arch and Fedora package updates
+
+Berg reads `/etc/os-release`. Arch retains checkupdates and Yay plus the existing
+Arch updater; Fedora queries DNF5 RPM upgrades across enabled repositories and
+launches `~/.config/fedora/update-system.sh`. Its badge counts unique package
+name/architecture pairs; Flatpak and firmware are separate workflows. Update
+status IPC adds `backend` and retains the existing fields (`aurCount` is zero on
+Fedora). Unsupported distributions produce an explicit error.
+
+`tests/test-process-job.sh` exercises the real Quickshell process wrapper; run it
+in the same sanitized Qt 6 Wayland environment as the QML tests. It requires
+Quickshell because its plugins are embedded in `qs`, not the standalone Qt runner.
+A missing child executable now exits through `/usr/bin/env` with an error status,
+so polling cannot remain in loading forever without a failed-start callback.

@@ -20,6 +20,21 @@ TestCase {
         );
     }
 
+    function test_deduplicateRpmRepositories() {
+        compare(PackageUpdates.packageCount("foo.x86_64\nfoo.x86_64\nfoo.i686\n", "fedora"), 2);
+        compare(PackageUpdates.packageCount("foo\nbar\n", "arch"), 2);
+    }
+
+    function test_backends() {
+        compare(PackageUpdates.backendFromOsRelease('NAME="Arch Linux"\nID=arch\n'), "arch");
+        compare(PackageUpdates.backendFromOsRelease('ID="fedora"\nVERSION_ID=44\n'), "fedora");
+        compare(PackageUpdates.backendFromOsRelease('ID=debian\n'), "unsupported");
+        compare(PackageUpdates.backendFromOsRelease(''), "unsupported");
+        compare(PackageUpdates.launchCommand("/home/example", "fedora")[2], "/home/example/.config/fedora/update-system.sh");
+        compare(PackageUpdates.officialCommand("arch"), ["/usr/bin/checkupdates"]);
+        verify(PackageUpdates.officialCommand("fedora").indexOf("--upgrades") >= 0);
+    }
+
     function test_lineCount_data() {
         return [
             { tag: "empty", output: "", expected: 0 },

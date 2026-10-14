@@ -11,6 +11,7 @@ Slice=session.slice
 ManagedOOMPreference=omit
 Type=dbus
 BusName=org.freedesktop.Notifications
+ExecCondition=%h/.config/hypr/berg-session-check.sh
 ExecStart=/usr/bin/qs -c berg
 ExecReload=/usr/bin/qs -c berg ipc call shell reload
 Restart=on-failure

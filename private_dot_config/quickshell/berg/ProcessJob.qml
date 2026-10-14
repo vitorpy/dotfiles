@@ -20,8 +20,9 @@ QtObject {
     property int lastExitCode: -1
     property bool refreshPending: false
     property bool timedOut: false
+    property bool awaitingCompletion: false
 
-    readonly property alias running: process.running
+    readonly property bool running: process.running || awaitingCompletion
 
     signal succeeded(int exitCode, string output, string errorOutput)
     signal failed(string message, int exitCode, string output, string errorOutput)
@@ -30,15 +31,48 @@ QtObject {
         if (!enabled || command.length === 0)
             return;
 
-        if (process.running) {
+        if (running) {
             refreshPending = true;
             return;
         }
 
         timedOut = false;
-        process.command = command;
+        awaitingCompletion = true;
+        // env turns a missing child executable into a normal exit (127).
+        // Quickshell 0.3.1 does not expose QProcess::errorOccurred to QML.
+        process.command = ["/usr/bin/env", "--"].concat(command);
         process.environment = environment;
+        if (timeoutMs > 0)
+            timeoutTimer.restart();
         process.running = true;
+    }
+
+    function finish(exitCode: int, stdoutText: string, stderrText: string): void {
+        if (!awaitingCompletion)
+            return;
+        awaitingCompletion = false;
+        timeoutTimer.stop();
+        killTimer.stop();
+        const accepted = acceptedExitCodes.indexOf(exitCode) >= 0 && !timedOut;
+        lastExitCode = exitCode;
+        errorOutput = stderrText;
+        if (accepted) {
+            output = stdoutText;
+            lastError = "";
+            lastSuccess = new Date();
+            health = "ready";
+            succeeded(exitCode, stdoutText, stderrText);
+        } else {
+            const message = timedOut ? `Command timed out after ${timeoutMs} ms`
+                : (stderrText || `Command exited with status ${exitCode}`);
+            lastError = message;
+            health = lastSuccess ? "stale" : "error";
+            failed(message, exitCode, stdoutText, stderrText);
+        }
+        if (refreshPending) {
+            refreshPending = false;
+            Qt.callLater(refresh);
+        }
     }
 
     readonly property Process process: Process {
@@ -57,35 +91,7 @@ QtObject {
         }
 
         onExited: (exitCode, exitStatus) => {
-            timeoutTimer.stop();
-            killTimer.stop();
-
-            const stdoutText = stdoutCollector.text.trim();
-            const stderrText = stderrCollector.text.trim();
-            const accepted = root.acceptedExitCodes.indexOf(exitCode) >= 0 && !root.timedOut;
-
-            root.lastExitCode = exitCode;
-            root.errorOutput = stderrText;
-
-            if (accepted) {
-                root.output = stdoutText;
-                root.lastError = "";
-                root.lastSuccess = new Date();
-                root.health = "ready";
-                root.succeeded(exitCode, stdoutText, stderrText);
-            } else {
-                const message = root.timedOut
-                    ? `Command timed out after ${root.timeoutMs} ms`
-                    : (stderrText || `Command exited with status ${exitCode}`);
-                root.lastError = message;
-                root.health = root.lastSuccess ? "stale" : "error";
-                root.failed(message, exitCode, stdoutText, stderrText);
-            }
-
-            if (root.refreshPending) {
-                root.refreshPending = false;
-                Qt.callLater(root.refresh);
-            }
+            root.finish(exitCode, stdoutCollector.text.trim(), stderrCollector.text.trim());
         }
     }
 
@@ -95,8 +101,10 @@ QtObject {
         interval: Math.max(1, root.timeoutMs)
         repeat: false
         onTriggered: {
-            if (!process.running)
+            if (!process.running) {
+                root.finish(-1, "", `Command failed to start: ${root.command[0]}`);
                 return;
+            }
             root.timedOut = true;
             process.signal(15);
             killTimer.restart();

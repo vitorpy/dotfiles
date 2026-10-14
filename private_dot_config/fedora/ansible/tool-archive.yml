@@ -1,0 +1,26 @@
+---
+- name: Create the versioned tool directory
+  ansible.builtin.file:
+    path: "/opt/fedora-workstation/{{ tool.name }}"
+    state: directory
+    mode: '0755'
+- name: Download the reviewed upstream archive
+  ansible.builtin.get_url:
+    url: "{{ tool.url }}"
+    dest: "/var/cache/{{ tool.archive }}"
+    checksum: "{{ tool.checksum }}"
+    mode: '0644'
+- name: Extract the verified tool archive
+  ansible.builtin.unarchive:
+    src: "/var/cache/{{ tool.archive }}"
+    dest: "/opt/fedora-workstation/{{ tool.name }}"
+    remote_src: true
+    creates: "/opt/fedora-workstation/{{ tool.name }}/{{ tool.binaries[0].source }}"
+- name: Expose the custom tool in the system customization directory
+  ansible.builtin.file:
+    src: "/opt/fedora-workstation/{{ tool.name }}/{{ item.source }}"
+    dest: "/usr/local/bin/{{ item.name }}"
+    state: link
+  loop: "{{ tool.binaries }}"
+  loop_control:
+    label: "{{ item.name }}"

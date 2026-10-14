@@ -1,0 +1,10 @@
+# Disposable caches and virtual files only. Keep application profiles and repos.
+/home/vitorpy/.cache
+/home/vitorpy/.local/share/Trash
+/home/vitorpy/.local/share/gvfs-metadata/*.log
+/home/vitorpy/.local/state/fedora-migration/restore-test
+**/__pycache__
+**/*.pyc
+
+# The current backup log is being written while the snapshot runs.
+/home/vitorpy/.local/state/fedora-migration/backup-*.jsonl

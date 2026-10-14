@@ -39,11 +39,12 @@ Scope {
     }
 
     function launchUpdates(): void {
-        Quickshell.execDetached(PackageUpdates.launchCommand(Quickshell.env("HOME")));
+        Quickshell.execDetached(PackageUpdates.launchCommand(Quickshell.env("HOME"), updatesState.backend));
     }
 
     function updatesStatus(): string {
         return JSON.stringify({
+            backend: updatesState.backend,
             officialCount: updatesState.officialCount,
             aurCount: updatesState.aurCount,
             total: updatesState.total,

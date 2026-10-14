@@ -1,8 +1,11 @@
 import QtQuick
+import Quickshell.Io
 import "PackageUpdates.js" as PackageUpdates
 
 QtObject {
     id: root
+
+    property string backend: ""
 
     property int officialCount: 0
     property int aurCount: 0
@@ -21,33 +24,43 @@ QtObject {
     readonly property bool visible: total > 0 || health === "stale" || health === "error"
     readonly property string tooltip: {
         const summary = total > 0
-            ? (aurCount > 0 ? `${officialCount} official, ${aurCount} AUR updates` : `${officialCount} updates available`)
+            ? (backend === "fedora" ? `${officialCount} RPM updates available` : (aurCount > 0 ? `${officialCount} official, ${aurCount} AUR updates` : `${officialCount} updates available`))
             : "System up to date";
         return lastError ? `${summary}\n${lastError}` : summary;
     }
 
     function refresh(): void {
+        if (!backend)
+            return;
+        if (backend === "unsupported") {
+            health = "error";
+            lastError = "Package updates require Arch Linux or Fedora";
+            return;
+        }
         if (PackageUpdates.refreshIsBusy(official.running, aur.running)) {
             refreshPending = true;
             return;
         }
 
         officialDone = false;
-        aurDone = false;
+        aurDone = backend === "fedora";
         officialError = "";
         aurError = "";
         official.refresh();
-        aur.refresh();
+        if (backend === "arch")
+            aur.refresh();
+        else
+            aurCount = 0;
     }
 
     function finishSource(source: string, success: bool, output: string, message: string): void {
         if (source === "official") {
             officialDone = true;
             if (success) {
-                officialCount = PackageUpdates.lineCount(output);
+                officialCount = PackageUpdates.packageCount(output, backend);
                 officialHasValue = true;
             } else {
-                officialError = `Official update check failed: ${message}`;
+                officialError = `${backend === "fedora" ? "RPM" : "Official"} update check failed: ${message}`;
             }
         } else {
             aurDone = true;
@@ -83,10 +96,10 @@ QtObject {
     }
 
     readonly property ProcessJob official: ProcessJob {
-        command: ["/usr/bin/checkupdates"]
-        acceptedExitCodes: [0, 2]
+        command: PackageUpdates.officialCommand(root.backend)
+        acceptedExitCodes: root.backend === "fedora" ? [0] : [0, 2]
         runOnStart: false
-        timeoutMs: 60000
+        timeoutMs: root.backend === "fedora" ? 120000 : 60000
         onSucceeded: (exitCode, output, errorOutput) => root.finishSource("official", true, output, "")
         onFailed: (message, exitCode, output, errorOutput) => root.finishSource("official", false, output, message)
     }
@@ -106,9 +119,23 @@ QtObject {
 
     readonly property Timer refreshTimer: Timer {
         interval: PackageUpdates.periodicRefreshIntervalMs()
-        running: true
+        running: root.backend === "arch" || root.backend === "fedora"
         repeat: true
         triggeredOnStart: true
         onTriggered: root.refresh()
+    }
+
+    readonly property FileView osRelease: FileView {
+        path: "/etc/os-release"
+        printErrors: false
+        onLoaded: {
+            root.backend = PackageUpdates.backendFromOsRelease(text());
+            if (root.backend === "unsupported")
+                root.refresh();
+        }
+        onLoadFailed: error => {
+            root.backend = "unsupported";
+            root.refresh();
+        }
     }
 }

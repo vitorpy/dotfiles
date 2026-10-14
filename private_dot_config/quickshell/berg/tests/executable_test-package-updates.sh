@@ -40,7 +40,7 @@ require_literal "interval: PackageUpdates.periodicRefreshIntervalMs()" "${state_
 require_literal "triggeredOnStart: true" "${state_file}"
 require_literal "function refreshUpdates(): void" "${bar_state_file}"
 require_literal "function launchUpdates(): void" "${bar_state_file}"
-require_literal "PackageUpdates.launchCommand(Quickshell.env(\"HOME\"))" "${bar_state_file}"
+require_literal "PackageUpdates.launchCommand(Quickshell.env(\"HOME\"), updatesState.backend)" "${bar_state_file}"
 require_literal "onLeftClicked: root.barState.launchUpdates()" "${bar_file}"
 require_literal "function updatesStatus(): string" "${bar_state_file}"
 require_literal "function refreshUpdates(): void" "${shell_file}"
@@ -61,7 +61,9 @@ if grep -Eq -- 'pkexec|yay[[:space:]]+-Sua' "${updater}"; then
 fi
 
 bash -n "${updater}"
-/usr/lib/qt6/bin/qmllint \
+qt_bin=/usr/lib/qt6/bin
+[[ -x "$qt_bin/qmllint" ]] || qt_bin=/usr/lib64/qt6/bin
+"$qt_bin/qmllint" \
     "${state_file}" \
     "${bar_state_file}" \
     "${bar_file}" \

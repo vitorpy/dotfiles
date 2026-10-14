@@ -1,0 +1,89 @@
+---
+- name: Provision Fedora Hyprland alongside the native KDE desktop
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - packages.yml
+  vars:
+    fedora_primary_user: vitorpy
+    fedora_corporate: false
+  pre_tasks:
+    - name: Require Fedora 44 and an explicitly selected target
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Fedora'
+          - ansible_facts.distribution_major_version == '44'
+          - ansible_limit | default('') | length > 0
+        fail_msg: Use --limit with a Fedora 44 workstation or disposable guest; Arch has its own playbook.
+    - name: Inspect the existing desktop user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ fedora_primary_user }}"
+    - name: Preserve the installed user identity
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.getent_passwd[fedora_primary_user][1] == '1000'
+  tasks:
+    - name: Configure narrowly scoped signed desktop repositories
+      ansible.builtin.yum_repository:
+        name: "{{ item.name }}"
+        description: "{{ item.description }}"
+        baseurl: "{{ item.baseurl }}"
+        enabled: true
+        gpgcheck: true
+        repo_gpgcheck: "{{ item.repo_gpgcheck | default(false) }}"
+        gpgkey: "{{ item.gpgkey }}"
+        includepkgs: "{{ item.packages }}"
+        skip_if_unavailable: false
+        file: fedora-workstation
+      loop: "{{ fedora_repositories }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: not item.corporate | default(false) or fedora_corporate | bool
+    - name: Remove the superseded Cloud lab repository definition
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/fedora-migration-hyprland.repo
+        state: absent
+      when: inventory_hostname == 'fedora44-lab'
+    - name: Install Fedora desktop and workstation tools
+      ansible.builtin.dnf5:
+        name: "{{ fedora_packages + (fedora_corporate_packages if fedora_corporate | bool else []) }}"
+        state: present
+    - name: Install the verified Slack RPM for corporate workstations
+      ansible.builtin.import_tasks: slack.yml
+      when: fedora_corporate | bool
+    - name: Install reviewed portable workstation tools
+      ansible.builtin.import_tasks: tools.yml
+    - name: Create shared artwork group
+      ansible.builtin.group:
+        name: arts-wallpaper
+        system: true
+    - name: Allow the user to maintain shared artwork
+      ansible.builtin.user:
+        name: "{{ fedora_primary_user }}"
+        groups: arts-wallpaper
+        append: true
+    - name: Create the artwork state directory
+      ansible.builtin.file:
+        path: /var/lib/arts-wallpaper
+        state: directory
+        owner: "{{ fedora_primary_user }}"
+        group: arts-wallpaper
+        mode: '2750'
+    - name: Check Bluetooth hardware presence
+      ansible.builtin.stat:
+        path: /sys/class/bluetooth
+      register: fedora_bluetooth
+    - name: Enable standard workstation services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: "{{ 'started' if item != 'bluetooth.service' or fedora_bluetooth.stat.exists else omit }}"
+      loop:
+        - NetworkManager.service
+        - bluetooth.service
+        - power-profiles-daemon.service
+    - name: Keep the existing Fedora security and display manager defaults
+      ansible.builtin.debug:
+        msg: Apply the documented user dotfiles separately; this playbook leaves boot, PAM, SELinux, firewall, and the KDE display manager under Fedora control.

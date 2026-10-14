@@ -26,11 +26,18 @@ Zygalski stays Arch.
   home recovery and first-boot provisioning are still in progress.
 - The complete automatic installer accepted the generated storage/user recipe,
   created UEFI + LUKS Btrfs only on its private NVMe, and installed 2,230 RPMs.
-  Post-install restore/upgrade and the first-boot controller are being verified.
+  A fresh install completed verified home recovery and its pre-reboot upgrade,
+  then booted normally to LUKS unlock. Restored ownership/modes, hardlinks,
+  symlinks, xattrs, Flatpak profile precedence and Arch override quarantine passed.
+  The text installer left multi-user.target selected; the post-install controller
+  now explicitly selects graphical.target. First-boot provisioning is running.
 - Recovery preserves native application profiles and ports Bitwarden, Discord
   and Telegram into their verified Flatpak data paths. Existing Flatpak profiles
   take precedence. Public-overlay parent ownership and Fedora SELinux labeling
   are explicit; the native greeter gets a one-time Plasma session preference.
+- First-boot timers are started after artwork recovery even when the user manager
+  was already running for Flatpak. The USB writer releases both its duplicated
+  UDisks descriptor and the original before rescanning, and rejects short reads.
 - The isolated guided VM has its own full-capacity dummy USB, thin NVMe and decoy
   disk. Its model/network adapter is lab-only; no real secrets/data are sent.
 

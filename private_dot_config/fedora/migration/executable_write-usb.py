@@ -55,6 +55,10 @@ def main():
         GLib.VariantType.new("(h)"), Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
         120000, None, None)
     descriptor = fdlist.get(result.unpack()[0])
+    # get() duplicates the descriptor. Drop the originals too, otherwise the
+    # UnixFDList keeps an exclusive device handle alive across the later rescan.
+    for original in fdlist.steal_fds():
+        os.close(original)
     try:
         opened = os.fstat(descriptor)
         if not stat.S_ISBLK(opened.st_mode) or opened.st_rdev != os.stat(disk["name"]).st_rdev:
@@ -70,6 +74,8 @@ def main():
                 last = 0
                 while position < capacity:
                     amount = source.readinto(view[:min(block, capacity-position)])
+                    if not amount or amount % 512:
+                        raise RuntimeError("Short or unaligned image read")
                     written = os.write(descriptor, view[:amount])
                     if written != amount:
                         raise RuntimeError("Short direct write")

@@ -305,6 +305,8 @@ def post(payload):
     # recovery path and the desktop cannot race a partial home merge.
     shutil.copyfile(payload / "firstboot.service", target / "etc/systemd/system/rivest-migration.service")
     run(["systemctl", "--root", target, "enable", "rivest-migration.service"])
+    # A text-mode Kickstart otherwise leaves this KDE install in multi-user.target.
+    run(["systemctl", "--root", target, "set-default", "graphical.target"])
     launcher = target / "usr/local/bin/rivest-migration"
     shutil.copyfile(payload / "resume", launcher)
     launcher.chmod(0o755)
@@ -400,6 +402,9 @@ def provision():
             run(["chown", "-R", "vitorpy:arts-wallpaper", "/var/lib/arts-wallpaper"])
         mark(STATE, "artwork-restored")
     run(["restorecon", "-RF", HOME, "/var/lib/arts-wallpaper"])
+    # user@1000 was already started for Flatpak; enabling timers alone does not
+    # attach them to its previously activated timers.target until another login.
+    run(user_env + ["start", "arts-wallpaper.timer", "quickshell-berg-weather.timer"])
     for executable in ("/usr/local/bin/codex", "/usr/local/bin/bitwarden-desktop", "/usr/bin/qs",
                        "/usr/bin/Hyprland", "/usr/libexec/xdg-desktop-portal-hyprland"):
         if not os.access(executable, os.X_OK):

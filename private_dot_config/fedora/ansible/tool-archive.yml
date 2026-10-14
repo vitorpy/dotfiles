@@ -16,7 +16,16 @@
     dest: "/opt/fedora-workstation/{{ tool.name }}"
     remote_src: true
     creates: "/opt/fedora-workstation/{{ tool.name }}/{{ tool.binaries[0].source }}"
+    owner: "{{ tool.owner | default('root') }}"
+    group: "{{ tool.owner | default('root') }}"
 - name: Expose the custom tool in the system customization directory
+  ansible.builtin.file:
+    path: "/opt/fedora-workstation/{{ tool.name }}/{{ item.source }}"
+    mode: '0755'
+  loop: "{{ tool.binaries }}"
+  loop_control:
+    label: "{{ item.name }}"
+- name: Link the custom tool in the system customization directory
   ansible.builtin.file:
     src: "/opt/fedora-workstation/{{ tool.name }}/{{ item.source }}"
     dest: "/usr/local/bin/{{ item.name }}"

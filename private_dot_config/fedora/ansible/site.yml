@@ -5,9 +5,16 @@
   gather_facts: true
   vars_files:
     - packages.yml
+    - parity.yml
+    - applications-vars.yml
   vars:
     fedora_primary_user: vitorpy
     fedora_corporate: false
+    fedora_full_parity: true
+  handlers:
+    - name: Reload user-supplied udev rules
+      ansible.builtin.command:
+        argv: [udevadm, control, --reload-rules]
   pre_tasks:
     - name: Require Fedora 44 and an explicitly selected target
       ansible.builtin.assert:
@@ -54,13 +61,22 @@
       when: inventory_hostname == 'fedora44-lab'
     - name: Install Fedora desktop and workstation tools
       ansible.builtin.dnf5:
-        name: "{{ fedora_packages + [fedora_power_provider] + (fedora_corporate_packages if fedora_corporate | bool else []) }}"
+        name: "{{ (fedora_packages + (fedora_parity_packages if fedora_full_parity | bool else []) + [fedora_power_provider] + (fedora_corporate_packages if fedora_corporate | bool else [])) | unique }}"
         state: present
     - name: Install the verified Slack RPM for corporate workstations
       ansible.builtin.import_tasks: slack.yml
       when: fedora_corporate | bool
     - name: Install reviewed portable workstation tools
       ansible.builtin.import_tasks: tools.yml
+    - name: Install verified desktop Flatpaks
+      ansible.builtin.import_tasks: flatpak.yml
+      when: fedora_full_parity | bool
+    - name: Install native upstream applications and developer tools
+      ansible.builtin.import_tasks: applications.yml
+      when: fedora_full_parity | bool
+    - name: Install the native VLC codec add-ons
+      ansible.builtin.import_tasks: codecs.yml
+      when: fedora_full_parity | bool
     - name: Create shared artwork group
       ansible.builtin.group:
         name: arts-wallpaper

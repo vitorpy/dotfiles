@@ -1,0 +1,32 @@
+---
+# VideoLAN's Fedora guide recommends RPM Fusion for additional VLC codecs.
+# Permit only the reviewed plugin/codec packages, preserving Fedora's VLC RPMs.
+- name: Install the RPM Fusion public key checked against Fedora's key package
+  ansible.builtin.copy:
+    src: rpmfusion-free.asc
+    dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-workstation-codecs
+    mode: '0644'
+- name: Trust the pinned codec signing fingerprint
+  ansible.builtin.rpm_key:
+    key: /etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-workstation-codecs
+    fingerprint: E9A491A3DE247814E7E067EAE06F8ECDD651FF2E
+    state: present
+- name: Configure narrowly scoped signed codec repositories
+  ansible.builtin.yum_repository:
+    name: "fedora-workstation-codecs-{{ item.name }}"
+    description: "RPM Fusion free VLC codecs ({{ item.name }})"
+    baseurl: "{{ item.url }}"
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-workstation-codecs
+    gpgcheck: true
+    enabled: true
+    includepkgs: [vlc-plugins-freeworld, libavcodec-freeworld, vvenc-libs, x264-libs, x265-libs]
+    file: fedora-workstation-codecs
+  loop:
+    - name: release
+      url: https://download1.rpmfusion.org/free/fedora/releases/$releasever/Everything/$basearch/os/
+    - name: updates
+      url: https://download1.rpmfusion.org/free/fedora/updates/$releasever/$basearch/
+- name: Add the reviewed VLC plugins and codec decoder library
+  ansible.builtin.dnf5:
+    name: [vlc-plugins-freeworld, libavcodec-freeworld]
+    state: present

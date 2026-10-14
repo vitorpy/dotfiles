@@ -1,0 +1,29 @@
+---
+- name: Inspect the user Flatpak remotes
+  ansible.builtin.command:
+    argv: [flatpak, remotes, --user, '--columns=name,url,subset']
+  become_user: "{{ fedora_primary_user }}"
+  register: fedora_flatpak_remotes
+  changed_when: false
+- name: Inspect the managed Flatpak remote configuration
+  ansible.builtin.set_fact:
+    fedora_flatpak_managed_remote: "{{ fedora_flatpak_remotes.stdout_lines | select('match', '^flathub-verified\t') | first | default('') }}"
+- name: Require the managed remote to retain its trusted URL and verified subset
+  ansible.builtin.assert:
+    that:
+      - "fedora_flatpak_managed_remote.split('\t')[1].rstrip('/') == 'https://dl.flathub.org/repo'"
+      - "fedora_flatpak_managed_remote.split('\t')[2] == 'verified'"
+    fail_msg: Review the existing flathub-verified remote; do not silently replace it.
+  when: fedora_flatpak_managed_remote | length > 0
+- name: Add the signed verified-only Flathub remote for the user
+  ansible.builtin.command:
+    argv: [flatpak, remote-add, --user, --if-not-exists, '--subset=verified', flathub-verified, 'https://dl.flathub.org/repo/flathub.flatpakrepo']
+  become_user: "{{ fedora_primary_user }}"
+  when: "'flathub-verified' not in fedora_flatpak_remotes.stdout"
+- name: Install verified desktop apps for the user
+  community.general.flatpak:
+    name: [com.bitwarden.desktop, com.discordapp.Discord, org.telegram.desktop]
+    remote: flathub-verified
+    method: user
+    state: present
+  become_user: "{{ fedora_primary_user }}"

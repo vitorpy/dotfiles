@@ -1,0 +1,15 @@
+fedora_signed_artifacts:
+- file: signal-desktop.AppImage
+  url: https://updates.signal.org/desktop/signal-desktop_8.30.0_x86_64.AppImage
+  sha256: 3980bc655fe308d8a321f6d855c8414edbf83877cb84f8314a9f0e7eddb6d581
+  signature_url: https://updates.signal.org/desktop/signal-desktop_8.30.0_x86_64.AppImage.gpg
+  signature_sha256: be7004998ceb3c833e5e57e1d9b8e38591408fc8458548b82602c7a919cae21c
+  key: signal-appimage.asc
+  fingerprint: 4B16B7232DFAA439AD791002EF9F501F13EED94C
+- file: veracrypt-1.26.29-Fedora-44-x86_64.rpm
+  url: https://github.com/veracrypt/VeraCrypt/releases/download/VeraCrypt_1.26.29/veracrypt-1.26.29-Fedora-44-x86_64.rpm
+  sha256: ff6b9b4a84a546c6a6fbc0c58ac1074fc6252cae8398f52b57ff360a3cbc312e
+  signature_url: https://github.com/veracrypt/VeraCrypt/releases/download/VeraCrypt_1.26.29/veracrypt-1.26.29-Fedora-44-x86_64.rpm.sig
+  signature_sha256: f280dc73545c0703bf70de9cc3a12894f021b29f01cdbe03a88a32278470d526
+  key: veracrypt.asc
+  fingerprint: 5069A233D55A0EEB174A5FC3821ACD02680D16DE

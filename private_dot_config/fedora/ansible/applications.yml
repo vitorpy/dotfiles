@@ -1,0 +1,235 @@
+---
+- name: Create the public vendor key directory
+  ansible.builtin.file:
+    path: /var/cache/fedora-workstation-keys
+    state: directory
+    mode: '0755'
+- name: Install reviewed public vendor keys
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/var/cache/fedora-workstation-keys/{{ item }}"
+    mode: '0644'
+  loop: [signal-appimage.asc, veracrypt.asc]
+- name: Create the local helper directory
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    mode: '0755'
+- name: Install the isolated signature verifier
+  ansible.builtin.copy:
+    src: verify-artifact.sh
+    dest: /usr/local/libexec/fedora-verify-artifact
+    mode: '0755'
+- name: Verify signed upstream application artifacts
+  ansible.builtin.include_tasks: signed-artifact.yml
+  loop: "{{ fedora_signed_artifacts }}"
+  loop_control:
+    loop_var: artifact
+    label: "{{ artifact.file }}"
+- name: Trust the pinned VeraCrypt RPM signing fingerprint
+  ansible.builtin.rpm_key:
+    key: /var/cache/fedora-workstation-keys/veracrypt.asc
+    fingerprint: 5069A233D55A0EEB174A5FC3821ACD02680D16DE
+    state: present
+- name: Install the verified VeraCrypt RPM
+  ansible.builtin.dnf5:
+    name: /var/cache/veracrypt-1.26.29-Fedora-44-x86_64.rpm
+    state: present
+- name: Install Zoom's current public signing key
+  ansible.builtin.copy:
+    src: zoom.asc
+    dest: /var/cache/fedora-workstation-keys/zoom.asc
+    mode: '0644'
+- name: Trust the fingerprint published in Zoom's Linux signing-key notice
+  ansible.builtin.rpm_key:
+    key: /var/cache/fedora-workstation-keys/zoom.asc
+    fingerprint: 84C365D6CC9A4886CA926BCC4F2197399706AC24
+    state: present
+- name: Fetch the pinned signed Zoom vendor RPM
+  ansible.builtin.get_url:
+    url: https://zoom.us/client/7.2.1.5760/zoom_x86_64.rpm
+    dest: /var/cache/zoom-7.2.1.5760.rpm
+    checksum: sha256:79b6fc1ffd9fd2e2d136e898aed9c8ed6ab672a83841de4220ca4c14005d76fd
+    mode: '0644'
+- name: Install the signed Zoom RPM
+  ansible.builtin.dnf5:
+    name: /var/cache/zoom-7.2.1.5760.rpm
+    state: present
+- name: Install the official ChatGPT public RPM key
+  ansible.builtin.copy:
+    src: chatgpt.asc
+    dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-chatgpt-3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.asc
+    mode: '0644'
+- name: Trust the pinned ChatGPT signing fingerprint
+  ansible.builtin.rpm_key:
+    key: /etc/pki/rpm-gpg/RPM-GPG-KEY-chatgpt-3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.asc
+    fingerprint: 3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4
+    state: present
+- name: Configure official ChatGPT RPM updates
+  ansible.builtin.yum_repository:
+    name: openai-chatgpt
+    description: ChatGPT
+    baseurl: https://persistent.oaistatic.com/codex-app-prod/linux/rpm/$basearch
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-chatgpt-3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.asc
+    includepkgs: [chatgpt]
+    enabled: true
+    file: chatgpt
+- name: Install ChatGPT from its signed vendor repository
+  ansible.builtin.dnf5:
+    name: chatgpt
+    state: present
+- name: Create user-managed application directories
+  ansible.builtin.file:
+    path: "/home/{{ fedora_primary_user }}/{{ item }}"
+    state: directory
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0755'
+  loop:
+    - .local/opt/signal-desktop
+    - .local/share/applications
+    - .local/share/fonts/MaterialSymbols
+    - .local/share/fedora-workstation/vsce-4.0.0
+    - .nvm
+    - .config/systemd/user
+- name: Inspect an existing self-updating Signal installation
+  ansible.builtin.stat:
+    path: "/home/{{ fedora_primary_user }}/.local/opt/signal-desktop/signal-desktop.AppImage"
+  register: fedora_signal_appimage
+- name: Seed the official self-updating Signal AppImage once
+  ansible.builtin.copy:
+    src: /var/cache/signal-desktop.AppImage
+    dest: "/home/{{ fedora_primary_user }}/.local/opt/signal-desktop/signal-desktop.AppImage"
+    remote_src: true
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0755'
+  when: not fedora_signal_appimage.stat.exists
+- name: Register native desktop launchers
+  ansible.builtin.copy:
+    dest: "/home/{{ fedora_primary_user }}/.local/share/applications/{{ item.id }}.desktop"
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0644'
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name={{ item.name }}
+      Exec={{ item.exec }} %U
+      Icon={{ item.icon }}
+      Terminal=false
+      Categories={{ item.categories }}
+  loop:
+    - id: signal-desktop
+      name: Signal
+      exec: "/home/{{ fedora_primary_user }}/.local/opt/signal-desktop/signal-desktop.AppImage"
+      icon: network-workgroup
+      categories: Network;InstantMessaging;
+    - id: zotero
+      name: Zotero
+      exec: /usr/local/bin/zotero
+      icon: /opt/fedora-workstation/zotero-10.0.6/Zotero_linux-x86_64/chrome/icons/default/default256.png
+      categories: Office;
+- name: Fetch the pinned NVM source archive
+  ansible.builtin.get_url:
+    url: https://github.com/nvm-sh/nvm/archive/refs/tags/v0.40.8.tar.gz
+    dest: /var/cache/nvm-0.40.8.tar.gz
+    checksum: sha256:7c5b2c4c78e6447b518860ead1f365056e9a03b3562903439bb401607b05a2ef
+    mode: '0644'
+- name: Install NVM without replacing existing user toolchains
+  ansible.builtin.unarchive:
+    src: /var/cache/nvm-0.40.8.tar.gz
+    dest: "/home/{{ fedora_primary_user }}/.nvm"
+    remote_src: true
+    extra_opts: [--strip-components=1]
+    creates: "/home/{{ fedora_primary_user }}/.nvm/nvm.sh"
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+- name: Install the pinned VSCE tool without package lifecycle scripts
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - install
+      - --ignore-scripts
+      - --omit=dev
+      - --save-exact
+      - --registry=https://registry.npmjs.org/
+      - --prefix
+      - "/home/{{ fedora_primary_user }}/.local/share/fedora-workstation/vsce-4.0.0"
+      - '@vscode/vsce@4.0.0'
+    creates: "/home/{{ fedora_primary_user }}/.local/share/fedora-workstation/vsce-4.0.0/node_modules/@vscode/vsce/vsce"
+  become_user: "{{ fedora_primary_user }}"
+  environment:
+    NPM_CONFIG_USERCONFIG: /dev/null
+- name: Expose VSCE using Fedora's supported Node runtime
+  ansible.builtin.copy:
+    dest: /usr/local/bin/vsce
+    mode: '0755'
+    content: |
+      #!/bin/sh
+      exec /usr/bin/node /home/{{ fedora_primary_user }}/.local/share/fedora-workstation/vsce-4.0.0/node_modules/@vscode/vsce/vsce "$@"
+- name: Install the pinned Framework hardware tool
+  ansible.builtin.get_url:
+    url: https://github.com/FrameworkComputer/framework-system/releases/download/v0.6.6/framework_tool
+    dest: /usr/local/bin/framework_tool
+    checksum: sha256:ebc2f3ca300dac6f484c02d058833372ff8dd3c23f2a74b63c774f8dc2f86171
+    mode: '0755'
+- name: Preserve the default gesture configuration for manual opt-in
+  ansible.builtin.copy:
+    src: /opt/fedora-workstation/libinput-gestures-9552f0d/libinput-gestures-9552f0dd9b9e78e57840c58c0006e6519bb6e038/libinput-gestures.conf
+    dest: /etc/libinput-gestures.conf
+    remote_src: true
+    force: false
+    mode: '0644'
+- name: Inspect an old rehearsal gesture setup link
+  ansible.builtin.stat:
+    path: /usr/local/bin/libinput-gestures-setup
+    follow: false
+  register: fedora_gesture_setup
+- name: Retire only our unsupported upstream-path setup link
+  ansible.builtin.file:
+    path: /usr/local/bin/libinput-gestures-setup
+    state: absent
+  when:
+    - fedora_gesture_setup.stat.islnk | default(false)
+    - (fedora_gesture_setup.stat.lnk_source | default('')).startswith('/opt/fedora-workstation/libinput-gestures-')
+- name: Provide an opt-in gesture service without enabling raw input access
+  ansible.builtin.copy:
+    dest: "/home/{{ fedora_primary_user }}/.config/systemd/user/libinput-gestures.service"
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    force: false
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=User-selected libinput gestures
+      After=graphical-session.target
+      PartOf=graphical-session.target
+      [Service]
+      ExecStart=/usr/local/bin/libinput-gestures
+      Restart=on-failure
+      [Install]
+      WantedBy=graphical-session.target
+- name: Install the pinned Material Symbols font for the desktop user
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf
+    dest: "/home/{{ fedora_primary_user }}/.local/share/fonts/MaterialSymbols/MaterialSymbolsOutlined.ttf"
+    checksum: sha256:77ff1c20896afc6f1abf7d57fc408234dfd021ab050b63e0442e71d6c9f0d6b8
+    owner: "{{ fedora_primary_user }}"
+    group: "{{ fedora_primary_user }}"
+    mode: '0644'
+- name: Create the Android USB rule's named fallback group
+  ansible.builtin.group:
+    name: adbusers
+    system: true
+  # The rule grants the active local user access through uaccess. Do not grant
+  # permanent raw USB access by adding the workstation user to this group.
+- name: Install the pinned upstream Android USB rules
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/M0Rf30/android-udev-rules/20260922/51-android.rules
+    dest: /etc/udev/rules.d/51-android.rules
+    checksum: sha256:51f6b45e5bf3386d01115df95eeab029325511bc83ec4cf4d0a29d748e90d8ff
+    mode: '0644'
+  notify: Reload user-supplied udev rules

@@ -1,0 +1,22 @@
+---
+- name: Fetch the pinned signed artifact
+  ansible.builtin.get_url:
+    url: "{{ artifact.url }}"
+    dest: "/var/cache/{{ artifact.file }}"
+    checksum: "sha256:{{ artifact.sha256 }}"
+    mode: '0644'
+- name: Fetch the detached signature
+  ansible.builtin.get_url:
+    url: "{{ artifact.signature_url }}"
+    dest: "/var/cache/{{ artifact.file }}.sig"
+    checksum: "sha256:{{ artifact.signature_sha256 }}"
+    mode: '0644'
+- name: Verify the detached signature and pinned signing fingerprint
+  ansible.builtin.command:
+    argv:
+      - /usr/local/libexec/fedora-verify-artifact
+      - "/var/cache/{{ artifact.file }}"
+      - "/var/cache/{{ artifact.file }}.sig"
+      - "/var/cache/fedora-workstation-keys/{{ artifact.key }}"
+      - "{{ artifact.fingerprint }}"
+  changed_when: false

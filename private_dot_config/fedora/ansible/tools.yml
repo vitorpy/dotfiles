@@ -10,7 +10,9 @@
   loop_control:
     loop_var: tool
     label: "{{ tool.name }}"
-  when: not tool.corporate | default(false) or fedora_corporate | bool
+  when:
+    - not tool.corporate | default(false) or fedora_corporate | bool
+    - not tool.parity | default(false) or fedora_full_parity | bool
 - name: Install the reviewed Noirup script
   ansible.builtin.get_url:
     url: https://github.com/noir-lang/noirup/releases/download/v0.1.5/noirup

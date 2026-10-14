@@ -146,3 +146,80 @@ fedora_tool_archives:
     url: https://github.com/ankitpokhrel/jira-cli/releases/download/v1.7.0/jira_1.7.0_linux_x86_64.tar.gz
     checksum: sha256:b5e0ba4804f3f11f92c483d9a6ea9ebccec1c735cd2e12b0440cab9d7afd626a
     binaries: [{name: jira, source: jira_1.7.0_linux_x86_64/bin/jira}]
+
+  - name: codex-0.162.1
+    parity: true
+    archive: codex-package-x86_64-unknown-linux-musl.tar.gz
+    url: https://github.com/openai/codex/releases/download/rust-v0.162.1/codex-package-x86_64-unknown-linux-musl.tar.gz
+    checksum: sha256:a676f5722aae0d86cbe3764332f08eab1fdd89dc0a300b3ad4ffbf48611fa3e3
+    binaries:
+    - name: codex
+      source: bin/codex
+  - name: zvm-0.9.1
+    parity: true
+    archive: zvm-linux-amd64.tar
+    url: https://github.com/tristanisham/zvm/releases/download/v0.9.1/zvm-linux-amd64.tar
+    checksum: sha256:9d4bf04c7f5099ca32bf6b939421096a5961753db2d0ed04a3c53c3975f12974
+    binaries:
+    - name: zvm
+      source: zvm
+  - name: cargo-audit-0.22.2
+    parity: true
+    archive: cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz
+    url: https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz
+    checksum: sha256:7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428
+    binaries:
+    - name: cargo-audit
+      source: cargo-audit-x86_64-unknown-linux-musl-v0.22.2/cargo-audit
+  - name: cargo-hack-0.6.45
+    parity: true
+    archive: cargo-hack-x86_64-unknown-linux-musl.tar.gz
+    url: https://github.com/taiki-e/cargo-hack/releases/download/v0.6.45/cargo-hack-x86_64-unknown-linux-musl.tar.gz
+    checksum: sha256:b242dffcfd43317ac484dd2dbc3b9fc5f8a7eb3ba252af31b531503f0bad33d1
+    binaries:
+    - name: cargo-hack
+      source: cargo-hack
+  - name: cargo-sort-2.1.4
+    parity: true
+    archive: cargo-sort-x86_64-unknown-linux-gnu.tar.gz
+    url: https://github.com/DevinR528/cargo-sort/releases/download/v2.1.4/cargo-sort-x86_64-unknown-linux-gnu.tar.gz
+    checksum: sha256:c10fdf954e51221d63743884aaf6ee5d576464abdc4965b395e3ec26948072ee
+    binaries:
+    - name: cargo-sort
+      source: cargo-sort
+  - name: bitwarden-cli-2026.9.1
+    parity: true
+    archive: bw-linux-2026.9.1.zip
+    url: https://github.com/bitwarden/clients/releases/download/cli-v2026.9.1/bw-linux-2026.9.1.zip
+    checksum: sha256:84289eaf59d691f04242605112f21b00e8dba65acdedbc60dde001a2860f2097
+    binaries:
+    - name: bw
+      source: bw
+
+  - name: zotero-10.0.6
+    parity: true
+    archive: Zotero-10.0.6_linux-x86_64.tar.xz
+    url: https://download.zotero.org/client/release/10.0.6/Zotero-10.0.6_linux-x86_64.tar.xz
+    checksum: sha256:246c2574a9ac526abeaf3027ffd22fc45536a5ab25f227bb1df932fca9cedd63
+    binaries:
+    - name: zotero
+      source: Zotero_linux-x86_64/zotero
+    owner: '{{ fedora_primary_user }}'
+
+  - name: vulkan-sdk-1.4.363.0
+    parity: true
+    archive: vulkansdk-linux-x86_64-1.4.363.0.tar.xz
+    url: https://sdk.lunarg.com/sdk/download/1.4.363.0/linux/vulkan_sdk.tar.xz
+    checksum: sha256:197962f5cbf80baf2775a03336a01cee7c8745686c65aaa70d3f751ade4d7e43
+    binaries:
+    - name: vkprofiles
+      source: 1.4.363.0/x86_64/bin/vkprofiles
+
+  - name: libinput-gestures-9552f0d
+    parity: true
+    archive: libinput-gestures-9552f0d.tar.gz
+    url: https://github.com/bulletmark/libinput-gestures/archive/9552f0dd9b9e78e57840c58c0006e6519bb6e038.tar.gz
+    checksum: sha256:fb4385ab41f6a32ee2cc18ec293b09bf251c4927edc0fe08bea71727a510a124
+    binaries:
+    - name: libinput-gestures
+      source: libinput-gestures-9552f0dd9b9e78e57840c58c0006e6519bb6e038/libinput-gestures

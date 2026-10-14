@@ -10,7 +10,7 @@ No laptop partitions or boot configuration have been changed by the rehearsal.
 After a normal Fedora KDE installation, finish the initial user setup, run a full
 `sudo dnf5 upgrade --refresh`, and reboot into the updated system. The release ISO
 contains an older KDE package set; adding current components before this update
-can cause package-file conflicts. Install `ansible-core` using Fedora's package
+can cause package-file conflicts. Install `ansible` (including its community.general collection) using Fedora's package
 manager, then run the Fedora playbook yourself with elevation:
 
 ```sh
@@ -36,10 +36,57 @@ and `refreshPending` and adds `backend`. Fedora uses `officialCount` for unique
 RPM name/architecture pairs across enabled repositories and `aurCount=0`.
 The Fedora updater asks before invoking sudo and updates RPMs only. Use KDE
 Discover/Flatpak and fwupd separately. Arch's combined Yay/firmware workflow is
-unchanged. Pinned upstream CLI archives (Foundry, GAM, Jira, Starship and Noirup)
+unchanged. Pinned upstream CLI archives and vendor applications listed in
+`ansible/packages.yml` and `ansible/applications.yml`
 are versioned in the Fedora playbook and need deliberate version bumps; they are
 not counted by the RPM badge. Hyprland services check the active desktop before taking notification
 or compositor roles in Plasma. Portal/theme settings are scoped to Hyprland.
+
+## Application parity and updates
+
+`migration/packages.tsv` retains all 243 explicit Arch packages and records the
+Fedora route and remaining acceptance checks. Deezer is omitted on corporate
+Fedora and remains personal-only in Arch. ROCm SDKs are retired on all Arch
+workstation profiles; they are not declared for Fedora. Native compiler/build
+tools replace Arch's base-devel without installing an Arch package manager.
+
+The full profile is the default. `-e fedora_full_parity=false` selects only the
+smaller desktop/corporate baseline and skips the added parity archives and apps.
+The verified-only per-user Flathub remote refuses an unexpected URL or subset.
+Bitwarden's unsigned vendor RPM was rejected; its publisher-verified Flatpak is
+used instead. VeraCrypt and Zoom retain RPM signature enforcement. Signal is the
+vendor's signed AppImage, seeded once in the user's home for vendor updates.
+
+| Software route | Update method |
+| --- | --- |
+| Fedora/COPR/vendor repository RPMs, including ChatGPT | DNF / Berg's Fedora RPM updater |
+| Bitwarden, Discord, Telegram | `flatpak update --user` or KDE Discover; verified-only remote |
+| Signal AppImage; user-owned Zotero bootstrap | Vendor application updater; keep data backed up |
+| Pinned CLI archives, Framework tool, VeraCrypt, Zoom, NVM, VSCE, fonts, Vulkan SDK and Android rules | Review upstream version/hash/signature changes in the Fedora playbook, rehearse, then reapply |
+
+The LunarG SDK supplements Fedora's native Vulkan packages. Enable it explicitly
+in a development shell, without changing the default graphics environment:
+
+```sh
+source /opt/fedora-workstation/vulkan-sdk-1.4.363.0/1.4.363.0/setup-env.sh
+vkprofiles --help
+```
+
+The gesture daemon has a user service available but disabled. Restore its user
+configuration, review raw input permissions and test the physical touchpad before
+opting in with `systemctl --user daemon-reload` and
+`systemctl --user enable --now libinput-gestures.service`. Disable it with
+`systemctl --user disable --now libinput-gestures.service`. The upstream setup
+helper assumes distro-owned paths and is not exposed by this custom install.
+Android USB rules use active-session uaccess; the user is not added to adbusers.
+
+Application removal is separate from changing declarations: disable the gesture
+service if enabled, remove selected Flatpaks with `flatpak uninstall --user APPID`,
+or review `dnf5 remove PACKAGE` before confirming. Pinned tools live in versioned
+`/opt/fedora-workstation` directories with `/usr/local/bin` links. Preserve an old
+version until its replacement is accepted. Never remove application data as part
+of package rollback. [Acceptance checks](migration/ACCEPTANCE.md) and the
+[graphics reproductions](migration/GRAPHICS.md) cover remaining migration gates.
 
 ## Recovery data
 
@@ -117,3 +164,16 @@ an instant rollback. Do not prune the migration snapshots until Fedora is accept
 - [Roam RPM installation](https://ro.am/download/linux)
 - [VSCodium RPM repository](https://repo.vscodium.dev/)
 - [Slack RPM installation](https://slack.com/intl/en-gb/help/articles/212924728-Download-Slack-for-Linux--beta-.)
+
+Additional parity sources reviewed on 2026-10-14:
+
+- [Bitwarden Linux biometric support and recommended channels](https://bitwarden.com/help/biometrics/)
+- [Flathub verified-only remotes](https://docs.flathub.org/docs/for-users/verification)
+- [Official Signal Linux AppImage and signing key](https://signal.org/download/linux/)
+- [VeraCrypt Fedora builds and signatures](https://veracrypt.io/en/Downloads.html)
+- [Zoom Linux signing-key rotation](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0063726)
+- [ChatGPT Linux and Fedora installation](https://learn.chatgpt.com/docs/linux/linux-app)
+- [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+- [VideoLAN Fedora installation and RPM Fusion](https://docs.videolan.me/vlc-user/desktop/3.0/en/gettingstarted/setup/linux/fedora.html)
+- [LunarG Linux SDK environment](https://vulkan.lunarg.com/doc/view/latest/linux/getting_started.html)
+- [Upstream Android USB rules](https://github.com/M0Rf30/android-udev-rules)

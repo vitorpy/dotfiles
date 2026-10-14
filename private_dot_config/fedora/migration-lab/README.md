@@ -326,3 +326,25 @@ as unresolved VM graphics results; the physical GPU has not been tested.
 Slack opens on KDE; the Cloud Hyprland launch crashed. Authenticated work apps
 and hardware checks remain acceptance gates. Full current evidence and backup
 results are in `../migration/STATUS.md`.
+
+## Clean KDE checkpoint and parity overlay
+
+The accepted `4114933` baseline was powered off before checkpointing. Its disk
+is `baseline-4114933.qcow2` and its UEFI variables are
+`OVMF_VARS.baseline-4114933.fd` under the clean guest's private server directory.
+The current `disk.qcow2` is an overlay backed by that baseline and contains the
+expanded application rehearsal. Keep the backing file in place and immutable
+while the overlay is in use. The original Cloud guest is stopped and preserved.
+
+For a new rehearsal from the checkpoint, power off the current guest, preserve
+its overlay/OVMF files under new names, create a new qcow2 overlay using the
+baseline's absolute backing path, copy the baseline OVMF variables to a new
+active copy, then start with `kde-start.sh --disk`. Do not start the baseline
+itself while overlays depend on it. Retaining the current overlay preserves its
+package results and diagnostics. This VM rollback does not restore a workstation.
+
+The expanded clean guest subsequently passed Hyprland portal capture as well: a
+real PNG frame was received through the PipeWire FD and the session closed, with
+no compositor restart or new core dump. This result supersedes the Cloud failure
+for the clean installation, while preserving its diagnostic history. The
+hyprpaper tiny-image reproduction remains unresolved.

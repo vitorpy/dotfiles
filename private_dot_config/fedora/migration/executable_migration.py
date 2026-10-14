@@ -6,6 +6,7 @@ Private material is decrypted only in XDG_RUNTIME_DIR (tmpfs), then removed.
 """
 import argparse
 import configparser
+import contextlib
 import getpass
 import io
 import json
@@ -190,7 +191,7 @@ def prepare(args):
     recovery.mkdir(mode=0o700, exist_ok=True)
     env = dict(os.environ, BW_SESSION=session_file.read_text().strip())
     try:
-        with tempfile.TemporaryDirectory(prefix="rivest-private-", dir=runtime) as private_dir:
+        with tempfile.TemporaryDirectory(prefix="rivest-private-", dir=runtime) as private_dir, contextlib.ExitStack() as cleanup:
             private = Path(private_dir)
             item = vault_item(env)
             original_password = item["login"]["password"]
@@ -216,8 +217,17 @@ def prepare(args):
             print('On your phone/personal laptop, open Bitwarden → Rivest migration backup → USB bootstrap passphrase.')
             if getpass.getpass("Enter that independently retrieved passphrase: ") != passphrase:
                 raise RuntimeError("Independent recovery check did not match")
+            # Authenticate before asking the user to close password managers.
+            # The private master supports the whole backup/copy with no remote
+            # agent forwarding and is closed before its runtime directory exits.
+            ssh_control = private / "nas-ssh"
+            run(["ssh", "-M", "-S", ssh_control, "-oControlPersist=3600", "-oForwardAgent=no",
+                 "-oBatchMode=yes", "-oConnectTimeout=15", "-fN", "mediaserver"], stdin=subprocess.DEVNULL)
+            cleanup.callback(subprocess.run, ["ssh", "-S", str(ssh_control), "-O", "exit", "mediaserver"],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            sftp_args = f"-oControlPath={ssh_control} -oForwardAgent=no -oBatchMode=yes"
             backup_env = {k: v for k, v in os.environ.items() if not k.startswith("RESTIC_")}
-            backup_env.update(RESTIC_PASSWORD_FILE=str(private / "nas-password"))
+            backup_env.update(RESTIC_PASSWORD_FILE=str(private / "nas-password"), RESTIC_SFTP_ARGS=sftp_args)
             if resuming:
                 age_crypt(payload / "bin/age", recovery / "preparation.age", private / "pending.json", passphrase, decrypt=True)
                 pending = json.loads((private / "pending.json").read_text())
@@ -248,8 +258,8 @@ def prepare(args):
             dest_env = dict(backup_env, RESTIC_PASSWORD_FILE=str(private / "usb-password"))
             repository = recovery / "repository"
             if not (repository / "config").exists():
-                run([restic, "-r", repository, "init", "--from-repo", REPO, "--from-password-file", private / "nas-password", "--copy-chunker-params"], env=dest_env)
-            run([restic, "-r", repository, "copy", "--from-repo", REPO, "--from-password-file", private / "nas-password", snapshot], env=dest_env)
+                run([restic, "-o", f"sftp.args={sftp_args}", "-r", repository, "init", "--from-repo", REPO, "--from-password-file", private / "nas-password", "--copy-chunker-params"], env=dest_env)
+            run([restic, "-o", f"sftp.args={sftp_args}", "-r", repository, "copy", "--from-repo", REPO, "--from-password-file", private / "nas-password", snapshot], env=dest_env)
             copied = json.loads(output([restic, "-r", repository, "snapshots", "--json"], env=dest_env))
             if len(copied) != 1 or copied[0].get("original") != snapshot:
                 raise RuntimeError("Copied snapshot does not identify the pinned source snapshot")

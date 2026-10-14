@@ -35,7 +35,9 @@ Run `python3 ~/.config/fedora/migration/migration.py prepare --payload PAYLOAD`
 in your own terminal. It adds a protected **USB bootstrap passphrase** field to
 the existing Bitwarden **Rivest migration backup** item. Retrieve that field on a
 separate device and enter it into the terminal's hidden prompt, never into chat.
-Close stateful applications before typing BACKUP. Preparation pins the final NAS
+The helper authenticates a temporary NAS SSH connection before asking you to
+close stateful applications and type BACKUP. This lets you close 1Password too;
+the backup/copy reuses that connection without forwarding its agent. Preparation pins the final NAS
 snapshot, copies it to a separately encrypted local repository, checks every
 data pack and restores the public fixture. The RAM-only bundle includes the
 current selected Wi-Fi keyfile, existing user password hash and USB repository

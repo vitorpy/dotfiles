@@ -8,6 +8,12 @@ USB preparation is deferred. Personal Zygalski stays Arch.
 - Encrypted NAS repository: `sftp:mediaserver:/mnt/media/backups/rivest-restic`.
   Password read-back verified in Bitwarden **Rivest migration backup**. Secrets
   are outside Git and have not been copied to Scherbius.
+- Refreshed snapshot `9775cc38ff1ca0f5749dc633c09dacdef3e55729158a142d36c98a789eb16e0b`:
+  328,970 files, 12,473,377,872 bytes. Repository metadata check passed and nine
+  changed files were restored with content, UID/GID, mode and xattr verification.
+  This snapshot includes application-profile commit `895202d`. Its full data read
+  was not repeated; the preceding full read result is recorded below. Temporary
+  backup password and vault-session files have been removed.
 - Latest previously verified snapshot:
   `7828297443a93c8614c7e856cf04c28066e0341bfcd7cdffee9808b13eb5b0a1`:
   328,856 files, 12,491,851,633 bytes. Full read verification passed 320/320 packs
@@ -86,7 +92,9 @@ USB preparation is deferred. Personal Zygalski stays Arch.
 - ChatGPT's signed RPM rendered sign-in through its default XWayland path. Signal
   rendered linking UI; Bitwarden's verified Flatpak rendered login UI. Zoom's
   sign-in UI rendered after removing the VM-only QT_QUICK_BACKEND override for
-  that launch; ZoomWebview stop-time crashes were observed. Zotero rendered its
+  that launch. A ZoomWebviewHost SIGABRT occurred before quitting the first
+  software-Qt launch; no further Zoom core dump was recorded during the normal-Qt
+  rerun. Zotero rendered its
   empty library; verified Telegram/Discord rendered welcome/login. No account
   sign-in was attempted.
 
@@ -98,6 +106,8 @@ USB preparation is deferred. Personal Zygalski stays Arch.
   guest Hyprland capture subsequently passed.
   GRAPHICS.md contains a minimal reproduction and source-level inference. No
   upstream fix or physical Intel-GPU success is claimed.
+- Flatpak launches also activated a failed IBus portal unit; login windows
+  rendered, but input-method integration has not been accepted.
 - Independent-device recovery confirmation, authenticated corporate workflows,
   security keys and Framework hardware checks remain pending in ACCEPTANCE.md.
 - Prepare the USB only when requested and after identifying its model/serial.

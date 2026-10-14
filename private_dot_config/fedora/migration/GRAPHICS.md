@@ -61,8 +61,11 @@ Slack renders its sign-in window in clean-guest Hyprland after creating a
 lab-only keyring. An explicit native-Wayland launch and ordinary launcher checks
 rendered successfully. Stopping its process with systemctl caused a SIGTRAP;
 Ctrl+Q closed the test window successfully. Zoom rendered sign-in when its
-launch omitted the VM-only QT_QUICK_BACKEND=software override; stop-time
-ZoomWebviewHost crashes were observed. Account calls and application sharing are
+launch omitted the VM-only QT_QUICK_BACKEND=software override. A ZoomWebviewHost
+SIGABRT occurred at 15:25:27 during the first launch, before systemctl stop at
+15:25:56. No further Zoom core dump was recorded during the normal-Qt rerun.
+Flatpak startup also activated a failed IBus portal unit; input-method integration
+remains untested despite successful login-window rendering. Account calls and application sharing are
 still pending. Do not equate a welcome window with a verified corporate workflow.
 
 This report is retained locally for a reviewable upstream issue; no issue was

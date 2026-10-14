@@ -235,7 +235,7 @@ xdg-utils	xdg-utils	Fedora	Installed; native RPM identity verified in clean KDE 
 xf86-input-libinput	xorg-x11-drv-libinput	Fedora	Installed; native RPM identity verified in clean KDE VM; applicable hardware/workflow checks pending
 xorg-xrandr	xrandr	Fedora	Installed; native RPM identity verified in clean KDE VM; applicable hardware/workflow checks pending
 yay-bin	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native installer/boot/update tooling
-zoom	zoom	Vendor RPM	Installed signed 7.2.1 RPM; sign-in UI rendered with VM-only Qt software override removed; Webview stop crashes observed; physical call workflow pending
+zoom	zoom	Vendor RPM	Installed signed 7.2.1 RPM; sign-in UI rendered with VM-only Qt software override removed; Webview crash under VM software-Qt override; normal-Qt rerun had no new core dump; physical call workflow pending
 zotero-bin	zotero	Pinned vendor archive	Installed official user-owned 10.0.6 bootstrap; empty library UI rendered; library restore workflow pending
 zoxide	zoxide	Fedora	Installed; native RPM identity verified in clean KDE VM; applicable hardware/workflow checks pending
 zram-generator	zram-generator-defaults	Fedora	Installed; native RPM identity verified in clean KDE VM; applicable hardware/workflow checks pending

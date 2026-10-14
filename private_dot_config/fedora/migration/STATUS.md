@@ -1,7 +1,23 @@
 # Migration rehearsal status — 2026-10-14
 
 Corporate Rivest remains Arch with its partitions and boot configuration intact.
-USB preparation is deferred. Personal Zygalski stays Arch.
+The authorized SanDisk USB is now imaged and fully read-back verified. Personal
+Zygalski stays Arch.
+
+## USB installation media — passed
+
+- Explicit user authorization received for the connected SanDisk 3.2Gen1,
+  15,376,000,000 bytes, serial 03021830022221114151. Its previous Arch installer
+  was replaced with the standard Fedora KDE 44 live ISO.
+- Fedora 44 checksum signature and complete local ISO SHA256 verified. UDisks
+  device-scoped desktop authentication, exclusive direct I/O and synchronous
+  writes were used; no local sudo, root shell or device permission change.
+- All 3,368,683,520 written bytes passed direct-read SHA256 verification:
+  `c8295961d4c41adbf785a31a17c21a971d3b7415fda72dcad0c11c49577bf03a`.
+  Private receipt: `~/.local/state/fedora-migration/usb-verification.json`.
+- Physical live boot and hardware checks remain pending. See USB.md for F12 and
+  the ISO's exact media-test boot entry. No reboot was scheduled and internal
+  partitions and boot configuration were not altered.
 
 ## Backup and recovery
 
@@ -110,6 +126,6 @@ USB preparation is deferred. Personal Zygalski stays Arch.
   rendered, but input-method integration has not been accepted.
 - Independent-device recovery confirmation, authenticated corporate workflows,
   security keys and Framework hardware checks remain pending in ACCEPTANCE.md.
-- Prepare the USB only when requested and after identifying its model/serial.
+- Boot the verified USB and complete the physical live-session checks.
   Refresh root capture and inventory, quiesce apps, take and verify the final
   pre-install backup, and record its full snapshot ID before physical cutover.

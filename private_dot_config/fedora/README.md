@@ -129,9 +129,9 @@ migration-ready.
 3. Run `restic check --read-data`, restore representative real files into a private
    local directory, and use `migration/verify-restore.py` to compare contents and
    metadata. Use only sanitized fixtures for remote VM restore tests.
-4. Prepare the USB when requested. Confirm its model/serial and erase approval
-   before writing the signed KDE ISO. Follow the official Framework guide linked
-   below. Boot live and check Wi-Fi, Bluetooth, audio/microphone, camera, touch,
+4. The authorized SanDisk USB is prepared and fully read-back verified; see
+   `migration/USB.md`. Follow its F12/media-test boot instructions and the official
+   Framework guide linked below. Boot live and check Wi-Fi, Bluetooth, audio/microphone, camera, touch,
    brightness, graphics, docking and suspend/resume. Record actual results.
 5. Close stateful apps, save work, refresh root capture and inventory, take a final
    backup and record its snapshot ID. Only then schedule the installation.

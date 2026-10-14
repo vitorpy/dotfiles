@@ -2,7 +2,8 @@
 
 This checklist is for corporate Rivest. Personal Zygalski stays Arch. Rehearsal
 results are recorded in STATUS.md; an installed package alone does not establish
-an authenticated workflow. USB preparation remains deferred.
+an authenticated workflow. The live USB is prepared and fully read-back verified; see USB.md. Physical
+boot and hardware checks remain pending.
 
 ## Independent recovery
 

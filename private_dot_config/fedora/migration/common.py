@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 USER = "vitorpy"
 HOME = "/home/vitorpy"
@@ -37,10 +38,23 @@ def sha(path):
 def write_private(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "w") as stream:
-        os.fchmod(stream.fileno(), 0o600)
-        stream.write(value)
+    if path.is_symlink():
+        raise OSError("Refusing a symlink for private state")
+    fd, temporary = tempfile.mkstemp(prefix="." + path.name + ".", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def disk_inventory():
@@ -94,7 +108,9 @@ def prepare_wifi(keyfile):
     if not profile.get(security, "psk", fallback=""):
         raise RuntimeError("The wireless password was not captured")
     profile.remove_option("connection", "interface-name")
+    profile.remove_option("connection", "permissions")
     profile.set("connection", "autoconnect", "true")
+    profile.set(security, "psk-flags", "0")
     for section in ("wifi", "802-11-wireless"):
         if profile.has_section(section):
             profile.remove_option(section, "mac-address")

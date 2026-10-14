@@ -34,6 +34,8 @@ def main():
     args = parser.parse_args()
     image = args.image.resolve()
     receipt = json.loads(Path(str(image) + ".json").read_text())
+    if receipt.get("rehearsal") is not False:
+        raise RuntimeError("Only a composed production image may be written to the physical USB")
     if not image.is_file() or image.stat().st_size != USB["size"] or receipt["usb"] != USB or receipt["image_bytes"] != USB["size"]:
         raise RuntimeError("Image and device identity receipt do not match")
     expected = sha(image)

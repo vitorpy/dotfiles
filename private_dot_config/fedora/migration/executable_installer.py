@@ -40,11 +40,11 @@ def mark(state, name):
 
 
 def media_mount():
-    partitions = json.loads(output(["lsblk", "-J", "-p", "-o", "NAME,LABEL"]))["blockdevices"]
+    partitions = json.loads(output(["lsblk", "-J", "-p", "-o", "NAME,TYPE,LABEL"]))["blockdevices"]
     found = []
     def visit(nodes):
         for node in nodes:
-            if node.get("label") == LABEL:
+            if node.get("type") == "part" and node.get("label") == LABEL:
                 found.append(node["name"])
             visit(node.get("children", []))
     visit(partitions)
@@ -52,11 +52,25 @@ def media_mount():
         raise RuntimeError("Exactly one recovery partition is required")
     base = RAM / "media"
     base.mkdir(parents=True, exist_ok=True)
-    run(["mount", "-o", "ro,nosuid,nodev,noexec", found[0], base])
     # The recovery partition must belong to the same authorized physical USB.
     usb = match_disk(disk_inventory(), USB, usb=True)
     if found[0] not in [c["name"] for c in usb.get("children", [])]:
         raise RuntimeError("Recovery partition is not on the recorded USB")
+    # Anaconda mounts the ISO from the whole USB block device, which prevents a
+    # second exclusive filesystem claim on one of its partitions. A read-only
+    # loop view permits mounting recovery without unmounting installer stage2.
+    if os.path.ismount(base):
+        source = output(["findmnt", "-n", "-o", "SOURCE", "--mountpoint", base])
+        loops = json.loads(output(["losetup", "--json", "--output", "NAME,BACK-FILE,RO", source]))["loopdevices"]
+        if len(loops) != 1 or loops[0]["back-file"] != found[0] or not loops[0]["ro"]:
+            raise RuntimeError("Existing recovery mount is not the verified read-only USB view")
+        return base
+    loop = output(["losetup", "--find", "--show", "--read-only", found[0]])
+    try:
+        run(["mount", "-t", "ext4", "-o", "ro,noload,nosuid,nodev,noexec", loop, base])
+    except Exception:
+        run(["losetup", "-d", loop])
+        raise
     return base
 
 
@@ -142,7 +156,8 @@ def wifi_connect(bundle):
 def verify_repository(base, payload, manifest):
     restic = payload / "bin/restic"
     env = restic_env(RAM / "password")
-    args = [restic, "-r", base / "repository"]
+    # The USB repository is immutable; locking would require writing to it.
+    args = [restic, "--no-lock", "-r", base / "repository"]
     run(args + ["check"], env=env)
     snapshots = json.loads(output(args + ["snapshots", "--json", manifest["usb_snapshot"]], env=env))
     if len(snapshots) != 1 or snapshots[0]["id"] != manifest["usb_snapshot"] or HOME not in snapshots[0]["paths"]:
@@ -272,7 +287,7 @@ def restore_home(target, payload, base, manifest):
     if (state / "home-restored").exists():
         return
     staging = state / "restore"
-    run([payload / "bin/restic", "-r", base / "repository", "restore", manifest["usb_snapshot"],
+    run([payload / "bin/restic", "--no-lock", "-r", base / "repository", "restore", manifest["usb_snapshot"],
          "--target", staging, "--verify"], env=restic_env(RAM / "password"))
     if sha(staging / FIXTURE.lstrip("/")) != FIXTURE_SHA:
         raise RuntimeError("Restored home fixture differs")

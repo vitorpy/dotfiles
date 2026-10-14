@@ -21,7 +21,7 @@ done
 [[ -n $payload ]]
 # A separate controlling terminal lets age and getpass use hidden input. The
 # Anaconda log never receives terminal keystrokes or generated secret directives.
-setsid --wait /bin/bash -c 'exec </dev/tty1 >/dev/tty1 2>&1; exec python3 -u "$1/installer.py" pre "$1"' bash "$payload"
+python3 "$payload/console.py" "$payload/installer.py" pre "$payload"
 %end
 
 %packages

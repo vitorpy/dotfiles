@@ -41,6 +41,11 @@ data pack and restores the public fixture. The RAM-only bundle includes the
 current selected Wi-Fi keyfile, existing user password hash and USB repository
 password. Its encryption and decryption are checked before cleanup. Temporary
 Bitwarden sessions and plaintext credentials are removed afterward.
+If copying is interrupted, rerun the same prepare command after unlocking
+Bitwarden again. Its encrypted checkpoint retains the same snapshot and USB
+repository password; a resumed copy does not take another source snapshot.
+Use `--cache` with a new subdirectory under the migration cache only when
+deliberately starting a separate preparation; previous vault fields are retained.
 
 `migration.py compose --iso ISO --recovery RECOVERY --output IMAGE --payload PAYLOAD` operates on a
 regular image file only. It preserves the two or three Lorax/Fedora boot
@@ -70,6 +75,8 @@ offering to erase anything. The internal target must match model **WD PC SN5000S
 SDEPTSJ-512G**, serial **25343C801463**, capacity **512,110,190,592 bytes**, NVMe
 transport and the original partition fingerprint. You type the serial and enter
 a new LUKS passphrase twice. A changed layout stops accidental reinstallation.
+Recovery is mounted through a read-only loop view because Anaconda mounts the
+ISO from the whole USB. Restic reads this immutable repository without locks.
 
 Fedora installs native KDE, UEFI, an encrypted Btrfs root/home, UID/GID 1000 and
 the existing login password hash. Root stays locked, SELinux enforcing, and
@@ -93,7 +100,7 @@ VM-only rendering variables and dummy credentials are never included on Rivest.
 
 ## Status, interruption and rollback
 
-On installed Fedora, `rivest-migration status` shows verified phases. If setup
+On installed Fedora, run `sudo rivest-migration status` to show verified phases. If setup
 fails, use another TTY, sign in, and run `sudo rivest-migration resume` yourself.
 The installed resume command has no partitioning path. An interrupted home
 restore requires the USB and another bundle unlock; provisioning retries need no

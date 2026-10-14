@@ -82,7 +82,7 @@ def public_payload(destination):
     if destination.exists():
         raise RuntimeError("Public payload destination already exists; use a new build directory")
     destination.mkdir(parents=True, mode=0o700)
-    for name in ("common.py", "installer.py", "firstboot.service", "resume"):
+    for name in ("common.py", "installer.py", "console.py", "firstboot.service", "resume"):
         shutil.copyfile(HERE / name, destination / name)
     shutil.copytree(HERE.parent / "ansible", destination / "ansible", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     source = Path(output(["chezmoi", "source-path"]))
@@ -153,25 +153,41 @@ def prepare(args):
         raise RuntimeError("Prepare runs only as the existing Rivest user")
     payload = Path(args.payload).resolve()
     payload_sha = check_files(payload)
+    if (payload / "lab_pre.py").exists():
+        raise RuntimeError("Dummy rehearsal payloads cannot prepare a physical migration")
     runtime = Path(os.environ["XDG_RUNTIME_DIR"])
     if output(["findmnt", "-n", "-o", "FSTYPE", "-T", runtime]) != "tmpfs":
         raise RuntimeError("Private preparation requires a tmpfs runtime directory")
     os.umask(0o077)
-    CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
-    recovery = CACHE / "recovery"
-    if recovery.exists():
-        raise RuntimeError("A recovery preparation already exists; preserve it and select a new cache before retrying")
-    recovery.mkdir(mode=0o700)
-    uuid = output(["nmcli", "-t", "--escape", "no", "-f", "UUID,TYPE", "connection", "show", "--active"])
-    candidates = [line.rsplit(":", 1)[0] for line in uuid.splitlines() if line.endswith(":802-11-wireless") or line.endswith(":wifi")]
-    if len(candidates) != 1:
-        raise RuntimeError("Exactly one active Wi-Fi profile must be selected")
-    wifi, login_hash = root_inputs(STATE / "root-reference.tar", candidates[0])
+    cache = Path(args.cache).resolve()
+    # Keep every possible repository/image staging location under the excluded
+    # cache tree, preventing a recovery repository from backing up itself.
+    if not cache.is_relative_to(Path(HOME) / ".cache/fedora-migration"):
+        raise RuntimeError("Preparation cache must remain inside the excluded migration cache")
+    cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+    recovery = cache / "recovery"
+    if (recovery / "manifest.json").exists():
+        manifest = json.loads((recovery / "manifest.json").read_text())
+        validate_manifest(manifest)
+        if manifest["payload_sha256"] != payload_sha:
+            raise RuntimeError("Verified preparation uses another payload; preserve it and use --cache with a new subdirectory")
+        print("Recovery preparation already verified; pinned snapshot retained. Compose/write can continue.")
+        return
+    resuming = (recovery / "preparation.age").exists()
+    if recovery.exists() and any(recovery.iterdir()) and not resuming:
+        raise RuntimeError("Unrecognized incomplete preparation; preserve it and use --cache with a new subdirectory")
+    if not resuming:
+        uuid = output(["nmcli", "-t", "--escape", "no", "-f", "UUID,TYPE", "connection", "show", "--active"])
+        candidates = [line.rsplit(":", 1)[0] for line in uuid.splitlines() if line.endswith(":802-11-wireless") or line.endswith(":wifi")]
+        if len(candidates) != 1:
+            raise RuntimeError("Exactly one active Wi-Fi profile must be selected")
+        wifi, login_hash = root_inputs(STATE / "root-reference.tar", candidates[0])
     target = match_disk(disk_inventory(), TARGET)
     match_disk(disk_inventory(), USB, usb=True)
     session_file = runtime / "fedora-migration-bw-session"
     if not session_file.exists():
         raise RuntimeError("Unlock Bitwarden into the documented private runtime session file first")
+    recovery.mkdir(mode=0o700, exist_ok=True)
     env = dict(os.environ, BW_SESSION=session_file.read_text().strip())
     try:
         with tempfile.TemporaryDirectory(prefix="rivest-private-", dir=runtime) as private_dir:
@@ -179,34 +195,60 @@ def prepare(args):
             item = vault_item(env)
             original_password = item["login"]["password"]
             write_private(private / "nas-password", original_password)
-            destination_password = secrets.token_hex(32)
-            write_private(private / "usb-password", destination_password)
-            passphrase = secrets.token_urlsafe(32)
-            fields = [f for f in item.get("fields", []) if f["name"] != "USB bootstrap passphrase"]
-            fields.append({"name": "USB bootstrap passphrase", "value": passphrase, "type": 1})
-            item["fields"] = fields
-            encoded = output(["bw", "encode"], input=json.dumps(item).encode(), env=env)
-            run(["bw", "edit", "item", ITEM], input=encoded.encode(), env=env, stdout=subprocess.DEVNULL)
+            if resuming:
+                fields = [f for f in (item.get("fields") or []) if f["name"] == "USB bootstrap passphrase"]
+                if len(fields) != 1:
+                    raise RuntimeError("Missing Bitwarden field for this incomplete preparation")
+                passphrase = fields[0]["value"]
+            else:
+                passphrase = secrets.token_urlsafe(32)
+                fields = item.get("fields") or []
+                for field in fields:
+                    if field["name"] == "USB bootstrap passphrase":
+                        field["name"] += " (previous " + time.strftime("%Y%m%dT%H%M%S") + ")"
+                fields.append({"name": "USB bootstrap passphrase", "value": passphrase, "type": 1})
+                item["fields"] = fields
+                encoded = output(["bw", "encode"], input=json.dumps(item).encode(), env=env)
+                run(["bw", "edit", "item", ITEM], input=encoded.encode(), env=env, stdout=subprocess.DEVNULL)
             if not any(f.get("name") == "USB bootstrap passphrase" and f.get("value") == passphrase
-                       for f in vault_item(env).get("fields", [])):
+                       for f in (vault_item(env).get("fields") or [])):
                 raise RuntimeError("Bitwarden passphrase read-back failed")
             print('On your phone/personal laptop, open Bitwarden → Rivest migration backup → USB bootstrap passphrase.')
             if getpass.getpass("Enter that independently retrieved passphrase: ") != passphrase:
                 raise RuntimeError("Independent recovery check did not match")
-            if input("Close stateful apps now. Type BACKUP to take the final snapshot: ") != "BACKUP":
-                raise RuntimeError("Final backup not started")
             backup_env = {k: v for k, v in os.environ.items() if not k.startswith("RESTIC_")}
             backup_env.update(RESTIC_PASSWORD_FILE=str(private / "nas-password"))
-            run([HERE / "restic.sh", "backup"], env=backup_env)
-            logs = sorted(STATE.glob("backup-*.jsonl"), key=lambda p: p.stat().st_mtime)
-            summaries = [json.loads(line) for line in logs[-1].read_text().splitlines() if json.loads(line).get("message_type") == "summary"]
-            if len(summaries) != 1:
-                raise RuntimeError("No unique final backup summary")
-            snapshot = summaries[0]["snapshot_id"]
+            if resuming:
+                age_crypt(payload / "bin/age", recovery / "preparation.age", private / "pending.json", passphrase, decrypt=True)
+                pending = json.loads((private / "pending.json").read_text())
+                if pending["target"] != TARGET or pending["usb"] != USB or pending["payload_sha256"] != payload_sha or pending["partition_fingerprint"] != partition_fingerprint(target):
+                    raise RuntimeError("Incomplete preparation belongs to another machine, payload or disk layout")
+                snapshot, destination_password = pending["source_snapshot"], pending["restic_password"]
+                wifi, login_hash = pending["wifi_keyfile"], pending["login_hash"]
+                print("Resuming the existing pinned backup copy; no new source snapshot is taken.")
+            else:
+                if input("Close stateful apps now. Type BACKUP to take the final snapshot: ") != "BACKUP":
+                    raise RuntimeError("Final backup not started")
+                run([HERE / "restic.sh", "backup"], env=backup_env)
+                logs = sorted(STATE.glob("backup-*.jsonl"), key=lambda p: p.stat().st_mtime)
+                summaries = [json.loads(line) for line in logs[-1].read_text().splitlines() if json.loads(line).get("message_type") == "summary"]
+                if len(summaries) != 1:
+                    raise RuntimeError("No unique final backup summary")
+                snapshot = summaries[0]["snapshot_id"]
+                destination_password = secrets.token_hex(32)
+                # Save encrypted credentials before the resumable copy starts.
+                pending = dict(source_snapshot=snapshot, restic_password=destination_password,
+                               wifi_keyfile=wifi, login_hash=login_hash,
+                               payload_sha256=payload_sha, target=TARGET, usb=USB,
+                               partition_fingerprint=partition_fingerprint(target))
+                write_private(private / "pending.json", json.dumps(pending))
+                age_crypt(payload / "bin/age", private / "pending.json", recovery / "preparation.age", passphrase)
+            write_private(private / "usb-password", destination_password)
             restic = payload / "bin/restic"
             dest_env = dict(backup_env, RESTIC_PASSWORD_FILE=str(private / "usb-password"))
             repository = recovery / "repository"
-            run([restic, "-r", repository, "init", "--from-repo", REPO, "--from-password-file", private / "nas-password", "--copy-chunker-params"], env=dest_env)
+            if not (repository / "config").exists():
+                run([restic, "-r", repository, "init", "--from-repo", REPO, "--from-password-file", private / "nas-password", "--copy-chunker-params"], env=dest_env)
             run([restic, "-r", repository, "copy", "--from-repo", REPO, "--from-password-file", private / "nas-password", snapshot], env=dest_env)
             copied = json.loads(output([restic, "-r", repository, "snapshots", "--json"], env=dest_env))
             if len(copied) != 1 or copied[0].get("original") != snapshot:
@@ -240,10 +282,19 @@ def compose(args):
     root = Path(args.recovery).resolve()
     image = Path(args.output).resolve()
     payload = Path(args.payload).resolve()
-    check_files(payload)
+    payload_sha = check_files(payload)
     if not iso.is_file() or not root.is_dir() or image.exists():
         raise RuntimeError("Need an existing custom ISO/recovery directory and a new output path")
-    validate_manifest(json.loads((root / "manifest.json").read_text()))
+    manifest = json.loads((root / "manifest.json").read_text())
+    validate_manifest(manifest)
+    if manifest["payload_sha256"] != payload_sha:
+        raise RuntimeError("Recovery bundle belongs to another public payload")
+    with tempfile.TemporaryDirectory(prefix="iso-payload-", dir=image.parent) as scratch:
+        embedded = Path(scratch) / "files.json"
+        run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/migration-payload/files.json", embedded],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if sha(embedded) != payload_sha:
+            raise RuntimeError("ISO and recovery payload do not match")
     size = USB["size"]
     start = ((iso.stat().st_size + 1048575) // 1048576) * 2048
     end = (size // 512 - 2048) // 2048 * 2048 - 1
@@ -286,7 +337,9 @@ def compose(args):
     run([payload / "bin/implantisomd5", "--force", image], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
     run([payload / "bin/checkisomd5", image], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     write_private(str(image) + ".json", json.dumps(dict(image_bytes=size, sha256=sha(image), iso_sha256=sha(iso),
-                  usb=USB, recovery_start_sector=start, recovery_end_sector=end), indent=2) + "\n")
+                  usb=USB, payload_sha256=payload_sha, rehearsal=(payload / "lab_pre.py").exists(),
+                  source_snapshot=manifest["source_snapshot"], usb_snapshot=manifest["usb_snapshot"],
+                  recovery_start_sector=start, recovery_end_sector=end), indent=2) + "\n")
     print(f"Composed {image}; complete checksum saved beside it. No physical device was written.")
 
 
@@ -295,7 +348,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("public"); p.add_argument("destination")
     p = sub.add_parser("hashes"); p.add_argument("destination")
-    p = sub.add_parser("prepare"); p.add_argument("--payload", required=True)
+    p = sub.add_parser("prepare"); p.add_argument("--payload", required=True); p.add_argument("--cache", default=str(CACHE))
     p = sub.add_parser("compose")
     p.add_argument("--iso", required=True); p.add_argument("--recovery", required=True); p.add_argument("--output", required=True); p.add_argument("--payload", required=True)
     sub.add_parser("status")

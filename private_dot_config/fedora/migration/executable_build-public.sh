@@ -13,6 +13,7 @@ install -m 755 /usr/bin/implantisomd5 /usr/bin/checkisomd5 "$work/migration-payl
 # Restic is supplied from the already verified upstream static binary, avoiding
 # a dependency on a newer Fedora libc in the older installer runtime.
 [[ -x $work/migration-payload/bin/restic ]]
+printf '%s  %s\n' 20d4142678d0d95ec11a4759def1b73fd9190abc9ca19e4b62d067c0b387e639 "$work/migration-payload/bin/restic" | sha256sum --check --status
 rpm -V age isomd5sum
 rpm -q age isomd5sum lorax pykickstart > "$work/migration-payload/build-packages.txt"
 python3 - "$work/migration-payload" <<'PY'

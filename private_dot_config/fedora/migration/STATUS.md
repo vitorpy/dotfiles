@@ -11,13 +11,19 @@ Zygalski stays Arch.
   selection. A separate live hardware-test boot is no longer a cutover gate.
 - New guard/controller, local preparation/composer, UDisks writer and runbook:
   GUIDED-INSTALL.md. Real recovery preparation and physical re-imaging are pending.
-- Eleven migration boundary tests, eight Arch/Fedora Codex wrapper tests, Python
+- Thirteen migration boundary tests, eight Arch/Fedora Codex wrapper tests, Python
   syntax and focused ShellCheck pass. Bitwarden's Fedora Flatpak launcher and Berg
   portal desktop registration are included in the playbook.
 - Lorax remastered ISO builds and validates with Fedora 44 Kickstart. The first
   USB boot exposed an embedded media-check mismatch after GPT relocation. The
-  composer now refreshes/checks that checksum after partition writes; repeat VM
-  boot and full install/recovery/provisioning remain in progress.
+  composer now refreshes/checks that checksum after partition writes; repeated
+  UEFI USB boot/media verification passed. The minimal runtime lacks setsid, so
+  a standard-library Python helper provides a dedicated hidden-input VT.
+- The whole-USB ISO mount prevents direct mounting of partition 4. A validated
+  read-only loop view works, including repeated mount validation. Restic uses
+  no-lock reads against immutable recovery media. Dummy unlock, repository check,
+  fixture restore and disk-confirmation UI passed. Full automatic installation,
+  home recovery and first-boot provisioning are still in progress.
 - The isolated guided VM has its own full-capacity dummy USB, thin NVMe and decoy
   disk. Its model/network adapter is lab-only; no real secrets/data are sent.
 

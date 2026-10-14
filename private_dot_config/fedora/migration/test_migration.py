@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 import tempfile
 import sys
+import shutil
+import tarfile
+import io
 import unittest
 from unittest.mock import patch
 
@@ -32,12 +35,14 @@ id=dummy
 uuid=11111111-1111-1111-1111-111111111111
 type=wifi
 interface-name=wlan0
+permissions=user:vitorpy:;
 [wifi]
 ssid=dummy
 mac-address=AA:BB:CC:DD:EE:FF
 [wifi-security]
 key-mgmt=wpa-psk
 psk=dummy-not-a-real-secret
+psk-flags=1
 [ipv4]
 method=auto
 [ipv6]
@@ -82,6 +87,8 @@ class SafetyTests(unittest.TestCase):
         profile, uuid = common.prepare_wifi(WIFI)
         self.assertNotIn('interface-name', profile)
         self.assertNotIn('mac-address=', profile)
+        self.assertNotIn('permissions=', profile)
+        self.assertIn('psk-flags=0', profile)
         self.assertIn('psk=dummy-not-a-real-secret', profile)
         self.assertIn('method=auto', profile)
         self.assertIn('autoconnect=true', profile)
@@ -106,6 +113,46 @@ class SafetyTests(unittest.TestCase):
              patch.object(installer, 'require_fedora'), patch.object(installer, 'pre') as pre:
             with self.assertRaises(RuntimeError): installer.provision()
             pre.assert_not_called()
+
+    def test_each_failed_precondition_leaves_partitioning_unwritten(self):
+        for failure in ('wifi', 'repository', 'disk', 'layout', 'confirmation'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                ram = Path(directory)
+                with patch.object(installer, 'RAM', ram), patch.object(installer, 'require_fedora'), \
+                     patch.object(installer.Path, 'read_text', return_value='inst.ks=cdrom:test'), \
+                     patch.object(installer.Path, 'is_dir', return_value=True), patch.object(installer, 'run'), \
+                     patch.object(installer, 'media_mount', return_value=ram), \
+                     patch.object(installer, 'unlock', return_value=(self.manifest(), {})), \
+                     patch.object(installer, 'wifi_connect', side_effect=RuntimeError('wifi') if failure=='wifi' else None), \
+                     patch.object(installer, 'verify_repository', side_effect=RuntimeError('repo') if failure=='repository' else None), \
+                     patch.object(installer, 'disk_inventory', return_value=[]), \
+                     patch.object(installer, 'match_disk', side_effect=RuntimeError('disk') if failure=='disk' else None, return_value=self.disk()), \
+                     patch.object(installer, 'partition_fingerprint', return_value='e'*64 if failure=='layout' else 'd'*64), \
+                     patch('builtins.input', return_value='wrong serial'):
+                    with self.assertRaises(RuntimeError): installer.pre(ram)
+                self.assertFalse((ram/'confirmed.ks').exists())
+
+    def test_home_merge_retry_does_not_reactivate_arch_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); staging=root/'stage'; target=root/'target'; payload=root/'payload'
+            source=staging/common.HOME.lstrip('/'); source.mkdir(parents=True)
+            units=source/'.config/systemd/user/graphical-session.target.wants'; units.mkdir(parents=True)
+            (units/'rclone.service').symlink_to('../rclone.service')
+            (source/'.config/systemd/user/rclone.service').write_text('arch-only')
+            payload.mkdir(); target.mkdir()
+            with tarfile.open(payload/'home-public.tar','w') as archive:
+                member=tarfile.TarInfo('.config/systemd/user/quickshell-berg.service')
+                member.size=6; member.mode=0o644
+                archive.addfile(member,io.BytesIO(b'public'))
+            def copy_home(args):
+                shutil.copytree(source,target/common.HOME.lstrip('/'),dirs_exist_ok=True,symlinks=True)
+            with patch.object(installer,'run',side_effect=lambda args: copy_home(args) if args[0]=='rsync' else None), patch.object(installer.os,'chown'):
+                for _ in range(2):
+                    installer.merge_home(staging,target,payload)
+                    home=target/common.HOME.lstrip('/')
+                    self.assertFalse((home/'.config/systemd/user/graphical-session.target.wants').exists())
+                    self.assertEqual((home/'.config/systemd/user/quickshell-berg.service').read_text(),'public')
+                    self.assertTrue((home/'.local/state/fedora-migration/arch-session-reference/.config/systemd/user/rclone.service').exists())
 
     def test_completed_resume_does_nothing(self):
         with tempfile.TemporaryDirectory() as directory:

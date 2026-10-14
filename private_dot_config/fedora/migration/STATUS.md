@@ -11,7 +11,7 @@ Zygalski stays Arch.
   selection. A separate live hardware-test boot is no longer a cutover gate.
 - New guard/controller, local preparation/composer, UDisks writer and runbook:
   GUIDED-INSTALL.md. Real recovery preparation and physical re-imaging are pending.
-- Thirteen migration boundary tests, eight Arch/Fedora Codex wrapper tests, Python
+- Fourteen migration boundary/profile tests, eight Arch/Fedora Codex wrapper tests, Python
   syntax and focused ShellCheck pass. Bitwarden's Fedora Flatpak launcher and Berg
   portal desktop registration are included in the playbook.
 - Lorax remastered ISO builds and validates with Fedora 44 Kickstart. The first
@@ -24,6 +24,13 @@ Zygalski stays Arch.
   no-lock reads against immutable recovery media. Dummy unlock, repository check,
   fixture restore and disk-confirmation UI passed. Full automatic installation,
   home recovery and first-boot provisioning are still in progress.
+- The complete automatic installer accepted the generated storage/user recipe,
+  created UEFI + LUKS Btrfs only on its private NVMe, and installed 2,230 RPMs.
+  Post-install restore/upgrade and the first-boot controller are being verified.
+- Recovery preserves native application profiles and ports Bitwarden, Discord
+  and Telegram into their verified Flatpak data paths. Existing Flatpak profiles
+  take precedence. Public-overlay parent ownership and Fedora SELinux labeling
+  are explicit; the native greeter gets a one-time Plasma session preference.
 - The isolated guided VM has its own full-capacity dummy USB, thin NVMe and decoy
   disk. Its model/network adapter is lab-only; no real secrets/data are sent.
 

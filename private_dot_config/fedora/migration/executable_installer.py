@@ -9,6 +9,7 @@ import fcntl
 import getpass
 import json
 import os
+import pwd
 from pathlib import Path
 import re
 import shlex
@@ -170,6 +171,8 @@ def verify_repository(base, payload, manifest):
 
 def pre(payload):
     require_fedora()
+    if not Path("/sys/firmware/efi").is_dir():
+        raise RuntimeError("Boot this USB in UEFI mode before installing")
     if "inst.ks=" not in Path("/proc/cmdline").read_text() or not Path("/run/install").is_dir():
         raise RuntimeError("Destructive preparation is confined to the Fedora installer")
     os.umask(0o077)
@@ -188,6 +191,7 @@ def pre(payload):
     print(f"Verified USB snapshot {manifest['usb_snapshot']}; NAS snapshot retained: {manifest['source_snapshot']}")
     if input("Type the entire internal disk serial to authorize erasure: ").strip() != TARGET["serial"]:
         raise RuntimeError("Disk erase confirmation did not match")
+    print("Save the new LUKS passphrase outside this laptop; it is required at every boot.")
     while True:
         password = getpass.getpass("New LUKS disk-encryption passphrase: ")
         confirmation = getpass.getpass("Repeat LUKS passphrase: ")
@@ -235,12 +239,50 @@ def merge_home(staging, target, payload):
     # Default first login to Plasma, retaining any former choice in the reference.
     write_private(home / ".dmrc", "[Desktop]\nSession=plasma\n")
     run(["chown", "-R", "1000:1000", reference])
+    own_public_home(home, payload)
+    os.chown(home / ".dmrc", 1000, 1000)
+    migrate_flatpak_profiles(source, home)
+
+
+def own_public_home(home, payload):
     with tarfile.open(payload / "home-public.tar") as archive:
         for member in archive.getmembers():
+            if Path(member.name).is_absolute() or ".." in Path(member.name).parts:
+                raise RuntimeError("Public home archive contains an invalid path")
             destination = home / member.name
-            if not destination.is_symlink():
-                os.chown(destination, 1000, 1000)
-    os.chown(home / ".dmrc", 1000, 1000)
+            # File-only archives create missing parent directories as root.
+            # Include those parents, especially the quarantined user-unit tree.
+            while destination != home:
+                if not destination.is_symlink():
+                    os.chown(destination, 1000, 1000)
+                destination = destination.parent
+
+
+def migrate_flatpak_profiles(original, home):
+    mappings = (
+        (".config/Bitwarden", ".var/app/com.bitwarden.desktop/config/Bitwarden"),
+        (".config/discord", ".var/app/com.discordapp.Discord/config/discord"),
+        (".local/share/TelegramDesktop", ".var/app/org.telegram.desktop/data/TelegramDesktop"),
+    )
+    for old_name, new_name in mappings:
+        source = original / old_name
+        prior_flatpak = original / new_name
+        if not source.is_dir() or source.is_symlink():
+            continue
+        # An existing Flatpak profile in the pinned snapshot takes precedence.
+        # Check immutable staging, allowing retries to finish a partial new copy.
+        if prior_flatpak.exists() and any(prior_flatpak.iterdir()):
+            continue
+        destination = home / new_name
+        if not destination.resolve().is_relative_to(home.resolve()):
+            raise RuntimeError("Flatpak profile destination escapes the restored home")
+        destination.mkdir(parents=True, exist_ok=True, mode=0o700)
+        run(["rsync", "-aHAX", "--numeric-ids", "--exclude=SingletonLock", "--exclude=SingletonSocket",
+             "--exclude=SingletonCookie", str(source) + "/", str(destination) + "/"])
+        node = destination
+        while node != home:
+            os.chown(node, 1000, 1000)
+            node = node.parent
 
 
 def post(payload):
@@ -275,7 +317,9 @@ def post(payload):
     run(["chroot", target, "dnf", "-y", "upgrade", "--refresh"])
     mark(state, "updated")
     (target / "etc/plasma-setup-done").touch()
-    run(["chroot", target, "restorecon", "-RF", HOME, "/etc/NetworkManager/system-connections", str(DEST), str(STATE)])
+    run(["chroot", target, "restorecon", "-RF", HOME, "/etc/NetworkManager/system-connections",
+         "/etc/systemd/system/rivest-migration.service", "/etc/systemd/system/display-manager.service.d",
+         "/usr/local/bin/rivest-migration", "/etc/plasma-setup-done", str(DEST), str(STATE)])
     # Anaconda is booted with inst.nosave=all. Remove temporary KS and secrets as
     # soon as restore and installation have succeeded.
     for name in ("bundle.json", "password", "confirmed.ks"):
@@ -323,6 +367,8 @@ def provision():
     if not (STATE / "updated").exists():
         run(["dnf", "-y", "upgrade", "--refresh"])
         mark(STATE, "updated")
+    # Recheck managed parent ownership on every interrupted-provision retry.
+    own_public_home(Path(HOME), DEST)
     ansible = DEST / "ansible"
     env = dict(os.environ, ANSIBLE_CONFIG=str(ansible / "ansible.cfg"), ANSIBLE_NOCOLOR="1")
     # A separate user bus supports Flatpak before a graphical login. Nothing from
@@ -360,6 +406,16 @@ def provision():
             raise RuntimeError("A required desktop executable is missing")
     if output(["getenforce"]) != "Enforcing":
         raise RuntimeError("SELinux must remain enforcing")
+    # Seed the native greeter's normal remembered-session state once. No
+    # autologin configuration is created, and later logins retain user choice.
+    greeter = Path("/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc")
+    identity = pwd.getpwnam("plasmalogin")
+    write_private(greeter, "[General]\nLastLoggedInSession=plasma.desktop\nLastLoggedInUser=vitorpy\n")
+    node = greeter
+    while node != Path("/var/lib/plasmalogin"):
+        os.chown(node, identity.pw_uid, identity.pw_gid)
+        node = node.parent
+    run(["restorecon", "-RF", "/var/lib/plasmalogin/.local"])
     mark(STATE, "complete")
     print("Migration complete. Sign into Plasma first; select Hyprland after logging out.")
 

@@ -90,12 +90,18 @@ environment/session overrides and user D-Bus registrations are quarantined under
 the restored home's migration state, then the reviewed public desktop files are
 applied. SELinux labels are regenerated. Only artwork data is imported from the
 protected system archive. Re-enroll fingerprints/re-pair Bluetooth as needed.
+Native Bitwarden, Discord and Telegram profiles are copied into their verified
+Flatpak config/data paths while retaining their originals. Existing Flatpak
+profiles take precedence; stale Electron singleton locks are omitted from the
+new copies. Applications may still require authentication after migration.
 
 Updates run before the installation reboot. A root-owned first-boot controller
 completes the Fedora playbook before the login manager starts. It enables only
 the reviewed Berg/session services, preserves corporate package choices, and
 checks required executables and enforcing SELinux. The first login is Plasma;
 there is no autologin. Log out and choose packaged Hyprland/UWSM to check Berg.
+The native greeter's remembered-session state is seeded to Plasma once; later
+logins remember your normal session choice.
 VM-only rendering variables and dummy credentials are never included on Rivest.
 
 ## Status, interruption and rollback

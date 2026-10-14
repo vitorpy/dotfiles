@@ -146,19 +146,42 @@ class SafetyTests(unittest.TestCase):
                 archive.addfile(member,io.BytesIO(b'public'))
             def copy_home(args):
                 shutil.copytree(source,target/common.HOME.lstrip('/'),dirs_exist_ok=True,symlinks=True)
-            with patch.object(installer,'run',side_effect=lambda args: copy_home(args) if args[0]=='rsync' else None), patch.object(installer.os,'chown'):
+            with patch.object(installer,'run',side_effect=lambda args: copy_home(args) if args[0]=='rsync' else None), patch.object(installer.os,'chown') as chown:
                 for _ in range(2):
                     installer.merge_home(staging,target,payload)
                     home=target/common.HOME.lstrip('/')
                     self.assertFalse((home/'.config/systemd/user/graphical-session.target.wants').exists())
                     self.assertEqual((home/'.config/systemd/user/quickshell-berg.service').read_text(),'public')
                     self.assertTrue((home/'.local/state/fedora-migration/arch-session-reference/.config/systemd/user/rclone.service').exists())
+                    self.assertIn(((home/'.config/systemd/user',1000,1000),), [(c.args,) for c in chown.call_args_list])
 
     def test_completed_resume_does_nothing(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory); (state/'complete').touch()
             with patch.object(installer, 'STATE', state), patch.object(installer, 'require_fedora'), patch.object(installer, 'run') as run:
                 installer.provision(); run.assert_not_called()
+
+    def test_native_profiles_move_to_flatpak_without_overwriting_prior_flatpak_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); original=root/'original'; home=root/'home'
+            native=original/'.config/Bitwarden'; native.mkdir(parents=True)
+            (native/'data.json').write_text('dummy encrypted account data')
+            (native/'SingletonLock').symlink_to('old-host-123')
+            native_discord=original/'.config/discord'; native_discord.mkdir(parents=True)
+            (native_discord/'settings.json').write_text('old-native')
+            old_flatpak=original/'.var/app/com.discordapp.Discord/config/discord'; old_flatpak.mkdir(parents=True)
+            (old_flatpak/'settings.json').write_text('prior-flatpak')
+            shutil.copytree(original,home,symlinks=True)
+            with patch.object(installer.os,'chown'):
+                installer.migrate_flatpak_profiles(original,home)
+                restored=home/'.var/app/com.bitwarden.desktop/config/Bitwarden'
+                self.assertEqual((restored/'data.json').read_text(),'dummy encrypted account data')
+                self.assertFalse((restored/'SingletonLock').is_symlink())
+                (restored/'data.json').write_text('partial retry')
+                installer.migrate_flatpak_profiles(original,home)
+                self.assertEqual((restored/'data.json').read_text(),'dummy encrypted account data')
+                self.assertEqual((home/'.var/app/com.discordapp.Discord/config/discord/settings.json').read_text(),'prior-flatpak')
+                self.assertEqual((native/'data.json').read_text(),'dummy encrypted account data')
 
     def test_private_outputs_are_not_world_readable(self):
         with tempfile.TemporaryDirectory() as directory:

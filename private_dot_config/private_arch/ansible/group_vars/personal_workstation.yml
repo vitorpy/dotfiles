@@ -9,6 +9,7 @@ arch_pacman_packages_personal:
   - qpdf
 
 arch_aur_packages_personal:
+  - deezer
   - antigravity-cli
   - google-earth-pro
   - yamis-icon-theme-git

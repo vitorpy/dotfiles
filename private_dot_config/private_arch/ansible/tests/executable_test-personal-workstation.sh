@@ -77,6 +77,9 @@ jq -e '
   .arch_notion_cli_enabled == true and
   .arch_google_earth_pro_desktop_override_enabled == true and
   (.arch_pacman_packages_personal | index("libreoffice-fresh") != null) and
+  (.arch_aur_packages_personal | index("deezer") != null) and
+  (.arch_retired_workstation_packages | index("rocm-ml-sdk") != null) and
+  (.arch_pacman_packages_development | index("rocm-ml-sdk") == null) and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") == null) and
   (.arch_aur_packages_personal | index("claude-desktop") == null) and
@@ -90,6 +93,10 @@ jq -e '
   .arch_notion_cli_enabled == false and
   .arch_google_earth_pro_desktop_override_enabled == false and
   (.arch_pacman_packages_personal | index("libreoffice-fresh") == null) and
+  (.arch_aur_packages_personal | index("deezer") == null) and
+  (.arch_aur_packages_utilities | index("deezer") == null) and
+  (.arch_retired_workstation_packages | index("rocm-hip-sdk") != null) and
+  (.arch_pacman_packages_development | index("rocm-ml-sdk") == null) and
   (.arch_pacman_packages_development | index("shellcheck") != null) and
   (.arch_aur_packages_personal | index("claude-code") == null) and
   (.arch_aur_packages_personal | index("claude-desktop") == null) and

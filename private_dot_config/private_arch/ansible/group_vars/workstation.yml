@@ -83,6 +83,13 @@ arch_pacnew_managed_files:
 arch_pacnew_preserve_current_files:
   - /etc/pacman.d/mirrorlist.pacnew
 
+# Retire ROCm SDKs on both corporate and personal workstations. Recurse removes
+# dependencies only when no installed package still requires them.
+arch_retired_workstation_packages:
+  - rocm-ml-sdk
+  - rocm-hip-sdk
+  - rocm-opencl-sdk
+
 arch_pacman_packages: >-
   {{
     arch_pacman_packages_base

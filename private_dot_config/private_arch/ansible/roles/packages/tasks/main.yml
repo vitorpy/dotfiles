@@ -1,4 +1,14 @@
 ---
+- name: Remove retired workstation development kits
+  community.general.pacman:
+    name: "{{ arch_retired_workstation_packages }}"
+    state: absent
+    extra_args: --recursive
+  when: arch_retired_workstation_packages | length > 0
+  tags:
+    - packages
+    - rocm-removal
+
 - name: Compute effective pacman package list
   ansible.builtin.set_fact:
     packages_pacman_effective: >-

@@ -606,3 +606,30 @@ loader.conf. After restoring them, run `sudo bootctl set-default arch.conf` (the
 snapshot does not restore EFI variables); if needed, clear a pending override with
 `sudo bootctl set-oneshot ''`. This restores the old PCR behavior as well, so use
 it only when intentionally rolling back the PCR migration.
+
+## ROCm SDK retirement (2026-10-14)
+
+Both workstation profiles retire `rocm-ml-sdk`, `rocm-hip-sdk` and
+`rocm-opencl-sdk`. The package role removes these and unneeded dependencies; it
+preserves modified configuration as pacsave files and refuses dependency-breaking
+removals. Servers use an empty retirement list. The current rivest preview covered
+54 packages, approximately 29 GiB.
+
+Run the role on each workstation itself (both inventory entries use a local
+connection):
+
+```sh
+cd ~/.config/arch/ansible
+ansible-playbook site.yml --limit rivest --tags rocm-removal --ask-become-pass
+# On the personal laptop, use --limit zygalski instead.
+```
+
+For this existing rivest installation, the equivalent reviewed manual operation
+is `sudo pacman -Rs rocm-ml-sdk rocm-hip-sdk`; review the transaction before
+confirming. The assistant never performs that local privileged operation.
+Rollback requires removing the relevant entries from the retirement list before
+reinstalling the SDK meta-package with pacman.
+
+Deezer is declared only in `personal_workstation.yml`. It remains available on
+personal Arch laptops and is omitted from the corporate package profile and
+Fedora migration. This declaration does not uninstall an existing Deezer copy.

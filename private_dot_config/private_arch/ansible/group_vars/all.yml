@@ -24,6 +24,7 @@ arch_system_services: "{{ arch_system_services_base }}"
 
 arch_desktop_enabled: false
 arch_corp_workstation_enabled: false
+arch_retired_workstation_packages: []
 arch_memory_pressure_managed: false
 arch_memory_pressure_enabled: false
 arch_file_descriptor_limits_managed: false
@@ -419,7 +420,6 @@ arch_aur_packages_corporate:
 arch_aur_packages_theming: []
 
 arch_aur_packages_utilities:
-  - deezer
   - eternalterminal-client
   - yay-bin
   - zotero-bin
@@ -567,4 +567,3 @@ arch_pacman_packages_dev_extras:
   - helm
   - kubectl
   - python-huggingface-hub
-  - rocm-ml-sdk

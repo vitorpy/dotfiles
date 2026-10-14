@@ -1,4 +1,7 @@
-# Guided Rivest installation
+# Abandoned guided Rivest installation
+
+The user cancelled this workflow on 2026-10-14. Use SIMPLE-INSTALL.md instead.
+The remaining text is retained as historical implementation documentation.
 
 This replaces the earlier proposal for a separate KDE live hardware-test boot.
 The intended cutover is guided installer → encrypted home restore → one normal

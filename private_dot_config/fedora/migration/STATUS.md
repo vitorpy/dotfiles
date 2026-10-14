@@ -1,10 +1,17 @@
 # Migration rehearsal status — 2026-10-14
 
-Corporate Rivest remains Arch with its partitions and boot configuration intact.
-The authorized SanDisk USB is now imaged and fully read-back verified. Personal
-Zygalski stays Arch.
+Corporate Rivest remains Arch with its internal partitions and boot configuration
+intact. The user abandoned guided automation and selected a normal Fedora KDE
+installation, followed by home recovery. Personal Zygalski stays Arch.
 
-## Guided automation — implementation/rehearsal in progress
+The standard installer remains on the authorized SanDisk. Its complete original
+3,368,683,520-byte image was rechecked successfully before adding an unencrypted
+ext4 `RIVEST_BACKUP` partition in unused space. The installer media checksum was
+refreshed after the GPT change. A compressed home archive is being written
+straight to USB, including the protected recovery capture, without encryption or
+a new NAS copy. SIMPLE-INSTALL.md is the current runbook.
+
+## Abandoned guided automation — historical rehearsal evidence
 
 - User selected direct guided installation, USB-local encrypted recovery, existing
   login password, Wi-Fi bootstrap, and first Plasma login followed by Hyprland
@@ -41,7 +48,7 @@ Zygalski stays Arch.
 - The isolated guided VM has its own full-capacity dummy USB, thin NVMe and decoy
   disk. Its model/network adapter is lab-only; no real secrets/data are sent.
 
-## USB installation media — passed
+## USB installation media — standard KDE retained
 
 - Explicit user authorization received for the connected SanDisk 3.2Gen1,
   15,376,000,000 bytes, serial 03021830022221114151. Its previous Arch installer
@@ -163,7 +170,6 @@ Zygalski stays Arch.
   rendered, but input-method integration has not been accepted.
 - Independent-device recovery confirmation, authenticated corporate workflows,
   security keys and Framework hardware checks remain pending in ACCEPTANCE.md.
-- Finish the guided USB rehearsal, refresh root capture, quiesce apps, take and
-  verify the final backup, independently retrieve the bootstrap passphrase, and
-  record pinned snapshot IDs before physical cutover. Actual hardware/account
-  acceptance follows installation, beginning with Plasma.
+- Complete and verify the unencrypted USB home archive, then use the normal
+  Fedora installer. Actual hardware/account acceptance follows data recovery,
+  beginning with Plasma. Guided automation and its bootstrap passphrase are retired.

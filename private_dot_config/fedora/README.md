@@ -118,46 +118,19 @@ contain only disposable caches/runtime logs. Application data should be quiesced
 for the final backup. A backup with unreadable files or unexplained errors is not
 migration-ready.
 
-## Cutover gates
+## Current cutover: normal install and USB home recovery
 
-The selected path is now the guided USB installer and full home recovery in
-[`migration/GUIDED-INSTALL.md`](migration/GUIDED-INSTALL.md). The current USB is
-still the standard KDE live image until guided rehearsal/private preparation
-finish. No separate live hardware-test boot or validation reboot is required.
+The custom guided installer is abandoned. Use the existing standard Fedora KDE
+USB, create `vitorpy` as the first user (UID/GID 1000), and restore home from the
+unencrypted archive on its separate `RIVEST_BACKUP` partition. The current backup
+is USB-only; no new NAS snapshot, vault unlock or bootstrap password is needed.
+See [the short install/restore procedure](migration/SIMPLE-INSTALL.md).
 
-1. Complete `migration/packages.tsv`: every explicit package is accounted for;
-   unresolved package routes require review. Authenticated workflows are accepted
-   after installation, beginning in Plasma. Repository
-   availability is not proof an app launches or its credentials work.
-2. Verify recovery access from another device: Bitwarden login, USB bootstrap
-   passphrase and the recorded snapshot IDs. Retain NAS recovery access. Do not depend on the
-   laptop's current desktop or an unlocked local password manager.
-3. Run `restic check --read-data`, restore representative real files into a private
-   local directory, and use `migration/verify-restore.py` to compare contents and
-   metadata. Use only sanitized fixtures for remote VM restore tests.
-4. Finish the guided USB rehearsal and private recovery preparation, write the
-   authorized SanDisk and require complete read-back verification. Follow the
-   Framework F12 instructions to launch the guided installer. Wi-Fi, backup and
-   disk checks must pass before its explicit erase confirmation.
-5. Close stateful apps, save work, refresh root capture and inventory, take a final
-   backup and record its snapshot ID. Only then schedule the installation.
-
-The physical install is a fresh encrypted Fedora KDE installation using Fedora
-partitioning defaults. Keep hostname `rivest` and UID 1000. **Formatting current
-`/dev/nvme0n1p2` also deletes home:** `@` and `@home` share this partition.
-Store the LUKS recovery secret outside the laptop before proceeding.
-
-The guided installer restores into private staging before its reboot; first-boot
-provisioning finishes before the Plasma greeter. Restore user data with matching UID; run
-Fedora's `restorecon` on restored paths instead of preserving Arch SELinux labels.
-Do not restore Arch `/etc`, `/boot`, PAM, keyring D-Bus overrides or systemd units
-wholesale. Retain old keyring files and passwords until browser/secret access is
-confirmed in both desktop sessions.
-
-Rollback is **reinstall Arch and restore the same file backup**. Keep the package
-inventory, chezmoi commit, disk layout, and an Arch installer/recovery-media route
-available from another device. No full disk image is being created; this is not
-an instant rollback. Do not prune the migration snapshots until Fedora is accepted.
+Keep native KDE for the initial recovery. Arch session activation is excluded
+from the initial extraction but remains in the archive. Apply Fedora provisioning
+and Hyprland/Berg after data recovery. Personal Zygalski stays Arch.
+Do not extract the protected Arch system reference over Fedora's `/etc` or `/boot`.
+Preserve the USB until the recovered data is accepted.
 
 ## Sources
 

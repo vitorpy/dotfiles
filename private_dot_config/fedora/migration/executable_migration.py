@@ -16,6 +16,7 @@ import pty
 import secrets
 import select
 import shutil
+import socket
 import subprocess
 import tarfile
 import tempfile
@@ -150,7 +151,7 @@ def vault_item(env):
 
 
 def prepare(args):
-    if output(["hostname", "-s"]) != "rivest" or os.geteuid() == 0:
+    if socket.gethostname().split(".", 1)[0] != "rivest" or os.geteuid() == 0:
         raise RuntimeError("Prepare runs only as the existing Rivest user")
     payload = Path(args.payload).resolve()
     payload_sha = check_files(payload)

@@ -4,7 +4,8 @@ Created 2026-10-14 to test the Framework Laptop 12 migration from Arch to Fedora
 especially the existing Hyprland 0.56.2 Lua configuration and Berg on Quickshell
 0.3.2. The laptop stays on Arch while the server runs the test guest.
 
-Status on 2026-10-14: the 558 MiB base image is downloaded on Scherbius, its
+Original baseline (before the Fedora port; see `../migration/STATUS.md` for
+current results): the 558 MiB base image is downloaded on Scherbius, its
 Fedora 44 signature and SHA256 are verified, and the CIDATA seed is built.
 ShellCheck, Bash syntax, Python syntax, ISO label, file permissions, QEMU launch
 preflight, and guest disk checks passed. Fedora has booted with KVM acceleration,
@@ -174,7 +175,7 @@ Session launcher output is in the guest at
 exits, greetd shows its normal login prompt and does not automatically repeat
 autologin until the next guest boot.
 
-## Verified results and remaining work
+## Original baseline results (before the Fedora port)
 
 - ShellCheck, Bash/Python syntax, base-image signature/SHA256, seed ISO, and
   source/server helper parity passed.
@@ -284,7 +285,8 @@ its own host-key file. On the first installed boot, verify the new guest host ke
 from its console before replacing the live image's entry. Never bypass a changed
 host-key warning against a remote physical host.
 
-Do not rerun `--install` on an installed disk: its VM-only Kickstart clears `vda`.
+The `install-started` marker blocks a second `--install` run: the VM-only
+Kickstart clears `vda`. Preserve that marker and use `--disk` after installation.
 The helpers never touch a physical workstation disk. Graceful shutdown is
 available through `kde-control.py shutdown`; removing its dedicated disk after
 shutdown discards only this VM. There is no host autostart.
@@ -292,3 +294,35 @@ shutdown discards only this VM. There is no host autostart.
 The Berg port now handles Arch and Fedora update backends and failed executable
 starts. Current test counts are maintained in `../migration/STATUS.md`; the older
 baseline results above describe the pre-port guest, not current readiness.
+
+
+The clean KDE install must be fully updated before adding current Hyprland/KDE
+components. A release-to-updates KMime packaging transition otherwise produces
+RPM file conflicts; a normal full Fedora upgrade resolves it. The Fedora playbook
+preserves KDE's native `tuned-ppd` provider rather than installing a conflicting
+power-profiles-daemon. The installed default is Plasma Login Manager, which stays
+in place. Kickstart creates UID 1000 itself and marks `/etc/plasma-setup-done` to
+avoid running the first-user wizard again.
+
+`kde-configure-session.sh` configures only the encrypted VM's user session, using
+the packaged Hyprland UWSM entry, software rendering and omitted personal app
+autostarts. It leaves the display manager in place and creates no user autologin.
+`portal-smoke.py` tests a public file fixture and a one-frame screen capture; it
+closes its screen-share session immediately. Run it only in the disposable VM
+under the active desktop user with the correct session bus and Wayland display.
+The capture probe requires GStreamer pipewiresrc, videoconvert and pngenc.
+`kde-control.py --cloud` targets the separate Cloud baseline for the same private
+keyboard/click/screenshot controls. Use `serial` on the KDE VM for its LUKS prompt;
+input is paced for the virtual UART and is never printed by the helper.
+
+
+The encrypted KDE VM subsequently passed normal Plasma login, LUKS unlock,
+Plasma notification isolation, native locking, file chooser and a real portal
+screen capture. Its packaged Hyprland UWSM session also starts from the native
+greeter, runs Berg, and passes 148 Wayland model tests and password-based
+Hyprlock unlock. The Cloud Hyprland screen-capture probe crashed in Aquamarine's
+software DRM path, and clean-VM hyprpaper crashed loading artwork. Keep these
+as unresolved VM graphics results; the physical GPU has not been tested.
+Slack opens on KDE; the Cloud Hyprland launch crashed. Authenticated work apps
+and hardware checks remain acceptance gates. Full current evidence and backup
+results are in `../migration/STATUS.md`.

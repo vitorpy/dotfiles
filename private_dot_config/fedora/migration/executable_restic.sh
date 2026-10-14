@@ -8,7 +8,7 @@ mkdir -p "$state"
 chmod 700 "$state"
 export RESTIC_REPOSITORY=$repo
 if [[ -z ${RESTIC_PASSWORD_COMMAND:-} && -z ${RESTIC_PASSWORD_FILE:-} && -z ${RESTIC_PASSWORD:-} ]]; then
-    echo 'Set RESTIC_PASSWORD_COMMAND to the recorded 1Password reference, or supply RESTIC_PASSWORD_FILE.' >&2
+    echo 'Supply RESTIC_PASSWORD_FILE or RESTIC_PASSWORD_COMMAND using the password saved in Bitwarden.' >&2
     exit 2
 fi
 restic_bin=$(command -v restic || true)

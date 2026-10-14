@@ -25,6 +25,12 @@
         that:
           - ansible_facts.getent_passwd[fedora_primary_user][1] == '1000'
   tasks:
+    - name: Inspect the native power-profile provider
+      ansible.builtin.package_facts:
+        manager: auto
+    - name: Keep the installed power-profile provider
+      ansible.builtin.set_fact:
+        fedora_power_provider: "{{ 'tuned-ppd' if 'tuned-ppd' in ansible_facts.packages else 'power-profiles-daemon' }}"
     - name: Configure narrowly scoped signed desktop repositories
       ansible.builtin.yum_repository:
         name: "{{ item.name }}"
@@ -48,7 +54,7 @@
       when: inventory_hostname == 'fedora44-lab'
     - name: Install Fedora desktop and workstation tools
       ansible.builtin.dnf5:
-        name: "{{ fedora_packages + (fedora_corporate_packages if fedora_corporate | bool else []) }}"
+        name: "{{ fedora_packages + [fedora_power_provider] + (fedora_corporate_packages if fedora_corporate | bool else []) }}"
         state: present
     - name: Install the verified Slack RPM for corporate workstations
       ansible.builtin.import_tasks: slack.yml
@@ -83,7 +89,7 @@
       loop:
         - NetworkManager.service
         - bluetooth.service
-        - power-profiles-daemon.service
+        - "{{ fedora_power_provider }}.service"
     - name: Keep the existing Fedora security and display manager defaults
       ansible.builtin.debug:
         msg: Apply the documented user dotfiles separately; this playbook leaves boot, PAM, SELinux, firewall, and the KDE display manager under Fedora control.

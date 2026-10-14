@@ -1,6 +1,6 @@
 arch_package	fedora_package	source	status
-1password	1password	Vendor RPM	Needs install and launch verification
-1password-cli	1password-cli	Vendor RPM	Needs install and launch verification
+1password	1password	Vendor RPM	Installed; welcome UI rendered on Fedora Hyprland; vault/auth integration untested
+1password-cli	1password-cli	Vendor RPM	Installed; version verified; real account authentication untested
 alsa-firmware	alsa-firmware	Fedora	Available; package/install identity verified by repoquery
 alsa-utils	alsa-utils	Fedora	Available; package/install identity verified by repoquery
 amd-ucode	microcode_ctl	Fedora	Framework Intel laptop uses Intel microcode
@@ -50,13 +50,13 @@ fastfetch	fastfetch	Fedora	Available; package/install identity verified by repoq
 ffmpeg	ffmpeg-free	Fedora	Available; package/install identity verified by repoquery
 firefox	firefox	Fedora	Available; package/install identity verified by repoquery
 fontforge	fontforge	Fedora	Available; package/install identity verified by repoquery
-foundry-bin	foundry-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+foundry-bin	forge/cast/anvil/chisel	Pinned upstream release	Installed; version verified in Fedora Cloud VM
 fprintd	fprintd	Fedora	Available; package/install identity verified by repoquery
 framework-system	framework-system	Unresolved	BLOCKER: verify upstream distribution or approve omission
 freerdp	freerdp	Fedora	Available; package/install identity verified by repoquery
 fwupd	fwupd	Fedora	Available; package/install identity verified by repoquery
 fzf	fzf	Fedora	Available; package/install identity verified by repoquery
-gam	gam	Unresolved	BLOCKER: verify upstream distribution or approve omission
+gam	gam	Pinned upstream release	Installed; version verified; no credentials copied
 gdb	gdb	Fedora	Available; package/install identity verified by repoquery
 ghostty	ghostty	Scoped COPR	Desktop runtime under test
 gimp	gimp	Fedora	Available; package/install identity verified by repoquery
@@ -91,7 +91,7 @@ intel-ucode	microcode_ctl	Fedora	Available; package/install identity verified by
 iotop	iotop-c	Fedora	Available; repoquery verified
 iw	iw	Fedora	Available; package/install identity verified by repoquery
 iwd	iwd	Fedora	Available; package/install identity verified by repoquery
-jira-cli-bin	jira-cli-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+jira-cli-bin	jira	Pinned upstream release	Installed; version verified
 jq	jq	Fedora	Available; package/install identity verified by repoquery
 kpat	kpat	Fedora	Available; package/install identity verified by repoquery
 kubectl	kubectl	Unresolved	BLOCKER: verify upstream distribution or approve omission
@@ -120,7 +120,7 @@ network-manager-applet	network-manager-applet	Fedora	Available; package/install 
 networkmanager	NetworkManager	Fedora	Available; package/install identity verified by repoquery
 nftables	nftables	Fedora	Available; package/install identity verified by repoquery
 nmap	nmap	Fedora	Available; package/install identity verified by repoquery
-noirup-bin	noirup-bin	Unresolved	BLOCKER: verify upstream distribution or approve omission
+noirup-bin	noirup	Pinned upstream release	Installed; help verified; toolchain state is in home backup
 noto-fonts	google-noto-sans-fonts	Fedora	Available; package/install identity verified by repoquery
 noto-fonts-cjk	google-noto-sans-cjk-fonts	Fedora	Available; package/install identity verified by repoquery
 noto-fonts-emoji	google-noto-color-emoji-fonts	Fedora	Available; package/install identity verified by repoquery
@@ -152,7 +152,7 @@ quickshell	quickshell	Scoped COPR	Desktop runtime under test
 radeontop	radeontop	Fedora	Available; package/install identity verified by repoquery
 rclone	rclone	Fedora	Available; package/install identity verified by repoquery
 ripgrep	ripgrep	Fedora	Available; package/install identity verified by repoquery
-roam	roam	Vendor RPM	Needs install and launch verification
+roam	roam	Vendor RPM	Installed; sign-in UI rendered on Fedora Hyprland; calls/screen sharing untested
 rocm-ml-sdk	rocm-ml-sdk	Unresolved	BLOCKER: verify upstream distribution or approve omission
 rsync	rsync	Fedora	Available; package/install identity verified by repoquery
 rustup	rustup	Fedora	Available; package/install identity verified by repoquery
@@ -160,14 +160,14 @@ sbctl	—	Arch-specific tooling	Keep in Arch profile; Fedora uses native install
 sddm	sddm	Fedora	Available; package/install identity verified by repoquery
 shellcheck	ShellCheck	Fedora	Available; repoquery verified
 signal-desktop	signal-desktop	Unresolved	BLOCKER: verify upstream distribution or approve omission
-slack-desktop	slack	Vendor RPM	Needs install and launch verification
+slack-desktop	slack	Vendor RPM	Installed; sign-in UI rendered on KDE; BLOCKER: Cloud Hyprland launch crash and authenticated workflow untested
 slurp	slurp	Fedora	Available; package/install identity verified by repoquery
 socat	socat	Fedora	Available; package/install identity verified by repoquery
 sof-firmware	alsa-sof-firmware	Fedora	Available; package/install identity verified by repoquery
 solaar	solaar	Fedora	Available; package/install identity verified by repoquery
 spirv-headers	spirv-headers-devel	Fedora	Available; repoquery verified
 sshfs	fuse-sshfs	Fedora	Available; repoquery verified
-starship	starship	Unresolved	BLOCKER: verify upstream distribution or approve omission
+starship	starship	Pinned upstream release	Installed; version verified
 strace	strace	Fedora	Available; package/install identity verified by repoquery
 sudo	sudo	Fedora	Available; package/install identity verified by repoquery
 system-config-printer	system-config-printer	Fedora	Available; package/install identity verified by repoquery

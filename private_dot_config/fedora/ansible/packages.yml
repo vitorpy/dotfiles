@@ -86,7 +86,6 @@ fedora_packages:
   - libnotify
   - gnome-keyring
   - libsecret
-  - power-profiles-daemon
   - network-manager-applet
   - bluez
   - grim
@@ -101,6 +100,11 @@ fedora_packages:
   - curl
   - python3
   - python3-pytest
+  - python3-gobject
+  - pipewire-gstreamer
+  - gstreamer1
+  - gstreamer1-plugins-base
+  - gstreamer1-plugins-good
   - qt6-qtdeclarative-devel
   - qt6-qtsvg
   - qt6-qt5compat

@@ -7,8 +7,11 @@ No laptop partitions or boot configuration have been changed by the rehearsal.
 
 ## Provisioning
 
-After a normal Fedora KDE installation, install `ansible-core` using Fedora's
-package manager, then run the Fedora playbook yourself with elevation:
+After a normal Fedora KDE installation, finish the initial user setup, run a full
+`sudo dnf5 upgrade --refresh`, and reboot into the updated system. The release ISO
+contains an older KDE package set; adding current components before this update
+can cause package-file conflicts. Install `ansible-core` using Fedora's package
+manager, then run the Fedora playbook yourself with elevation:
 
 ```sh
 cd ~/.config/fedora/ansible
@@ -16,7 +19,8 @@ ansible-playbook site.yml --limit rivest --ask-become-pass -e fedora_corporate=t
 ```
 
 The playbook checks Fedora 44 and UID 1000, scopes additional RPM repositories,
-installs the desktop and core corporate applications, and creates artwork storage.
+installs the desktop and core corporate applications, preserves the native power
+profile provider (`tuned-ppd` on KDE), and creates artwork storage.
 It leaves Fedora's boot, display manager, PAM, firewall, and SELinux defaults in
 place. No package pruning or automatic OS upgrade is performed. Repeating the
 playbook must produce no changes once the requested packages and services exist.
@@ -32,7 +36,9 @@ and `refreshPending` and adds `backend`. Fedora uses `officialCount` for unique
 RPM name/architecture pairs across enabled repositories and `aurCount=0`.
 The Fedora updater asks before invoking sudo and updates RPMs only. Use KDE
 Discover/Flatpak and fwupd separately. Arch's combined Yay/firmware workflow is
-unchanged. Hyprland services check the active desktop before taking notification
+unchanged. Pinned upstream CLI archives (Foundry, GAM, Jira, Starship and Noirup)
+are versioned in the Fedora playbook and need deliberate version bumps; they are
+not counted by the RPM badge. Hyprland services check the active desktop before taking notification
 or compositor roles in Plasma. Portal/theme settings are scoped to Hyprland.
 
 ## Recovery data

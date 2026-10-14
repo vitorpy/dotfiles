@@ -11,7 +11,7 @@ function backendFromOsRelease(text) {
 
 function officialCommand(backend) {
     return backend === "fedora"
-        ? ["/usr/bin/dnf5", "--quiet", "--refresh", "repoquery", "--upgrades", "--latest-limit=1", "--queryformat", "%{name}.%{arch}\\n"]
+        ? ["/usr/bin/dnf5", "--quiet", "--assumeyes", "--refresh", "repoquery", "--upgrades", "--latest-limit=1", "--queryformat", "%{name}.%{arch}\\n"]
         : ["/usr/bin/checkupdates"];
 }
 

@@ -9,10 +9,11 @@ import sys
 import time
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('action', choices=['status', 'screenshot', 'key', 'text', 'serial', 'shutdown'])
+parser.add_argument('action', choices=['status', 'screenshot', 'key', 'text', 'serial', 'click', 'shutdown'])
 parser.add_argument('key', nargs='?')
+parser.add_argument('--cloud', action='store_true', help='Control the separate Cloud baseline instead')
 args = parser.parse_args()
-lab = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'fedora-kde-rehearsal'
+lab = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / ('fedora-migration-lab' if args.cloud else 'fedora-kde-rehearsal')
 if args.action == 'serial':
     with socket.socket(socket.AF_UNIX) as serial:
         serial.connect(str(lab / 'run/serial.sock'))
@@ -47,9 +48,31 @@ with socket.socket(socket.AF_UNIX) as conn:
                 return result['return']
     call('qmp_capabilities')
     def key(code):
-        call('human-monitor-command', {'command-line': f'sendkey {code} 1'})
-        time.sleep(0.03)
-    if args.action == 'key':
+        call('human-monitor-command', {'command-line': f'sendkey {code} 50'})
+        time.sleep(0.15)
+    if args.action == 'click':
+        for device in call('query-mice'):
+            if device['absolute'] and 'tablet' in device['name'].lower():
+                call('human-monitor-command', {'command-line': f"mouse_set {device['index']}"})
+                break
+        x, y = (int(value) for value in args.key.split(','))
+        capture = lab / 'run/input-size.ppm'
+        call('screendump', {'filename': str(capture)})
+        with capture.open('rb') as screen:
+            if screen.readline().strip() != b'P6':
+                raise RuntimeError('Unexpected screenshot format')
+            width, height = map(int, screen.readline().split())
+        capture.unlink()
+        if not (0 <= x < width and 0 <= y < height):
+            raise ValueError('Click is outside the current VM screen')
+        call('input-send-event', {'events': [
+            {'type': 'abs', 'data': {'axis': 'x', 'value': round(x * 32767 / (width - 1))}},
+            {'type': 'abs', 'data': {'axis': 'y', 'value': round(y * 32767 / (height - 1))}}]})
+        time.sleep(0.08)
+        call('input-send-event', {'events': [{'type': 'btn', 'data': {'button': 'left', 'down': True}}]})
+        time.sleep(0.08)
+        call('input-send-event', {'events': [{'type': 'btn', 'data': {'button': 'left', 'down': False}}]})
+    elif args.action == 'key':
         if not args.key or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789_-' for c in args.key):
             parser.error('A QEMU key chord is required')
         key(args.key)

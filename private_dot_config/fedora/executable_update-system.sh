@@ -13,7 +13,7 @@ refresh_berg_updates() {
 }
 trap refresh_berg_updates EXIT
 printf 'Fedora RPM updates (all enabled repositories)\n\n'
-updates=$(dnf5 --quiet --refresh repoquery --upgrades --latest-limit=1 --queryformat '%{name}.%{arch} %{evr}\n')
+updates=$(dnf5 --quiet --assumeyes --refresh repoquery --upgrades --latest-limit=1 --queryformat '%{name}.%{arch} %{evr}\n')
 if [[ -z $updates ]]; then
     echo 'RPM packages are up to date.'; exit 0
 fi

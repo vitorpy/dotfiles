@@ -216,6 +216,21 @@ User-installed Noir toolchains are managed separately by noirup.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
+## Retired Scherbius friend access
+
+Scherbius preserves the home directories for the retired `tiago` and `matas`
+accounts, but locks both accounts, expires login access, changes their shells to
+`/usr/bin/nologin`, removes supplementary groups such as `wheel`, disables
+lingering, and terminates any loaded user manager. The host also keeps the old
+`lob-game-server.service` and `lob-ws-bridge.service` units absent.
+
+The retired Lands of Balance listener on port 8081, the no-reposts proxy routes,
+and the `webhooks.vitorpy.com` virtual host are removed from nginx and the
+firewall. To roll back, remove the accounts and units from the retirement lists,
+restore only the required nginx templates/routes and firewall port, then apply
+the playbook to Scherbius. Unlocking an account additionally requires explicitly
+restoring its intended shell, expiration, password-lock state, and groups.
+
 LibreOffice uses the official Arch `libreoffice-fresh` package to read DOCX and
 export PDF. To install it without reconciling the other managed packages, run
 `sudo pacman -Syu --needed libreoffice-fresh`; Pacman resolves its dependencies.

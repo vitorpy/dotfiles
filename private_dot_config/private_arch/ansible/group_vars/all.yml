@@ -130,6 +130,10 @@ arch_flaresolverr_host: 127.0.0.1
 arch_flaresolverr_port: 8191
 arch_nginx_conf_dir: /etc/nginx/conf.d
 arch_nginx_managed_confs: []
+arch_nginx_removed_confs: []
+arch_nginx_removed_blocks: []
+arch_retired_systemd_units: []
+arch_locked_users: []
 
 arch_hosts_entries:
   - "127.0.0.1 localhost"

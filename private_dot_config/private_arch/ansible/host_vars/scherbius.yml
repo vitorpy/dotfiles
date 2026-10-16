@@ -39,7 +39,16 @@ arch_hosts_entries:
 arch_host_firewall_allowed_tcp_ports_extra:
   - 3334
   - 4000
-  - 8081
+
+arch_locked_users:
+  - tiago
+  - matas
+
+arch_retired_systemd_units:
+  - name: lob-game-server.service
+    path: /etc/systemd/system/lob-game-server.service
+  - name: lob-ws-bridge.service
+    path: /etc/systemd/system/lob-ws-bridge.service
 
 arch_bitmagnet_enabled: true
 arch_bitmagnet_build_patched_image: true
@@ -52,11 +61,17 @@ arch_bitmagnet_dht_bootstrap_nodes:
   - 185.157.221.247:25401
 
 arch_nginx_managed_confs:
-  - name: atproto-bot-webhook.conf
-    src: nginx/atproto-bot-webhook.conf.j2
-  - name: lob-web.conf
-    src: nginx/lob-web.conf.j2
   - name: vitorpy.conf
     src: nginx/vitorpy.conf.j2
   - name: jellyfin.conf
     src: nginx/jellyfin.conf.j2
+
+arch_nginx_removed_confs:
+  - atproto-bot-webhook.conf
+  - lob-web.conf
+
+arch_nginx_removed_blocks:
+  - path: /etc/nginx/conf.d/vitorpy.conf
+    regexp: '(?ms)^    (?:# Proxy for noreposts feed service\n)?    location /noreposts/ \{\n.*?^    \}\n\n'
+  - path: /etc/nginx/conf.d/vitorpy.conf
+    regexp: '(?ms)^(?:# NoReposts Feed Generator\n)?server \{\n(?:(?!^server \{).)*?server_name following-no-reposts\.vitorpy\.com;(?:(?!^server \{).)*?^\}\n\n?'

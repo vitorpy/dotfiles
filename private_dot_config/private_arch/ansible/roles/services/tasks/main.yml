@@ -721,6 +721,125 @@
   ansible.builtin.service_facts:
   tags:
     - media_sorter
+    - retirement
+
+- name: Inspect retired system service unit files
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ arch_retired_systemd_units }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: services_retired_systemd_unit_files
+  tags:
+    - retirement
+
+- name: Stop and disable retired system services
+  ansible.builtin.systemd:
+    name: "{{ item.item.name }}"
+    state: stopped
+    enabled: false
+  loop: "{{ services_retired_systemd_unit_files.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.stat.exists or item.item.name in ansible_facts.services
+  tags:
+    - retirement
+
+- name: Remove retired system service unit files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ arch_retired_systemd_units }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: services_retired_systemd_unit_removals
+  tags:
+    - retirement
+
+- name: Reload systemd after retiring system services
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when:
+    - services_retired_systemd_unit_removals.changed | default(false)
+    - not ansible_check_mode
+  tags:
+    - retirement
+
+- name: Inspect retired local accounts
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ item }}"
+  loop: "{{ arch_locked_users }}"
+  register: services_retired_user_queries
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags:
+    - retirement
+
+- name: Lock retired local accounts
+  ansible.builtin.user:
+    name: "{{ item.item }}"
+    password_lock: true
+    expires: 1
+    shell: /usr/bin/nologin
+    groups: ""
+    append: false
+  loop: "{{ services_retired_user_queries.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc == 0
+  tags:
+    - retirement
+
+- name: Inspect loaded retired user managers
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - show-user
+      - "{{ item.item }}"
+      - --property=State
+      - --value
+  loop: "{{ services_retired_user_queries.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: services_retired_user_managers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: item.rc == 0
+  tags:
+    - retirement
+
+- name: Terminate retired local account sessions and user services
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - terminate-user
+      - "{{ item.item.item }}"
+  loop: "{{ services_retired_user_managers.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  changed_when: true
+  when:
+    - item.rc | default(1) == 0
+    - not ansible_check_mode
+  tags:
+    - retirement
+
+- name: Disable lingering for retired local accounts
+  ansible.builtin.file:
+    path: "/var/lib/systemd/linger/{{ item.item }}"
+    state: absent
+  loop: "{{ services_retired_user_queries.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc == 0
+  tags:
+    - retirement
 
 - name: Ensure extra mount points exist
   ansible.builtin.file:
@@ -987,21 +1106,54 @@
   register: services_nginx_managed_confs
   when: arch_nginx_managed_confs | length > 0
 
+- name: Remove retired nginx virtual hosts
+  ansible.builtin.file:
+    path: "{{ arch_nginx_conf_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ arch_nginx_removed_confs }}"
+  register: services_nginx_removed_confs
+  when: arch_nginx_removed_confs | length > 0
+  tags:
+    - retirement
+
+- name: Remove retired nginx routes from retained virtual hosts
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: "{{ item.regexp }}"
+    replace: ""
+  loop: "{{ arch_nginx_removed_blocks }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: services_nginx_removed_blocks
+  when: arch_nginx_removed_blocks | length > 0
+  tags:
+    - retirement
+
 - name: Validate nginx configuration
   ansible.builtin.command: nginx -t
   changed_when: false
   when:
-    - services_nginx_managed_confs.changed | default(false)
+    - >-
+      (services_nginx_managed_confs.changed | default(false)) or
+      (services_nginx_removed_confs.changed | default(false)) or
+      (services_nginx_removed_blocks.changed | default(false))
     - not ansible_check_mode
+  tags:
+    - retirement
 
 - name: Reload nginx after managed configuration changes
   ansible.builtin.systemd:
     name: nginx
     state: reloaded
   when:
-    - services_nginx_managed_confs.changed | default(false)
+    - >-
+      (services_nginx_managed_confs.changed | default(false)) or
+      (services_nginx_removed_confs.changed | default(false)) or
+      (services_nginx_removed_blocks.changed | default(false))
     - not ansible_check_mode
     - "'nginx' in (arch_system_services + arch_host_system_services_extra)"
+  tags:
+    - retirement
 
 - name: Check Jellyfin encoding config
   ansible.builtin.stat:

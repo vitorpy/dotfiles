@@ -1,9 +1,12 @@
 # Fedora workstation migration
 
-Target: corporate Framework Laptop 12 `rivest`, Fedora 44 KDE with Hyprland/Berg,
-LUKS and user `vitorpy` (UID 1000). Personal `zygalski` remains Arch. This directory
+Corporate Framework Laptop 12 `vpbworkstation` (formerly `rivest`) now runs
+Fedora 44 KDE, LUKS Btrfs and restored user `vitorpy` (UID/GID 1000). Hyprland/Berg
+is configured alongside KDE. Personal `zygalski` remains Arch. This directory
 contains separate Fedora provisioning; do not run the Arch playbook on Fedora.
-No laptop partitions or boot configuration have been changed by the rehearsal.
+See [current post-install status](migration/POST-INSTALL.md) before repeating setup.
+The inventory name `rivest` remains a local provisioning alias; no hostname change
+is required. All native package profiles already resolve on the installed host.
 
 ## Provisioning
 
@@ -120,11 +123,11 @@ migration-ready.
 
 ## Current cutover: normal install and USB home recovery
 
-The custom guided installer is abandoned. Use the existing standard Fedora KDE
-USB, create `vitorpy` as the first user (UID/GID 1000), and restore home from the
-unencrypted archive on its separate `RIVEST_BACKUP` partition. The current backup
-is USB-only; no new NAS snapshot, vault unlock or bootstrap password is needed.
-See [the short install/restore procedure](migration/SIMPLE-INSTALL.md).
+Normal Fedora installation and home recovery are complete. The custom guided
+installer is abandoned. The unencrypted USB recovery procedure remains in
+[the install/restore reference](migration/SIMPLE-INSTALL.md); do not repeat the
+installation or erase the backup as part of desktop setup. No new backup or
+bootstrap password is needed.
 
 Keep native KDE for the initial recovery. Arch session activation is excluded
 from the initial extraction but remains in the archive. Apply Fedora provisioning

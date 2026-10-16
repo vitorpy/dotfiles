@@ -37,10 +37,11 @@ tests
 .config/environment.d/10-user-bin-path.conf
 {{- end }}
 
-# Shared Codex memory budget: rivest only.
-{{- if not (and (eq .chezmoi.os "linux") (eq .chezmoi.hostname "rivest")) }}
+# Shared Codex memory budget: corporate Linux workstations.
+{{- if not (and (eq .chezmoi.os "linux") (or (eq .chezmoi.hostname "rivest") (eq .chezmoi.hostname "vpbworkstation"))) }}
 .local/bin/codex
 .config/systemd/user/app-codex.slice
+.config/environment.d/20-codex-user-bin-path.conf
 {{- end }}
 
 # GAM migration profiles: Rivest only; credentials remain outside chezmoi.

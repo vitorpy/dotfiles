@@ -1,4 +1,7 @@
-# Migration rehearsal status — 2026-10-14
+# Migration history — 2026-10-14
+
+Fedora installation and home recovery are now complete. See POST-INSTALL.md for
+the current 2026-10-16 status; the Arch-era notes below are historical.
 
 Corporate Rivest remains Arch with its internal partitions and boot configuration
 intact. The user abandoned guided automation and selected a normal Fedora KDE

@@ -4,8 +4,8 @@
 I am running a Linux system and need help with configuration, setup, and administration tasks. Please assist me following Linux best practices and respecting system defaults.
 
 ## Current System Information
-- **Distribution**: Arch Linux
-- **Window Manager**: Hyprland
+- **Distribution**: Detect from `/etc/os-release`; corporate `vpbworkstation` runs Fedora and personal `zygalski` stays Arch.
+- **Window Manager**: Detect the active session; KDE Plasma and Hyprland coexist on Fedora.
 - **Home Directory**: /home/vitorpy
 - **Working Directory**: Check with `pwd` before making assumptions
 
@@ -180,8 +180,8 @@ vmstat 1               # Virtual memory statistics
 Use this procedure for every change under `~/.config/quickshell/berg`:
 
 1. Run syntax and deterministic model tests before touching the live shell. Use
-   `/usr/lib/qt6/bin/qmllint` for changed QML files and run the repository's
-   shell/model tests.
+   Qt 6 `qmllint` from `/usr/lib/qt6/bin` on Arch or `/usr/lib64/qt6/bin`
+   on Fedora for changed QML files, and run the repository's shell/model tests.
 2. Run QML tests from the host context of the active Hyprland session. Sandbox
    failures to reach Wayland, the user bus, or Hyprland are not product
    failures. First require a bounded compositor probe:
@@ -189,12 +189,14 @@ Use this procedure for every change under `~/.config/quickshell/berg`:
    timeout 5 hyprctl -j monitors >/dev/null
    ```
 3. Force the Qt 6 Wayland runner. Never use `/usr/bin/qmltestrunner`, which is
-   Qt 5 on this workstation, and do not let inherited X11/theme overrides pick
+   Qt 5 on the Arch workstation; do not let inherited X11/theme overrides pick
    the wrong platform:
    ```bash
+   berg_qt6_bin=/usr/lib/qt6/bin
+   test -x "$berg_qt6_bin/qmltestrunner" || berg_qt6_bin=/usr/lib64/qt6/bin
    env -u DISPLAY -u GTK_THEME -u QT_QPA_PLATFORMTHEME -u QT_STYLE_OVERRIDE \
      QT_QPA_PLATFORM=wayland \
-     /usr/lib/qt6/bin/qmltestrunner \
+     "$berg_qt6_bin/qmltestrunner" \
      -input ~/.config/quickshell/berg/tests
    ```
 4. After static/model checks pass, apply the managed files and reload Berg with

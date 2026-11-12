@@ -254,9 +254,13 @@ nginx, Ollama, and Hermes services, masked the inactive Bitmagnet services,
 removed the retired nginx sites after saving private copies,
 and disabled its ForwardMX Tailscale app connector. The managed firewall and
 sysctl settings retained SSH and Tailscale access until the final shutdown.
-Scherbius was powered off on 2026-11-12 and removed from the active inventory.
-Its working data was not copied or wiped; the powered-off storage remains with
-the host until the provider resource is separately deprovisioned.
+Scherbius was powered off on 2026-11-12, removed from Hetzner and deSEC, and
+removed from the active inventory. Its working data was discarded with the
+provider resource.
+
+MediaServer's unused Hermes gateway was disabled, and its package and service
+flags were removed from the active host profile. The installed `hermes-agent`
+and `hermes-agent-debug` packages remain until a manual package removal.
 
 If the host is reactivated, restore its entry under `devbox` in
 `inventory/hosts.yml` before previewing or applying the retained playbook:

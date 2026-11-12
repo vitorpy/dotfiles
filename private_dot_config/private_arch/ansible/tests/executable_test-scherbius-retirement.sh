@@ -54,7 +54,10 @@ jq -e '
   .arch_nginx_removed_blocks == []
 ' <<< "${scherbius_json}" >/dev/null
 jq -e '
-  (._meta.hostvars | keys | sort) == ["mediaserver", "zygalski"]
+  (._meta.hostvars | keys | sort) == ["mediaserver", "zygalski"] and
+  ._meta.hostvars.mediaserver.arch_hermes_agent_enabled == false and
+  ._meta.hostvars.mediaserver.arch_hermes_agent_gateway_service_enabled == false and
+  (._meta.hostvars.mediaserver.arch_host_aur_packages_extra | index("hermes-agent") == null)
 ' <<< "${active_inventory_json}" >/dev/null
 
 require_literal "Lock retired local accounts" "${service_tasks}"

@@ -1,0 +1,208 @@
+---
+- name: Retire Scherbius public and application services
+  hosts: scherbius
+  gather_facts: false
+  become: true
+
+  pre_tasks:
+    - name: Require the reviewed retirement inventory
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'scherbius'
+          - "'web' not in group_names"
+          - not (arch_tailscale_app_connector_enabled | bool)
+          - not (arch_bitmagnet_enabled | bool)
+          - 22 in arch_firewall_allowed_tcp_ports
+          - "'gramps.conf' in arch_nginx_removed_confs"
+          - "'jellyfin.conf' in arch_nginx_removed_confs"
+          - "'vitorpy.conf' in arch_nginx_removed_confs"
+
+    - name: Verify the remote hostname
+      ansible.builtin.command: hostname
+      changed_when: false
+      check_mode: false
+      register: scherbius_hostname
+
+    - name: Require the expected remote hostname
+      ansible.builtin.assert:
+        that: scherbius_hostname.stdout == 'scherbius'
+
+    - name: Look up the primary user ID
+      ansible.builtin.command: "id -u {{ arch_primary_user }}"
+      changed_when: false
+      check_mode: false
+      register: scherbius_user_id
+
+  tasks:
+    - name: Read current Tailscale preferences
+      ansible.builtin.command: tailscale debug prefs
+      changed_when: false
+      check_mode: false
+      register: scherbius_tailscale_prefs
+
+    - name: Stop advertising the ForwardMX app connector
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - set
+          - --advertise-connector=false
+      when: (scherbius_tailscale_prefs.stdout | from_json).AppConnector.Advertise | bool
+      changed_when: true
+
+    - name: Stop and disable the retired system services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - nginx.service
+        - ollama.service
+
+    - name: Stop and disable the Hermes gateway
+      ansible.builtin.systemd_service:
+        name: hermes-gateway.service
+        state: stopped
+        enabled: false
+        scope: user
+      become_user: "{{ arch_primary_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ scherbius_user_id.stdout }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ scherbius_user_id.stdout }}/bus"
+
+    - name: Mask the retired Bitmagnet application services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: stopped
+        masked: true
+        scope: user
+      loop:
+        - bitmagnet.service
+        - bitmagnet-postgres.service
+      become_user: "{{ arch_primary_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ scherbius_user_id.stdout }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ scherbius_user_id.stdout }}/bus"
+
+    - name: Stop and disable the Bitmagnet monitor timer
+      ansible.builtin.systemd_service:
+        name: bitmagnet-disk-monitor.timer
+        state: stopped
+        enabled: false
+        scope: user
+      become_user: "{{ arch_primary_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ scherbius_user_id.stdout }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ scherbius_user_id.stdout }}/bus"
+
+    - name: Check that the retired nginx sites can be preserved
+      ansible.builtin.stat:
+        path: "/etc/nginx/conf.d/{{ item }}"
+      loop:
+        - gramps.conf
+        - jellyfin.conf
+        - vitorpy.conf
+      register: scherbius_nginx_site_stats
+
+    - name: Check the saved nginx site definitions
+      ansible.builtin.stat:
+        path: "{{ arch_primary_user_home }}/.local/share/scherbius-retirement/nginx/{{ item }}"
+      loop:
+        - gramps.conf
+        - jellyfin.conf
+        - vitorpy.conf
+      register: scherbius_nginx_backup_stats
+
+    - name: Require each retired nginx site or its saved copy
+      ansible.builtin.assert:
+        that: (item.0.stat.isreg | default(false)) or (item.1.stat.isreg | default(false))
+      loop: "{{ scherbius_nginx_site_stats.results | zip(scherbius_nginx_backup_stats.results) | list }}"
+      loop_control:
+        label: "{{ item.0.item }}"
+
+    - name: Create a private rollback directory for retired nginx sites
+      ansible.builtin.file:
+        path: "{{ arch_primary_user_home }}/.local/share/scherbius-retirement/nginx"
+        state: directory
+        owner: "{{ arch_primary_user }}"
+        group: "{{ arch_primary_user }}"
+        mode: '0700'
+
+    - name: Preserve the retired nginx site definitions
+      ansible.builtin.copy:
+        src: "/etc/nginx/conf.d/{{ item }}"
+        dest: "{{ arch_primary_user_home }}/.local/share/scherbius-retirement/nginx/{{ item }}"
+        remote_src: true
+        owner: "{{ arch_primary_user }}"
+        group: "{{ arch_primary_user }}"
+        mode: '0600'
+      loop:
+        - gramps.conf
+        - jellyfin.conf
+        - vitorpy.conf
+      loop_control:
+        extended: true
+      when:
+        - not ansible_check_mode
+        - scherbius_nginx_site_stats.results[ansible_loop.index0].stat.isreg | default(false)
+
+    - name: Remove retired nginx sites
+      ansible.builtin.file:
+        path: "{{ arch_nginx_conf_dir }}/{{ item }}"
+        state: absent
+      loop: "{{ arch_nginx_removed_confs }}"
+
+    - name: Validate the remaining nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+      check_mode: false
+
+    - name: Install the managed retirement firewall
+      ansible.builtin.template:
+        src: roles/security/templates/nftables.conf.j2
+        dest: /etc/nftables.conf
+        mode: '0644'
+        validate: /usr/bin/nft -c -f %s
+      notify: Reload nftables
+
+    - name: Install the managed sysctl configuration
+      ansible.builtin.template:
+        src: roles/security/templates/60-security-hardening.conf.j2
+        dest: /etc/sysctl.d/60-security-hardening.conf
+        mode: '0644'
+      notify: Apply sysctl hardening
+
+    - name: Apply the validated firewall and sysctl files
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify the app connector is no longer advertised
+      ansible.builtin.command: tailscale debug prefs
+      changed_when: false
+      check_mode: false
+      register: scherbius_final_tailscale_prefs
+
+    - name: Assert the app connector is disabled
+      ansible.builtin.assert:
+        that: not (scherbius_final_tailscale_prefs.stdout | from_json).AppConnector.Advertise | bool
+      when: not ansible_check_mode
+
+    - name: Verify retired public listeners are closed
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ item }}"
+        state: stopped
+        timeout: 5
+      loop:
+        - 80
+        - 443
+        - 11434
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Reload nftables
+      ansible.builtin.systemd_service:
+        name: nftables.service
+        state: restarted
+
+    - name: Apply sysctl hardening
+      ansible.builtin.command: sysctl --system
+      changed_when: true

@@ -241,9 +241,41 @@ curl --noproxy '*' -fsS https://mediaserver.tail246377.ts.net:8443/health
 The `--bg` setting persists across Tailscale restarts. For rollback, disable
 only Jellyfin's Funnel listener through the same privileged Ansible path with
 `tailscale funnel --https=8443 off`; Gramps on 443 remains in place.
-`jellyfin.vitorpy.com` still resolves to Scherbius's nginx proxy during client
-migration. The main `vitorpy.com` site is published through GitHub Pages and
-does not require Scherbius.
+The main `vitorpy.com` site is published through GitHub Pages and does not
+require Scherbius.
+
+## Scherbius service retirement
+
+The managed `retire-scherbius.yml` playbook stops and disables Scherbius's
+nginx and Ollama services, disables the Hermes gateway, masks the inactive
+Bitmagnet services, removes the retired nginx sites after saving private copies,
+and disables its ForwardMX Tailscale app connector. It applies the managed
+firewall and sysctl settings with SSH and Tailscale access retained. Scherbius
+remains online with its home directories and research data intact; retiring the
+host itself requires a separate data preservation plan.
+
+From this directory, preview and apply the scoped playbook:
+
+```bash
+ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ansible-playbook -i inventory/hosts.yml retire-scherbius.yml --check --diff
+ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ansible-playbook -i inventory/hosts.yml retire-scherbius.yml --diff
+```
+
+Check that nginx, Ollama, Hermes, and Bitmagnet are inactive; that Tailscale is
+still reachable but no longer advertises the app connector; and that the new
+MediaServer Gramps and Jellyfin Funnel URLs work. Remove the obsolete
+`jellyfin.vitorpy.com` and `genealogy.vitorpy.com` CNAME records at deSEC; both
+previously pointed to Scherbius. `vitorpy.com` and `www.vitorpy.com` stay on
+GitHub Pages.
+
+To restore an individual retired service, first restore its managed inventory
+flag or nginx site definition, then apply the relevant role and start its unit.
+The saved nginx files are under
+`/home/vitorpy/.local/share/scherbius-retirement/nginx/` on Scherbius. To
+restore the ForwardMX connector, set
+`arch_tailscale_app_connector_enabled: true` and
+`arch_tailscale_app_connector_retired: false`, apply the security role, and
+readvertise the connector only after its route and mail flow are verified.
 
 ## Retired Scherbius friend access
 

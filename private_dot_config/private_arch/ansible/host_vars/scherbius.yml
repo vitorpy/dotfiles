@@ -9,12 +9,12 @@ arch_host_pacman_packages_extra:
 arch_host_system_services_extra:
   - tailscaled
 arch_host_firewall_allowed_udp_ports_extra:
-  - 3334
   - 41641
 arch_host_firewall_trusted_interfaces_extra:
   - tailscale0
 
-arch_tailscale_app_connector_enabled: true
+arch_tailscale_app_connector_enabled: false
+arch_tailscale_app_connector_retired: true
 arch_tailscale_app_connector_tag: tag:forwardmx-connector
 arch_tailscale_connector_interface: tailscale0
 arch_tailscale_connector_egress_interface: eno1
@@ -36,9 +36,7 @@ arch_hosts_entries:
   - "ff02::3 ip6-allhosts"
   - "2a01:4f9:5a:2618::2 scherbius.vitorpy.com scherbius"
 
-arch_host_firewall_allowed_tcp_ports_extra:
-  - 3334
-  - 4000
+arch_host_firewall_allowed_tcp_ports_extra: []
 
 arch_locked_users:
   - tiago
@@ -50,7 +48,7 @@ arch_retired_systemd_units:
   - name: lob-ws-bridge.service
     path: /etc/systemd/system/lob-ws-bridge.service
 
-arch_bitmagnet_enabled: true
+arch_bitmagnet_enabled: false
 arch_bitmagnet_build_patched_image: true
 arch_bitmagnet_image: "{{ arch_bitmagnet_patched_image }}"
 arch_bitmagnet_http_bind: 100.125.115.90
@@ -60,18 +58,13 @@ arch_bitmagnet_dht_bootstrap_nodes:
   - 212.129.33.59:6881
   - 185.157.221.247:25401
 
-arch_nginx_managed_confs:
-  - name: vitorpy.conf
-    src: nginx/vitorpy.conf.j2
-  - name: jellyfin.conf
-    src: nginx/jellyfin.conf.j2
+arch_nginx_managed_confs: []
 
 arch_nginx_removed_confs:
   - atproto-bot-webhook.conf
   - lob-web.conf
+  - gramps.conf
+  - jellyfin.conf
+  - vitorpy.conf
 
-arch_nginx_removed_blocks:
-  - path: /etc/nginx/conf.d/vitorpy.conf
-    regexp: '(?ms)^    (?:# Proxy for noreposts feed service\n)?    location /noreposts/ \{\n.*?^    \}\n\n'
-  - path: /etc/nginx/conf.d/vitorpy.conf
-    regexp: '(?ms)^(?:# NoReposts Feed Generator\n)?server \{\n(?:(?!^server \{).)*?server_name following-no-reposts\.vitorpy\.com;(?:(?!^server \{).)*?^\}\n\n?'
+arch_nginx_removed_blocks: []

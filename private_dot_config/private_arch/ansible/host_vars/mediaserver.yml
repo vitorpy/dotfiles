@@ -1,13 +1,21 @@
 ---
 arch_hostname: mediaserver
 arch_timezone: Europe/Warsaw
+arch_memory_pressure_managed: true
+arch_memory_pressure_enabled: false
 
 arch_host_pacman_packages_extra:
   - 7zip
+  - aardvark-dns
   - calibre
+  - caddy
+  - crun
+  - netavark
+  - podman
   - tailscale
   - uv
   - vpl-gpu-rt
+  - zram-generator
 arch_host_aur_packages_extra:
   - bazarr
   - flaresolverr

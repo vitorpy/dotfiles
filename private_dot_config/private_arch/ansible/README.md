@@ -260,9 +260,9 @@ provider resource.
 
 MediaServer's unused Hermes gateway was disabled, and its package and service
 flags were removed from the active host profile. The `hermes-agent` and
-`hermes-agent-debug` packages were subsequently removed. A disabled user unit
-remains at `~/.config/systemd/user/hermes-gateway.service`; its contents differ
-from the current Ansible template.
+`hermes-agent-debug` packages were subsequently removed. The disabled user
+unit at `~/.config/systemd/user/hermes-gateway.service` was removed and the
+user service manager reloaded; `LoadState=not-found` was verified.
 
 If the host is reactivated, restore its entry under `devbox` in
 `inventory/hosts.yml` before previewing or applying the retained playbook:

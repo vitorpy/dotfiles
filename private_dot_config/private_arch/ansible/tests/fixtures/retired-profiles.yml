@@ -1,0 +1,15 @@
+---
+# Test-only inventory for retained profiles and retired host variables.
+# The active inventory is inventory/hosts.yml.
+all:
+  children:
+    workstation:
+      children:
+        corp_workstation:
+          hosts:
+            profile_probe: {}
+    server:
+      children:
+        devbox:
+          hosts:
+            scherbius: {}

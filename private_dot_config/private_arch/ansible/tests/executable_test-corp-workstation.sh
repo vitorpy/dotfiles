@@ -7,6 +7,7 @@ all_vars="${repo_root}/group_vars/all.yml"
 workstation_vars="${repo_root}/group_vars/workstation.yml"
 corp_vars="${repo_root}/group_vars/corp_workstation.yml"
 inventory="${repo_root}/inventory/hosts.yml"
+profile_fixture="${repo_root}/tests/fixtures/retired-profiles.yml"
 archiso_build="${repo_root}/../archiso/framework12/build.sh"
 if [[ ! -f "${archiso_build}" ]]; then
   archiso_build="${repo_root}/../archiso/framework12/executable_build.sh"
@@ -17,7 +18,13 @@ inventory_json="$(
   ANSIBLE_CONFIG="${repo_root}/ansible.cfg" \
     ANSIBLE_LOCAL_TEMP="${ansible_temp}/local" \
     ANSIBLE_REMOTE_TEMP="${ansible_temp}/remote" \
-    ansible-inventory --list
+    ansible-inventory --playbook-dir "${repo_root}" --list
+)"
+profile_json="$(
+  ANSIBLE_CONFIG="${repo_root}/ansible.cfg" \
+    ANSIBLE_LOCAL_TEMP="${ansible_temp}/local" \
+    ANSIBLE_REMOTE_TEMP="${ansible_temp}/remote" \
+    ansible-inventory --playbook-dir "${repo_root}" -i "${profile_fixture}" --list
 )"
 
 require_literal() {
@@ -43,16 +50,20 @@ require_literal "arch_corp_workstation_enabled: false" "${all_vars}"
 require_literal "arch_aur_packages_corporate:" "${all_vars}"
 require_literal "arch_corp_workstation_enabled: true" "${corp_vars}"
 require_literal "+ (arch_aur_packages_corporate if arch_corp_workstation_enabled else [])" "${workstation_vars}"
-require_literal "corp_workstation:" "${inventory}"
-require_literal "rivest:" "${inventory}"
+require_literal "corp_workstation:" "${profile_fixture}"
+require_literal "profile_probe:" "${profile_fixture}"
 require_literal "arch_aur_packages_corporate" "${archiso_build}"
 
 jq -e '
-  .corp_workstation.hosts == ["rivest"] and
-  (.workstation.children | index("corp_workstation") != null) and
+  (._meta.hostvars | keys | sort) == ["mediaserver", "zygalski"] and
+  .media_servers.hosts == ["mediaserver"] and
   (.workstation.children | index("personal_workstation") != null) and
   .personal_workstation.hosts == ["zygalski"]
 ' <<< "${inventory_json}" >/dev/null
+jq -e '
+  .corp_workstation.hosts == ["profile_probe"] and
+  (.workstation.children | index("corp_workstation") != null)
+' <<< "${profile_json}" >/dev/null
 
 require_single_package_declaration 1password
 require_single_package_declaration 1password-cli
@@ -61,11 +72,13 @@ require_single_package_declaration noirup-bin
 require_single_package_declaration foundry-bin
 
 jq -e '
-  ._meta.hostvars.rivest.arch_huffc_enabled == true and
+  ._meta.hostvars.profile_probe.arch_huffc_enabled == true and
+  (._meta.hostvars.profile_probe.arch_aur_packages_corporate | index("noirup-bin") != null) and
+  (._meta.hostvars.profile_probe.arch_aur_packages_corporate | index("foundry-bin") != null)
+' <<< "${profile_json}" >/dev/null
+jq -e '
   ._meta.hostvars.zygalski.arch_huffc_enabled == false and
-  ._meta.hostvars.dembe.arch_huffc_enabled == false and
-  (._meta.hostvars.rivest.arch_aur_packages_corporate | index("noirup-bin") != null) and
-  (._meta.hostvars.rivest.arch_aur_packages_corporate | index("foundry-bin") != null)
+  ._meta.hostvars.mediaserver.arch_huffc_enabled == false
 ' <<< "${inventory_json}" >/dev/null
 
 echo "Corporate workstation invariants passed"

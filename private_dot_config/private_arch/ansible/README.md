@@ -211,10 +211,13 @@ User-installed Noir toolchains are managed separately by noirup.
   `zygalski` is currently the only member.
 - `group_vars/corp_workstation.yml` inherits the workstation profile and adds
   corporate-only packages, including the Roam workplace app (`roam` from the
-  AUR). Rivest is currently the only member.
+  AUR). It has no active host; a test-only fixture checks the retained profile.
 - `group_vars/server.yml` keeps a smaller CLI-oriented package set and disables desktop roles.
 
-To target a different host or profile, extend `inventory/hosts.yml`.
+The active inventory contains only this laptop (`zygalski`) and `mediaserver`.
+Retired host variables remain in the repository for review and rollback, but
+they are not deployment targets. To target a different host or profile, extend
+`inventory/hosts.yml`.
 
 ## MediaServer public Funnel routes
 

@@ -6,6 +6,7 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 all_vars="${repo_root}/group_vars/all.yml"
 personal_vars="${repo_root}/group_vars/personal_workstation.yml"
 corp_vars="${repo_root}/group_vars/corp_workstation.yml"
+profile_fixture="${repo_root}/tests/fixtures/retired-profiles.yml"
 package_tasks="${repo_root}/roles/packages/tasks/main.yml"
 google_earth_desktop="${repo_root}/roles/packages/templates/google-earth-pro.desktop.j2"
 ansible_temp="$(mktemp -d /tmp/ansible-personal-workstation-test.XXXXXX)"
@@ -26,7 +27,7 @@ corp_host_json="$(
   ANSIBLE_CONFIG="${repo_root}/ansible.cfg" \
     ANSIBLE_LOCAL_TEMP="${ansible_temp}/local" \
     ANSIBLE_REMOTE_TEMP="${ansible_temp}/remote" \
-    ansible-inventory --playbook-dir "${repo_root}" --host rivest
+    ansible-inventory --playbook-dir "${repo_root}" -i "${profile_fixture}" --host profile_probe
 )"
 
 require_literal() {
@@ -67,10 +68,10 @@ require_literal "    - google-earth-pro" "${package_tasks}"
 require_literal "Exec=/usr/bin/env BROWSER=/usr/bin/google-chrome-stable" "${google_earth_desktop}"
 
 jq -e '
+  (._meta.hostvars | keys | sort) == ["mediaserver", "zygalski"] and
   .personal_workstation.hosts == ["zygalski"] and
-  .corp_workstation.hosts == ["rivest"] and
-  (.workstation.children | index("personal_workstation") != null) and
-  (.workstation.children | index("corp_workstation") != null)
+  .media_servers.hosts == ["mediaserver"] and
+  (.workstation.children | index("personal_workstation") != null)
 ' <<< "${inventory_json}" >/dev/null
 
 jq -e '

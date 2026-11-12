@@ -216,6 +216,35 @@ User-installed Noir toolchains are managed separately by noirup.
 
 To target a different host or profile, extend `inventory/hosts.yml`.
 
+## MediaServer public Funnel routes
+
+MediaServer runs two persistent Tailscale Funnel HTTPS listeners on its
+`mediaserver.tail246377.ts.net` name:
+
+| Port | Service | Local target |
+| --- | --- | --- |
+| 443 | Gramps Web and MCP | `127.0.0.1:8088` (Caddy) |
+| 8443 | Jellyfin | `127.0.0.1:8096` |
+
+Jellyfin is at <https://mediaserver.tail246377.ts.net:8443/web/>. Reapply its
+Funnel route from this directory with Ansible privilege escalation, then check
+the route and Jellyfin's health:
+
+```bash
+ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ansible -i inventory/hosts.yml \
+  mediaserver -b -m ansible.builtin.command \
+  -a 'tailscale funnel --bg --https=8443 http://127.0.0.1:8096'
+ssh -F none 192.168.1.94 'tailscale funnel status'
+curl --noproxy '*' -fsS https://mediaserver.tail246377.ts.net:8443/health
+```
+
+The `--bg` setting persists across Tailscale restarts. For rollback, disable
+only Jellyfin's Funnel listener through the same privileged Ansible path with
+`tailscale funnel --https=8443 off`; Gramps on 443 remains in place.
+`jellyfin.vitorpy.com` still resolves to Scherbius's nginx proxy during client
+migration. The main `vitorpy.com` site is published through GitHub Pages and
+does not require Scherbius.
+
 ## Retired Scherbius friend access
 
 Scherbius preserves the home directories for the retired `tiago` and `matas`

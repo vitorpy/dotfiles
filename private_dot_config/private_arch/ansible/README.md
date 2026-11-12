@@ -244,29 +244,28 @@ only Jellyfin's Funnel listener through the same privileged Ansible path with
 The main `vitorpy.com` site is published through GitHub Pages and does not
 require Scherbius.
 
-## Scherbius service retirement
+## Scherbius retirement (2026-11-12)
 
-The managed `retire-scherbius.yml` playbook stops and disables Scherbius's
-nginx and Ollama services, disables the Hermes gateway, masks the inactive
-Bitmagnet services, removes the retired nginx sites after saving private copies,
-and disables its ForwardMX Tailscale app connector. It applies the managed
-firewall and sysctl settings with SSH and Tailscale access retained. Scherbius
-remains online with its home directories and research data intact; retiring the
-host itself requires a separate data preservation plan.
+The managed `retire-scherbius.yml` playbook stopped and disabled Scherbius's
+nginx, Ollama, and Hermes services, masked the inactive Bitmagnet services,
+removed the retired nginx sites after saving private copies,
+and disabled its ForwardMX Tailscale app connector. The managed firewall and
+sysctl settings retained SSH and Tailscale access until the final shutdown.
+Scherbius was powered off on 2026-11-12 and removed from the active inventory.
+Its working data was not copied or wiped; the powered-off storage remains with
+the host until the provider resource is separately deprovisioned.
 
-From this directory, preview and apply the scoped playbook:
+If the host is reactivated, restore its entry under `devbox` in
+`inventory/hosts.yml` before previewing or applying the retained playbook:
 
 ```bash
 ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ansible-playbook -i inventory/hosts.yml retire-scherbius.yml --check --diff
 ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ansible-playbook -i inventory/hosts.yml retire-scherbius.yml --diff
 ```
 
-Check that nginx, Ollama, Hermes, and Bitmagnet are inactive; that Tailscale is
-still reachable but no longer advertises the app connector; and that the new
-MediaServer Gramps and Jellyfin Funnel URLs work. Remove the obsolete
-`jellyfin.vitorpy.com` and `genealogy.vitorpy.com` CNAME records at deSEC; both
-previously pointed to Scherbius. `vitorpy.com` and `www.vitorpy.com` stay on
-GitHub Pages.
+The obsolete `jellyfin.vitorpy.com` and `genealogy.vitorpy.com` CNAME records
+were removed at deSEC. Gramps and Jellyfin use MediaServer's Funnel URLs.
+`vitorpy.com` and `www.vitorpy.com` stay on GitHub Pages.
 
 To restore an individual retired service, first restore its managed inventory
 flag or nginx site definition, then apply the relevant role and start its unit.
